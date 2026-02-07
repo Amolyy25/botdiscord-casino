@@ -12,7 +12,8 @@ const initDb = async () => {
       last_daily BIGINT DEFAULT 0,
       last_vole BIGINT DEFAULT 0,
       tirages INTEGER DEFAULT 2,
-      last_weekly_tirage BIGINT DEFAULT 0
+      last_weekly_tirage BIGINT DEFAULT 0,
+      last_boost BIGINT DEFAULT 0
     )
   `);
 };
@@ -80,6 +81,13 @@ module.exports = {
     await module.exports.getUser(id);
     await pool.query(
       'UPDATE users SET last_weekly_tirage = $1 WHERE id = $2',
+      [time.toString(), id]
+    );
+  },
+  updateBoost: async (id, time) => {
+    await module.exports.getUser(id);
+    await pool.query(
+      'UPDATE users SET last_boost = $1 WHERE id = $2',
       [time.toString(), id]
     );
   },

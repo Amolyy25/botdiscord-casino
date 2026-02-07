@@ -13,6 +13,7 @@ module.exports = {
             `\`${prefix}daily\` - Récupérer 200 coins quotidiennement`,
             `\`${prefix}gift @user/ID [montant]\` - Donner des coins`,
             `\`${prefix}vole @user/ID\` - Tenter de voler un utilisateur`,
+            `\`${prefix}boost\` - Récupérer votre boost quotidien (Soutien/Booster)`,
             ``,
             `**Tirages 🎫**`,
             `\`${prefix}tirage\` - Effectuer un tirage pour obtenir un rôle`,
