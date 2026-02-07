@@ -37,20 +37,33 @@ module.exports = {
             rolesFound.push('Booster');
         }
 
+        let description = '';
+        const missingSoutien = !member.roles.cache.has(BOOSTER_ROLE_ID);
+
         if (reward === 0n) {
+            description = `Vous n'avez pas les rôles requis pour cette commande.\n\n**Rôles éligibles :**\n• Soutien : +100 coins\n• Booster : +300 coins`;
+            if (missingSoutien) {
+                description += `\n\n👉 Obtenez le rôle **Soutien** dans le salon <#1469072587287036059> !`;
+            }
             return message.reply({ 
-                embeds: [createEmbed('Aucun rôle éligible', `Vous n'avez pas les rôles requis pour cette commande.\n\n**Rôles éligibles :**\n• Soutien : +100 coins\n• Booster : +300 coins`, COLORS.ERROR)]
+                embeds: [createEmbed('Aucun rôle éligible', description, COLORS.ERROR)]
             });
         }
 
         await db.updateBalance(message.author.id, reward);
         await db.updateBoost(message.author.id, now);
 
+        description = `Grâce à vos rôles **${rolesFound.join(' et ')}**, vous avez reçu :\n\n` +
+                      `💰 **+${formatCoins(reward)}**\n\n` +
+                      `Revenez dans 24h !`;
+
+        if (missingSoutien) {
+            description += `\n\n💡 **Astuce :** Obtenez le rôle **Soutien** dans <#1469072587287036059> pour gagner +100 coins supplémentaires !`;
+        }
+
         const embed = createEmbed(
             'Boost récupéré ! 🚀',
-            `Grâce à vos rôles **${rolesFound.join(' et ')}**, vous avez reçu :\n\n` +
-            `💰 **+${formatCoins(reward)}**\n\n` +
-            `Revenez dans 24h !`,
+            description,
             COLORS.SUCCESS
         );
 
