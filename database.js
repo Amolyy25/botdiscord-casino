@@ -146,6 +146,16 @@ module.exports = {
     );
   },
 
+  getBountiesByAuthor: async (authorId) => {
+    const res = await pool.query('SELECT * FROM bounties WHERE author_id = $1 ORDER BY created_at DESC', [authorId]);
+    return res.rows;
+  },
+
+  getBountiesByWinner: async (winnerId) => {
+    const res = await pool.query('SELECT * FROM bounties WHERE winner_id = $1 ORDER BY created_at DESC', [winnerId]);
+    return res.rows;
+  },
+
   // Config System
   setConfig: async (key, value) => {
     await pool.query(
