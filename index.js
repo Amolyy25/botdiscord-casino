@@ -3,7 +3,7 @@ const { Client, GatewayIntentBits, Collection, InteractionResponseType, Permissi
 const fs = require('fs');
 const path = require('path');
 const db = require('./database');
-const { COLORS, createEmbed } = require('./utils');
+const { COLORS, createEmbed, formatCoins } = require('./utils');
 
 const client = new Client({
     intents: [
@@ -147,10 +147,6 @@ client.on('interactionCreate', async interaction => {
                         allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
                     },
                     {
-                        id: casinoRoleId,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
-                    },
-                    {
                         id: '1469071689848721510', // Staff Role
                         allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
                     }
@@ -205,10 +201,6 @@ client.on('interactionCreate', async interaction => {
                     },
                     {
                         id: interaction.user.id,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
-                    },
-                    {
-                        id: casinoRoleId,
                         allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
                     },
                     {
