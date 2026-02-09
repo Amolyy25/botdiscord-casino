@@ -1,9 +1,9 @@
-const { createEmbed, COLORS } = require("../utils");
+const { createEmbed, COLORS, formatCoins } = require("../utils");
 const { drawRole, ROLE_POOL, WINS_CHANNEL_ID } = require("../roleConfig");
 
 module.exports = {
   name: "tirage",
-  description: "Effectue un tirage pour obtenir un rôle de couleur",
+  description: "Effectue un tirage pour obtenir un rôle de couleur ou des coins",
   async execute(message, args, db) {
     const user = await db.getUser(message.author.id);
 
@@ -20,23 +20,73 @@ module.exports = {
     }
 
     // Perform the draw
-    const wonRole = drawRole();
-    const probability = (wonRole.probability * 100).toFixed(3);
+    const wonReward = drawRole();
+    const probability = (wonReward.probability * 100).toFixed(3);
 
     // Remove one tirage
     await db.updateTirages(message.author.id, -1);
 
-    // Try to assign the role
+    // Determine rarity emoji
+    let rarityEmoji = "🔸";
+    let rarityText = "Commun";
+    if (wonReward.probability < 0.01) {
+      rarityEmoji = "💎";
+      rarityText = "ULTRA RARE";
+    } else if (wonReward.probability < 0.05) {
+      rarityEmoji = "⭐";
+      rarityText = "RARE";
+    } else if (wonReward.probability < 0.15) {
+      rarityEmoji = "🔹";
+      rarityText = "Peu commun";
+    }
+
+    // Handle Coins Reward
+    if (wonReward.type === 'coins') {
+        const amount = BigInt(wonReward.amount);
+        await db.updateBalance(message.author.id, amount);
+
+        // Announce in wins channel
+        try {
+            const winsChannel = await message.client.channels.fetch(WINS_CHANNEL_ID);
+            if (winsChannel) {
+              const winEmbed = createEmbed(
+                `${rarityEmoji} TIRAGE : COINS GAGNÉS !`,
+                `**${message.author.username}** a gagné **${formatCoins(amount)}** dans un tirage !\n\n` +
+                  `**Rareté:** ${rarityText}\n` +
+                  `**Probabilité:** ${probability}%`,
+                wonReward.color,
+              );
+              winEmbed.setThumbnail(
+                message.author.displayAvatarURL({ dynamic: true }),
+              );
+              await winsChannel.send({ embeds: [winEmbed] });
+            }
+        } catch (e) {
+            console.error("Failed to send coin tirage announcement:", e);
+        }
+
+        const embed = createEmbed(
+            `${rarityEmoji} Tirage réussi !`,
+            `Vous avez gagné **${formatCoins(amount)}** !\n\n` +
+              `**Rareté:** ${rarityText}\n` +
+              `**Probabilité:** ${probability}%\n\n` +
+              `Tirages restants: **${user.tirages - 1}** 🎫`,
+            wonReward.color,
+        );
+        return message.reply({ embeds: [embed] });
+    }
+
+    // Handle Role Reward
     try {
       const member = await message.guild.members.fetch(message.author.id);
-      const role = message.guild.roles.cache.get(wonRole.id);
+      const role = message.guild.roles.cache.get(wonReward.id);
 
       if (!role) {
         return message.reply({
           embeds: [
             createEmbed(
               "Erreur",
-              `Le rôle **${wonRole.name}** n'existe pas sur ce serveur.`,
+              `Le rôle **${wonReward.name}** n'existe pas sur ce serveur.`,
               COLORS.ERROR,
             ),
           ],
@@ -44,46 +94,32 @@ module.exports = {
       }
 
       // Check if user already has this role
-      if (member.roles.cache.has(wonRole.id)) {
+      if (member.roles.cache.has(wonReward.id)) {
         return message.reply({
           embeds: [
             createEmbed(
               "Dommage, déjà possédé ! 🎫",
-              `Vous possédez déjà le rôle <@&${wonRole.id}> !\n\nVotre tirage a été consommé mais vous pouvez retenter votre chance.\n\nTirages restants: **${user.tirages - 1}** 🎫`,
+              `Vous possédez déjà le rôle <@&${wonReward.id}> !\n\nVotre tirage a été consommé mais vous pouvez retenter votre chance.\n\nTirages restants: **${user.tirages - 1}** 🎫`,
               COLORS.ERROR,
             ),
           ],
         });
       }
 
-      // Add the new role (without removing others)
+      // Add the new role
       await member.roles.add(role);
 
-      // Determine rarity emoji
-      let rarityEmoji = "🔸";
-      let rarityText = "Commun";
-      if (wonRole.probability < 0.01) {
-        rarityEmoji = "💎";
-        rarityText = "ULTRA RARE";
-      } else if (wonRole.probability < 0.05) {
-        rarityEmoji = "⭐";
-        rarityText = "RARE";
-      } else if (wonRole.probability < 0.15) {
-        rarityEmoji = "🔹";
-        rarityText = "Peu commun";
-      }
-
-      // Announce ALL tirages in wins channel
+      // Announce role win
       try {
         const winsChannel =
           await message.client.channels.fetch(WINS_CHANNEL_ID);
         if (winsChannel) {
           const winEmbed = createEmbed(
             `${rarityEmoji} NOUVEAU RÔLE OBTENU !`,
-            `**${message.author.username}** a obtenu le rôle <@&${wonRole.id}> !\n\n` +
+            `**${message.author.username}** a obtenu le rôle <@&${wonReward.id}> !\n\n` +
               `**Rareté:** ${rarityText}\n` +
               `**Probabilité:** ${probability}%`,
-            wonRole.color,
+            wonReward.color,
           );
           winEmbed.setThumbnail(
             message.author.displayAvatarURL({ dynamic: true }),
@@ -91,16 +127,16 @@ module.exports = {
           await winsChannel.send({ embeds: [winEmbed] });
         }
       } catch (e) {
-        console.error("Failed to send tirage announcement:", e);
+        console.error("Failed to send role tirage announcement:", e);
       }
 
       const embed = createEmbed(
         `${rarityEmoji} Tirage réussi !`,
-        `Vous avez obtenu le rôle <@&${wonRole.id}> !\n\n` +
+        `Vous avez obtenu le rôle <@&${wonReward.id}> !\n\n` +
           `**Rareté:** ${rarityText}\n` +
           `**Probabilité:** ${probability}%\n\n` +
           `Tirages restants: **${user.tirages - 1}** 🎫`,
-        wonRole.color,
+        wonReward.color,
       );
 
       message.reply({ embeds: [embed] });

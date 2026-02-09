@@ -79,9 +79,13 @@ module.exports = {
             let rolesDisplay = '';
             const sortedRoles = [...ROLE_POOL].sort((a, b) => a.probability - b.probability);
             
-            for (const role of sortedRoles) {
-                const percentage = (role.probability * 100).toFixed(3);
-                rolesDisplay += `<@&${role.id}> - ${percentage}%\n`;
+            for (const reward of sortedRoles) {
+                const percentage = (reward.probability * 100).toFixed(3);
+                if (reward.type === 'coins') {
+                    rolesDisplay += `**${reward.amount} Coins** - ${percentage}%\n`;
+                } else {
+                    rolesDisplay += `<@&${reward.id}> - ${percentage}%\n`;
+                }
             }
 
             // Create the main embed
