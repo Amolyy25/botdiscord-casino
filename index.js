@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const db = require('./database');
 const { COLORS, createEmbed, formatCoins } = require('./utils');
+const mathQuiz = require('./events/mathQuiz');
 
 const client = new Client({
     intents: [
@@ -31,6 +32,10 @@ client.once('clientReady', async () => {
     try {
         await db.initDb();
         console.log('Database initialized');
+
+        // Init Math Quiz System
+        await mathQuiz.init(client, db);
+
     } catch (err) {
         console.error('Failed to initialize database:', err);
     }
