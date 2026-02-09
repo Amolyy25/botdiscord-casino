@@ -14,7 +14,24 @@ const initDb = async () => {
       tirages INTEGER DEFAULT 2,
       last_weekly_tirage BIGINT DEFAULT 0,
       last_boost BIGINT DEFAULT 0
-    )
+    );
+    
+    CREATE TABLE IF NOT EXISTS bounties (
+      id SERIAL PRIMARY KEY,
+      message_id TEXT,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      reward BIGINT NOT NULL,
+      author_id TEXT NOT NULL,
+      winner_id TEXT,
+      status TEXT DEFAULT 'active',
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS system_config (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    );
   `);
 };
 
@@ -97,5 +114,48 @@ module.exports = {
       [limit]
     );
     return res.rows;
+  },
+
+  // Bounty System
+  createBounty: async (title, description, reward, authorId) => {
+    const res = await pool.query(
+      'INSERT INTO bounties (title, description, reward, author_id) VALUES ($1, $2, $3, $4) RETURNING *',
+      [title, description, BigInt(reward), authorId]
+    );
+    return res.rows[0];
+  },
+
+  getBounty: async (id) => {
+    const res = await pool.query('SELECT * FROM bounties WHERE id = $1', [id]);
+    return res.rows[0];
+  },
+
+  getAllActiveBounties: async () => {
+      const res = await pool.query('SELECT * FROM bounties WHERE status = \'active\' ORDER BY created_at DESC');
+      return res.rows;
+  },
+
+  updateBountyMessageId: async (id, messageId) => {
+    await pool.query('UPDATE bounties SET message_id = $1 WHERE id = $2', [messageId, id]);
+  },
+
+  closeBounty: async (id, winnerId) => {
+    await pool.query(
+      'UPDATE bounties SET status = \'closed\', winner_id = $1 WHERE id = $2',
+      [winnerId, id]
+    );
+  },
+
+  // Config System
+  setConfig: async (key, value) => {
+    await pool.query(
+      'INSERT INTO system_config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2',
+      [key, value]
+    );
+  },
+
+  getConfig: async (key) => {
+    const res = await pool.query('SELECT value FROM system_config WHERE key = $1', [key]);
+    return res.rows[0]?.value;
   }
 };

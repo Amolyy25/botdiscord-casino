@@ -123,6 +123,109 @@ client.on('interactionCreate', async interaction => {
             }).catch(() => {});
         }
     }
+
+    // Bounty System Interactions
+    if (interaction.customId === 'propose_bounty') {
+        const categoryId = '1469071692172361836';
+        const casinoRoleId = '1469713522194780404';
+
+        try {
+            const channelName = `prime-prop-${interaction.user.username}`;
+            const channel = await interaction.guild.channels.create({
+                name: channelName,
+                type: 0, // GUILD_TEXT
+                parent: categoryId,
+                topic: `Bounty Author: ${interaction.user.id}`,
+                permissionOverwrites: [
+                    {
+                        id: interaction.guild.id,
+                        deny: [PermissionFlagsBits.ViewChannel],
+                    },
+                    {
+                        id: interaction.user.id,
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
+                    },
+                    {
+                        id: casinoRoleId,
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
+                    },
+                ],
+            });
+
+            const embed = createEmbed(
+                '📝 Proposition de Prime',
+                `Bonjour <@${interaction.user.id}> !\n\n` +
+                `Décrivez votre proposition de prime ici (Titre, Description, Récompense).\n` +
+                `Un administrateur viendra valider et lancer la commande \`;prime\`.\n\n` +
+                `*Ce ticket se fermera une fois la prime validée.*`,
+                COLORS.PRIMARY
+            );
+
+            await channel.send({ content: `<@${interaction.user.id}>`, embeds: [embed] });
+
+            interaction.reply({ content: `✅ Ticket créé : ${channel}`, flags: 64 });
+
+        } catch (error) {
+            console.error(error);
+            interaction.reply({ content: '❌ Erreur lors de la création du ticket.', flags: 64 });
+        }
+    }
+
+    if (interaction.customId.startsWith('accept_bounty_')) {
+        const bountyId = interaction.customId.split('_')[2];
+        const categoryId = '1469071692172361836';
+        const casinoRoleId = '1469713522194780404';
+
+        try {
+            const bounty = await db.getBounty(bountyId);
+            if (!bounty || bounty.status !== 'active') {
+                return interaction.reply({ content: '❌ Cette prime n\'est plus disponible.', flags: 64 });
+            }
+
+            if (bounty.author_id === interaction.user.id) {
+                 return interaction.reply({ content: '❌ Vous ne pouvez pas accepter votre propre prime.', flags: 64 });
+            }
+
+            const channelName = `preuve-${bountyId}-${interaction.user.username}`;
+            const channel = await interaction.guild.channels.create({
+                name: channelName,
+                type: 0, // GUILD_TEXT
+                parent: categoryId,
+                topic: `Bounty Proof: ${bountyId} | User: ${interaction.user.id}`,
+                permissionOverwrites: [
+                    {
+                        id: interaction.guild.id,
+                        deny: [PermissionFlagsBits.ViewChannel],
+                    },
+                    {
+                        id: interaction.user.id,
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
+                    },
+                    {
+                        id: casinoRoleId,
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
+                    },
+                ],
+            });
+
+            const embed = createEmbed(
+                `🕵️ Preuve pour la Prime #${bountyId}`,
+                `Vous avez accepté la prime : **${bounty.title}**\n\n` +
+                `Envoyez ici la preuve de votre réalisation (Screenshot, lien, etc.).\n` +
+                `Un administrateur validera avec \`;primefini\` pour vous transférer les **${formatCoins(bounty.reward)}**.\n\n` +
+                `*Bonne chance !*`,
+                COLORS.VIOLET
+            );
+
+            await channel.send({ content: `<@${interaction.user.id}>`, embeds: [embed] });
+
+            interaction.reply({ content: `✅ Ticket de preuve ouvert : ${channel}`, flags: 64 });
+
+        } catch (error) {
+            console.error(error);
+            interaction.reply({ content: '❌ Erreur lors de l\'ouverture du ticket.', flags: 64 });
+        }
+    }
 });
 
 client.login(process.env.TOKEN);
