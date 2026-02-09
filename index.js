@@ -130,7 +130,8 @@ client.on('interactionCreate', async interaction => {
         const casinoRoleId = '1469713522194780404';
 
         try {
-            const channelName = `prime-prop-${interaction.user.username}`;
+            const safeUsername = interaction.user.username.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20);
+            const channelName = `prime-prop-${safeUsername}`;
             const channel = await interaction.guild.channels.create({
                 name: channelName,
                 type: 0, // GUILD_TEXT
@@ -149,6 +150,10 @@ client.on('interactionCreate', async interaction => {
                         id: casinoRoleId,
                         allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
                     },
+                    {
+                        id: '1469071689848721510', // Staff Role
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
+                    }
                 ],
             });
 
@@ -166,8 +171,8 @@ client.on('interactionCreate', async interaction => {
             interaction.reply({ content: `✅ Ticket créé : ${channel}`, flags: 64 });
 
         } catch (error) {
-            console.error(error);
-            interaction.reply({ content: '❌ Erreur lors de la création du ticket.', flags: 64 });
+            console.error('Error creating proposal ticket:', error);
+            interaction.reply({ content: '❌ Erreur lors de la création du ticket. Vérifiez mes permissions.', flags: 64 }).catch(() => {});
         }
     }
 
@@ -186,7 +191,8 @@ client.on('interactionCreate', async interaction => {
                  return interaction.reply({ content: '❌ Vous ne pouvez pas accepter votre propre prime.', flags: 64 });
             }
 
-            const channelName = `preuve-${bountyId}-${interaction.user.username}`;
+            const safeUsername = interaction.user.username.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20);
+            const channelName = `preuve-${bountyId}-${safeUsername}`;
             const channel = await interaction.guild.channels.create({
                 name: channelName,
                 type: 0, // GUILD_TEXT
@@ -205,6 +211,10 @@ client.on('interactionCreate', async interaction => {
                         id: casinoRoleId,
                         allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
                     },
+                    {
+                        id: '1469071689848721510', // Staff Role
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
+                    }
                 ],
             });
 
@@ -222,8 +232,8 @@ client.on('interactionCreate', async interaction => {
             interaction.reply({ content: `✅ Ticket de preuve ouvert : ${channel}`, flags: 64 });
 
         } catch (error) {
-            console.error(error);
-            interaction.reply({ content: '❌ Erreur lors de l\'ouverture du ticket.', flags: 64 });
+            console.error('Error creating proof ticket:', error);
+            interaction.reply({ content: `❌ Erreur lors de l'ouverture du ticket : ${error.message}`, flags: 64 }).catch(() => {});
         }
     }
 });
