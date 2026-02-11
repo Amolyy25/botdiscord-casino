@@ -29,11 +29,11 @@ module.exports = {
             });
         }
 
-        await db.updateBalance(target.id, -parseInt(amount));
+        await db.updateBalance(target.id, -BigInt(amount));
 
         const embed = createEmbed(
             'Admin: Retrait de coins',
-            `${formatCoins(amount)} ont été retirés du compte de **${target.username || target.id}**.`,
+            `${formatCoins(BigInt(amount))} ont été retirés du compte de **${target.username || target.id}**.`,
             COLORS.SUCCESS
         );
 

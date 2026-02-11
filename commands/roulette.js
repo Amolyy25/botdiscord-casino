@@ -22,6 +22,9 @@ module.exports = {
             });
         }
 
+        // Deduct bet immediately
+        await db.updateBalance(message.author.id, -bet);
+
         const outcome = Math.floor(Math.random() * 37);
         let resultColor;
         
@@ -35,11 +38,12 @@ module.exports = {
         if (choice === resultColor) {
             win = true;
             gain = choice === 'vert' ? bet * 35n : bet;
+            // Refund bet + gain
+            await db.updateBalance(message.author.id, bet + gain);
         } else {
             gain = -bet;
+            // Bet already deducted
         }
-
-        await db.updateBalance(message.author.id, gain);
 
         // Announce big wins (500+ coins)
         if (win && gain >= 500n) {

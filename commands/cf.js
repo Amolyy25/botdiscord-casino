@@ -20,11 +20,18 @@ module.exports = {
             });
         }
 
+        // Deduct bet immediately
+        await db.updateBalance(message.author.id, -bet);
+
         const outcome = Math.random() < 0.5 ? 'pile' : 'face';
         const win = side === outcome;
         const gain = win ? bet : -bet;
 
-        await db.updateBalance(message.author.id, gain);
+        if (win) {
+            // Refund bet + gain
+            await db.updateBalance(message.author.id, bet + bet);
+        }
+        // If lost, bet is already deducted
 
         // Announce big wins (500+ coins)
         if (win && bet >= 500n) {

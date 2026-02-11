@@ -20,6 +20,9 @@ module.exports = {
             });
         }
 
+        // Deduct bet immediately to prevent exploits
+        await db.updateBalance(message.author.id, -bet);
+
         const deck = createDeck();
         const playerHand = [drawCard(deck), drawCard(deck)];
         const dealerHand = [drawCard(deck), drawCard(deck)];
@@ -124,7 +127,7 @@ module.exports = {
             if (i.customId === 'hit') {
                 playerHand.push(drawCard(deck));
                 if (getHandValue(playerHand) > 21) {
-                    await db.updateBalance(message.author.id, -bet);
+                    // Bet already deducted, just show loss
                     await i.update({ embeds: [renderEmbed('Perdu (Buste)')], components: [] });
                     collector.stop();
                 } else {
@@ -143,7 +146,8 @@ module.exports = {
                 if (dealerVal > 21 || playerVal > dealerVal) {
                     result = 'Gagné !';
                     finalGain = bet;
-                    await db.updateBalance(message.author.id, bet);
+                    // Refund bet + win amount (2x bet)
+                    await db.updateBalance(message.author.id, bet * 2n);
                     
                     // Announce big wins (500+ coins)
                     if (bet >= 500n) {
@@ -169,9 +173,11 @@ module.exports = {
                 } else if (playerVal < dealerVal) {
                     result = 'Perdu';
                     finalGain = -bet;
-                    await db.updateBalance(message.author.id, -bet);
+                    // Bet already deducted
                 } else {
                     result = 'Égalité (Push)';
+                    // Refund bet
+                    await db.updateBalance(message.author.id, bet);
                 }
 
                 await i.update({ embeds: [renderEmbed(result, finalGain)], components: [] });

@@ -56,63 +56,83 @@ module.exports = {
     return res.rows[0];
   },
   updateBalance: async (id, amount) => {
-    await module.exports.getUser(id);
     const res = await pool.query(
-      'UPDATE users SET balance = balance + $1 WHERE id = $2 RETURNING balance',
-      [BigInt(amount), id]
+      `INSERT INTO users (id, balance, tirages) 
+       VALUES ($1, 100 + $2, 2) 
+       ON CONFLICT (id) 
+       DO UPDATE SET balance = users.balance + $2 
+       RETURNING balance`,
+      [id, BigInt(amount)]
     );
     return res.rows[0].balance;
   },
   setBalance: async (id, balance) => {
-    await module.exports.getUser(id);
     const res = await pool.query(
-      'UPDATE users SET balance = $1 WHERE id = $2 RETURNING balance',
-      [BigInt(balance), id]
+      `INSERT INTO users (id, balance, tirages) 
+       VALUES ($1, $2, 2) 
+       ON CONFLICT (id) 
+       DO UPDATE SET balance = $2 
+       RETURNING balance`,
+      [id, BigInt(balance)]
     );
     return res.rows[0].balance;
   },
   updateDaily: async (id, time) => {
-    await module.exports.getUser(id);
     await pool.query(
-      'UPDATE users SET last_daily = $1 WHERE id = $2',
-      [time.toString(), id]
+      `INSERT INTO users (id, last_daily, balance, tirages) 
+       VALUES ($1, $2, 100, 2) 
+       ON CONFLICT (id) 
+       DO UPDATE SET last_daily = $2`,
+      [id, time.toString()]
     );
   },
   updateVole: async (id, time) => {
-    await module.exports.getUser(id);
     await pool.query(
-      'UPDATE users SET last_vole = $1 WHERE id = $2',
-      [time.toString(), id]
+      `INSERT INTO users (id, last_vole, balance, tirages) 
+       VALUES ($1, $2, 100, 2) 
+       ON CONFLICT (id) 
+       DO UPDATE SET last_vole = $2`,
+      [id, time.toString()]
     );
   },
   updateTirages: async (id, amount) => {
-    await module.exports.getUser(id);
     const res = await pool.query(
-      'UPDATE users SET tirages = tirages + $1 WHERE id = $2 RETURNING tirages',
-      [amount, id]
+      `INSERT INTO users (id, tirages, balance) 
+       VALUES ($1, 2 + $2, 100) 
+       ON CONFLICT (id) 
+       DO UPDATE SET tirages = users.tirages + $2 
+       RETURNING tirages`,
+      [id, amount]
     );
     return res.rows[0].tirages;
   },
   setTirages: async (id, amount) => {
-    await module.exports.getUser(id);
     const res = await pool.query(
-      'UPDATE users SET tirages = $1 WHERE id = $2 RETURNING tirages',
-      [amount, id]
+      `INSERT INTO users (id, tirages, balance) 
+       VALUES ($1, $2, 100) 
+       ON CONFLICT (id) 
+       DO UPDATE SET tirages = $2 
+       RETURNING tirages`,
+      [id, amount]
     );
     return res.rows[0].tirages;
   },
   updateWeeklyTirage: async (id, time) => {
-    await module.exports.getUser(id);
     await pool.query(
-      'UPDATE users SET last_weekly_tirage = $1 WHERE id = $2',
-      [time.toString(), id]
+      `INSERT INTO users (id, last_weekly_tirage, balance, tirages) 
+       VALUES ($1, $2, 100, 2) 
+       ON CONFLICT (id) 
+       DO UPDATE SET last_weekly_tirage = $2`,
+      [id, time.toString()]
     );
   },
   updateBoost: async (id, time) => {
-    await module.exports.getUser(id);
     await pool.query(
-      'UPDATE users SET last_boost = $1 WHERE id = $2',
-      [time.toString(), id]
+      `INSERT INTO users (id, last_boost, balance, tirages) 
+       VALUES ($1, $2, 100, 2) 
+       ON CONFLICT (id) 
+       DO UPDATE SET last_boost = $2`,
+      [id, time.toString()]
     );
   },
   getLeaderboard: async (limit = 10) => {

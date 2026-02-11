@@ -20,9 +20,21 @@ module.exports = {
             });
         }
 
+        // Fetch users in parallel for speed
+        const entries = await Promise.all(leaderboard.map(async (entry) => {
+            let displayName;
+            try {
+                // Try cache first
+                const user = message.client.users.cache.get(entry.id) || await message.client.users.fetch(entry.id);
+                displayName = user.username;
+            } catch (e) {
+                displayName = `<@${entry.id}>`;
+            }
+            return { ...entry, displayName };
+        }));
+
         let description = '';
-        for (let i = 0; i < leaderboard.length; i++) {
-            const entry = leaderboard[i];
+        entries.forEach((entry, i) => {
             const position = i + 1;
             
             let medal = '';
@@ -31,17 +43,8 @@ module.exports = {
             else if (position === 3) medal = '🥉';
             else medal = `**${position}.**`;
 
-            // Try to fetch username
-            let displayName;
-            try {
-                const user = await message.client.users.fetch(entry.id);
-                displayName = user.username;
-            } catch (e) {
-                displayName = `<@${entry.id}>`;
-            }
-
-            description += `${medal} ${displayName} - ${formatCoins(entry.balance)}\n`;
-        }
+            description += `${medal} ${entry.displayName} - ${formatCoins(entry.balance)}\n`;
+        });
 
         const embed = createEmbed(
             `🏆 Leaderboard - Top ${limit}`,

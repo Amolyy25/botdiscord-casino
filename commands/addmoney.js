@@ -29,11 +29,11 @@ module.exports = {
             });
         }
 
-        await db.updateBalance(target.id, amount);
+        await db.updateBalance(target.id, BigInt(amount));
 
         const embed = createEmbed(
             'Admin: Ajout de coins',
-            `${formatCoins(amount)} ont été ajoutés au compte de **${target.username || target.id}**.`,
+            `${formatCoins(BigInt(amount))} ont été ajoutés au compte de **${target.username || target.id}**.`,
             COLORS.SUCCESS
         );
 
