@@ -109,6 +109,12 @@ module.exports = {
       // Add the new role
       await member.roles.add(role);
 
+      // Handle role expiration if applicable
+      if (wonReward.duration) {
+        const expiresAt = Date.now() + wonReward.duration;
+        await db.addRoleExpiration(message.author.id, wonReward.id, expiresAt);
+      }
+
       // Announce role win
       try {
         const winsChannel =

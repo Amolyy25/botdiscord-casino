@@ -5,6 +5,7 @@ const path = require('path');
 const db = require('./database');
 const { COLORS, createEmbed, formatCoins } = require('./utils');
 const mathQuiz = require('./events/mathQuiz');
+const roleExpiration = require('./events/roleExpiration');
 
 const client = new Client({
     intents: [
@@ -35,6 +36,9 @@ client.once('clientReady', async () => {
 
         // Init Math Quiz System
         await mathQuiz.init(client, db);
+
+        // Init Role Expiration System
+        await roleExpiration.init(client, db);
 
     } catch (err) {
         console.error('Failed to initialize database:', err);

@@ -6,6 +6,11 @@ const WINS_CHANNEL_ID = '1469719884249301176';
 // Scaling down roles by ~0.8 to make room for coins
 const ROLE_POOL = [
     // Roles
+    { type: 'role', id: '1470931333760155854', name: 'Boost XP x2', probability: 0.0002, color: '#FF0000' },
+    { type: 'role', id: '1470931245381845216', name: 'Boost XP x1.5', probability: 0.0008, color: '#FFA500' },
+    { type: 'role', id: '1470934696085946561', name: 'Immunité 24H', probability: 0.02, color: '#FFD700', duration: 24 * 60 * 60 * 1000 },
+    { type: 'role', id: '1470934642998644826', name: 'Immunité 6H', probability: 0.05, color: '#C0C0C0', duration: 6 * 60 * 60 * 1000 },
+    { type: 'role', id: '1470934040692392008', name: 'Immunité 2H', probability: 0.10, color: '#CD7F32', duration: 2 * 60 * 60 * 1000 },
     { type: 'role', id: '1469071689831940302', name: 'Blanc', probability: 0.0004, color: '#FFFFFF' },
     { type: 'role', id: '1469071689831940301', name: 'Violet', probability: 0.008, color: '#9B59B6' },
     { type: 'role', id: '1469071689823289446', name: 'Noir', probability: 0.004, color: '#000000' },

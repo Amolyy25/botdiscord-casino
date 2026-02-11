@@ -32,6 +32,13 @@ const initDb = async () => {
       key TEXT PRIMARY KEY,
       value TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS role_expirations (
+      user_id TEXT,
+      role_id TEXT,
+      expires_at BIGINT,
+      PRIMARY KEY (user_id, role_id)
+    );
   `);
 };
 
@@ -167,5 +174,30 @@ module.exports = {
   getConfig: async (key) => {
     const res = await pool.query('SELECT value FROM system_config WHERE key = $1', [key]);
     return res.rows[0]?.value;
+  },
+
+  // Role Expiration System
+  addRoleExpiration: async (userId, roleId, expiresAt) => {
+    await pool.query(
+      'INSERT INTO role_expirations (user_id, role_id, expires_at) VALUES ($1, $2, $3) ON CONFLICT (user_id, role_id) DO UPDATE SET expires_at = $3',
+      [userId, roleId, expiresAt]
+    );
+  },
+
+  getExpiredRoles: async (now) => {
+    const res = await pool.query('SELECT * FROM role_expirations WHERE expires_at <= $1', [now]);
+    return res.rows;
+  },
+
+  removeRoleExpiration: async (userId, roleId) => {
+    await pool.query('DELETE FROM role_expirations WHERE user_id = $1 AND role_id = $2', [userId, roleId]);
+  },
+
+  getRoleExpiration: async (userId, roleId) => {
+    const res = await pool.query(
+      'SELECT expires_at FROM role_expirations WHERE user_id = $1 AND role_id = $2',
+      [userId, roleId]
+    );
+    return res.rows[0];
   }
 };

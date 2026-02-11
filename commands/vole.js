@@ -28,13 +28,53 @@ module.exports = {
             } catch (e) {}
         }
 
-        if (!target || target.id === message.author.id) {
+        if (!target || target.id === message.author.id || target.bot) {
             return message.reply({ 
-                embeds: [createEmbed('Usage', `Format: \`;vole @user/ID\``, COLORS.ERROR)]
+                embeds: [createEmbed('Usage', `Format: \`;vole @user/ID\` (Vous ne pouvez pas vous voler vous-même ou voler un bot)`, COLORS.ERROR)]
             });
         }
 
         const targetData = await db.getUser(target.id);
+
+        const targetMember = await message.guild.members.fetch(target.id).catch(() => null);
+        
+        if (targetMember) {
+            const immunityRoles = [
+                '1470934040692392008', // 2H
+                '1470934642998644826', // 6H
+                '1470934696085946561'  // 24H
+            ];
+
+            // 1. Check if they have the role on Discord
+            const activeImmunityRole = immunityRoles.find(roleId => targetMember.roles.cache.has(roleId));
+
+            if (activeImmunityRole) {
+                // 2. Double check in DB if it hasn't expired yet (since cleanup is every 15m)
+                const now = Date.now();
+                const expiration = await db.getRoleExpiration(target.id, activeImmunityRole);
+
+                // If we have an expiration in DB, check it. 
+                // If NO expiration in DB but they HAVE the role, we protect them anyway (safety first).
+                if (expiration) {
+                    const expiresAt = parseInt(expiration.expires_at);
+                    if (now < expiresAt) {
+                        return message.reply({ 
+                            embeds: [createEmbed('Immunité 🛡️', `Cet utilisateur est immunisé contre les vols !`, COLORS.ERROR)]
+                        });
+                    } else {
+                        // Role is expired but not yet removed by the 15m interval
+                        await targetMember.roles.remove(activeImmunityRole).catch(() => {});
+                        await db.removeRoleExpiration(target.id, activeImmunityRole);
+                    }
+                } else {
+                    // Safety: They have the role but no DB entry. We protect them.
+                    return message.reply({ 
+                        embeds: [createEmbed('Immunité 🛡️', `Cet utilisateur est immunisé contre les vols !`, COLORS.ERROR)]
+                    });
+                }
+            }
+        }
+
         if (BigInt(targetData.balance) < 50n) {
             return message.reply({ 
                 embeds: [createEmbed('Erreur', `Cet utilisateur est trop pauvre pour être volé !`, COLORS.ERROR)]
