@@ -39,6 +39,16 @@ const initDb = async () => {
       expires_at BIGINT,
       PRIMARY KEY (user_id, role_id)
     );
+
+    CREATE TABLE IF NOT EXISTS braquage_winners (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      code TEXT NOT NULL,
+      coins_won BIGINT DEFAULT 700,
+      role_id TEXT,
+      role_expires_at BIGINT,
+      won_at TIMESTAMP DEFAULT NOW()
+    );
   `);
 };
 
@@ -226,5 +236,28 @@ module.exports = {
       [userId, roleId]
     );
     return res.rows[0];
+  },
+
+  // Braquage System
+  addBraquageWinner: async (userId, code, coinsWon, roleId, roleExpiresAt) => {
+    await pool.query(
+      'INSERT INTO braquage_winners (user_id, code, coins_won, role_id, role_expires_at) VALUES ($1, $2, $3, $4, $5)',
+      [userId, code, BigInt(coinsWon), roleId, roleExpiresAt]
+    );
+  },
+
+  getExpiredBraquageRoles: async (now) => {
+    const res = await pool.query(
+      'SELECT * FROM braquage_winners WHERE role_expires_at IS NOT NULL AND role_expires_at <= $1',
+      [now]
+    );
+    return res.rows;
+  },
+
+  clearBraquageRoleExpiration: async (id) => {
+    await pool.query(
+      'UPDATE braquage_winners SET role_expires_at = NULL WHERE id = $1',
+      [id]
+    );
   }
 };

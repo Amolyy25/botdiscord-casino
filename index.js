@@ -6,6 +6,7 @@ const db = require('./database');
 const { COLORS, createEmbed, formatCoins } = require('./utils');
 const mathQuiz = require('./events/mathQuiz');
 const roleExpiration = require('./events/roleExpiration');
+const braquage = require('./events/braquage');
 
 const client = new Client({
     intents: [
@@ -39,6 +40,9 @@ client.once('clientReady', async () => {
 
         // Init Role Expiration System
         await roleExpiration.init(client, db);
+
+        // Init Braquage System
+        await braquage.init(client, db);
 
     } catch (err) {
         console.error('Failed to initialize database:', err);
