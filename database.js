@@ -166,6 +166,13 @@ module.exports = {
     await pool.query('UPDATE bounties SET message_id = $1 WHERE id = $2', [messageId, id]);
   },
 
+  // System Utils
+  ping: async () => {
+    const start = Date.now();
+    await pool.query('SELECT 1');
+    return Date.now() - start;
+  },
+
   closeBounty: async (id, winnerId) => {
     await pool.query(
       'UPDATE bounties SET status = \'closed\', winner_id = $1 WHERE id = $2',

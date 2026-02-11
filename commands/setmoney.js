@@ -29,11 +29,11 @@ module.exports = {
             });
         }
 
-        await db.setBalance(target.id, amount);
+        await db.setBalance(target.id, BigInt(amount));
 
         const embed = createEmbed(
             'Admin: Solde défini',
-            `Le solde de **${target.username || target.id}** a été défini sur ${formatCoins(amount)}.`,
+            `Le solde de **${target.username || target.id}** a été défini sur ${formatCoins(BigInt(amount))}.`,
             COLORS.SUCCESS
         );
 
