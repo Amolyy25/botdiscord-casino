@@ -256,16 +256,19 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
           return sendError(interaction, `<@${targetId}> est deja soumis. Vous avez ete rembourse.`);
         }
 
-        // Sauvegarder tous les rôles actuels (exclure @everyone et les rôles managés)
+        // Sauvegarder uniquement les rôles que le bot peut gérer (editable)
+        // role.editable renvoie false pour : @everyone, rôles managés, et rôles > bot
         const savedRoleIds = member.roles.cache
-          .filter((role) => role.id !== guild.id && !role.managed)
+          .filter((role) => role.id !== interaction.guild.id && role.editable)
           .map((role) => role.id);
 
-        // Retirer tous les rôles
+        // Retirer les rôles sauvegardés
+        let removedCount = 0;
         for (const roleId of savedRoleIds) {
           await member.roles.remove(roleId).catch((err) => {
             console.error(`[Shop] Erreur retrait role ${roleId} pour soumission:`, err.message);
           });
+          removedCount++;
         }
 
         // Ajouter le rôle soumis
@@ -965,12 +968,17 @@ module.exports = {
 
         // Retirer le rôle soumis
         const soumisRoleId = effect.value;
-        await member.roles.remove(soumisRoleId).catch((err) => {
-          console.error(
-            `[Shop] Erreur retrait role soumis pour ${effect.user_id}:`,
-            err.message,
-          );
-        });
+        if (soumisRoleId && guild.roles.cache.has(soumisRoleId)) {
+             await member.roles.remove(soumisRoleId).catch((err) => {
+              console.error(
+                `[Shop] Erreur retrait role soumis (${soumisRoleId}) pour ${effect.user_id}:`,
+                err.message,
+              );
+            });
+        } else {
+             // Si le rôle n'existe plus, on log juste un warning mais on continue
+             console.warn(`[Shop] Role soumis (${soumisRoleId}) introuvable ou invalide pour le retrait.`);
+        }
 
         // Restaurer les rôles sauvegardés
         let savedRoleIds = [];
@@ -980,38 +988,79 @@ module.exports = {
           console.error("[Shop] Erreur parsing roles sauvegardes:", e);
         }
 
-        let restoredCount = 0;
+        // S'assurer que le cache des rôles est à jour
+        await guild.roles.fetch().catch(() => console.warn("[Shop] Echec fetch roles, utilisation cache"));
+
+        const rolesToRestore = [];
+        const failedRoles = [];
+        
         for (const roleId of savedRoleIds) {
-          try {
-            const role = guild.roles.cache.get(roleId);
-            if (role && !role.managed) {
-              await member.roles.add(roleId);
-              restoredCount++;
+             const role = guild.roles.cache.get(roleId);
+             
+             if (!role) {
+                 console.warn(`[Shop] Role ${roleId} introuvable (supprimé ?) pour restoration sur ${member.user.tag}`);
+                 failedRoles.push(`ID: ${roleId} (Introuvable)`);
+                 continue;
+             }
+             
+             if (!role.editable) {
+                 console.error(`[Shop] CRITIQUE: Impossible de restaurer le role "${role.name}" (${roleId}) à ${member.user.tag}. Le rôle du bot est trop bas dans la hiérarchie !`);
+                 failedRoles.push(`${role.name} (Hiérarchie)`);
+                 continue;
+             }
+             
+             rolesToRestore.push(roleId);
+        }
+
+        let restoredCount = 0;
+        
+        // Tentative de restauration en masse (plus efficace)
+        if (rolesToRestore.length > 0) {
+            try {
+                await member.roles.add(rolesToRestore);
+                restoredCount = rolesToRestore.length;
+            } catch (err) {
+                console.error(`[Shop] Erreur restauration de masse pour ${member.user.tag}, tentative unitaire...`, err.message);
+                
+                // Fallback: Restauration unitaire
+                for (const roleId of rolesToRestore) {
+                    try {
+                        await member.roles.add(roleId);
+                        restoredCount++;
+                    } catch (innerErr) {
+                         console.error(`[Shop] Erreur unitaire role ${roleId}:`, innerErr.message);
+                         failedRoles.push(`${roleId} (Erreur API)`);
+                    }
+                }
             }
-          } catch (err) {
-            console.error(
-              `[Shop] Erreur restauration role ${roleId} pour ${effect.user_id}:`,
-              err.message,
-            );
-          }
         }
 
         console.log(
           `[Shop] Soumission expiree pour ${member.user.tag} : ${restoredCount}/${savedRoleIds.length} roles restaures`,
         );
 
+        let logDescription = `La soumission de <@${effect.user_id}> est terminee.\n**Roles restaures :** ${restoredCount}/${savedRoleIds.length}`;
+        if (failedRoles.length > 0) {
+          const failedStr = failedRoles.join(", ");
+          logDescription += `\n**Echecs :** ${failedStr.length > 500 ? failedStr.slice(0, 500) + "..." : failedStr}`;
+          
+          if (failedRoles.some(f => f.includes("Hiérarchie"))) {
+              logDescription += `\n⚠️ **ATTENTION :** Certains rôles n'ont pas pu être rendus car ils sont au-dessus du rôle du bot !`;
+          }
+        }
+
         await sendShopLog(
           guild,
           "Soumission Terminee",
-          `La soumission de <@${effect.user_id}> est terminee.\n**Roles restaures :** ${restoredCount}/${savedRoleIds.length}`,
-          COLORS.SUCCESS
+          logDescription,
+          restoredCount === savedRoleIds.length ? COLORS.SUCCESS : COLORS.GOLD
         );
 
         try {
           const dmEmbed = new EmbedBuilder()
             .setTitle("Soumission terminee")
             .setDescription(
-              `Votre soumission est terminee.\nVos roles ont ete restaures (${restoredCount}/${savedRoleIds.length}).`,
+              `Votre soumission est terminee.\nVos roles ont ete restaures (${restoredCount}/${savedRoleIds.length}).`
             )
             .setColor(COLORS.SUCCESS)
             .setTimestamp();
