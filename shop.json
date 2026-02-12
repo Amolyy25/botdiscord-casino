@@ -78,9 +78,9 @@
       "category": "pouvoir_troll",
       "label": "Soumission (2min)",
       "emoji": "🙇",
-      "description": "Rend soumis quelqu'un pendant 2 minutes !",
+      "description": "Rend soumis quelqu'un pendant 2 minutes ! Tous ses rôles sont retirés puis restaurés automatiquement.",
       "price": 600,
-      "type": "temp_role",
+      "type": "soumission",
       "roleId": "1469308068239249613",
       "duration": 120000,
       "needsTarget": true
@@ -90,9 +90,9 @@
       "category": "pouvoir_troll",
       "label": "Soumission (5min)",
       "emoji": "🙇",
-      "description": "Rend soumis quelqu'un pendant 5 minutes !",
+      "description": "Rend soumis quelqu'un pendant 5 minutes ! Tous ses rôles sont retirés puis restaurés automatiquement.",
       "price": 1200,
-      "type": "temp_role",
+      "type": "soumission",
       "roleId": "1469308068239249613",
       "duration": 300000,
       "needsTarget": true
@@ -100,7 +100,7 @@
     {
       "id": "cmd_fake",
       "category": "commandes_lana",
-      "label": "Rôle Commande -fake",
+      "label": "Rôle Commande -fake (1fois)",
       "emoji": "🎭",
       "description": "Obtenez le rôle d'accès permanent à la commande ;fake du bot Lana.",
       "price": 300,
@@ -112,7 +112,7 @@
     {
       "id": "cmd_pic",
       "category": "commandes_lana",
-      "label": "Rôle Commande -pic",
+      "label": "Rôle Commande -pic (1fois)",
       "emoji": "📸",
       "description": "Obtenez le rôle d'accès permanent à la commande ;pic du bot Lana.",
       "price": 300,
@@ -124,7 +124,7 @@
     {
       "id": "cmd_mirror",
       "category": "commandes_lana",
-      "label": "Rôle Commande -mirror",
+      "label": "Rôle Commande -mirror (1fois)",
       "emoji": "🪞",
       "description": "Obtenez le rôle d'accès permanent à la commande ;mirror du bot Lana.",
       "price": 500,
@@ -136,7 +136,7 @@
     {
       "id": "cmd_userinfo",
       "category": "commandes_lana",
-      "label": "Rôle Commande -userinfo",
+      "label": "Rôle Commande -userinfo (1fois)",
       "emoji": "🔍",
       "description": "Obtenez le rôle d'accès permanent à la commande ;userinfo du bot Lana.",
       "price": 300,
@@ -289,6 +289,18 @@
       "value": "unstoppable_steal",
       "duration": null,
       "needsTarget": false
+    },
+    {
+      "id": "vol_immediat",
+      "category": "casino",
+      "label": "Vol Immédiat",
+      "emoji": "💸",
+      "description": "Volez directement un joueur depuis la boutique. 10 à 30% de son solde, sans cooldown ni réaction possible. L'immunité reste active.",
+      "price": 500,
+      "type": "instant_steal",
+      "roleId": null,
+      "duration": null,
+      "needsTarget": true
     }
   ]
 }

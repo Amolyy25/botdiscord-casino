@@ -40,20 +40,29 @@ function formatDuration(ms) {
 
 function getTypeLabel(type) {
   const labels = {
-    temp_role: "🎭 Rôle temporaire",
-    timeout: "🤐 Mute (timeout)",
-    nickname: "📝 Changement de surnom",
-    permanent_role: "👑 Rôle permanent",
-    role_select: "🌈 Rôle au choix",
-    xp_boost: "✨ Boost d'XP",
-    ticket: "🎫 Ticket",
-    tirage: "🎫 Tirage",
-    shop_effect: "⚡ Effet spécial",
+    temp_role: "Role temporaire",
+    timeout: "Mute",
+    nickname: "Changement de surnom",
+    permanent_role: "Role permanent",
+    role_select: "Role au choix",
+    xp_boost: "Boost d'XP",
+    ticket: "Ticket",
+    tirage: "Tirage",
+    shop_effect: "Effet special",
+    soumission: "Soumission",
+    instant_steal: "Vol immediat",
   };
   return labels[type] || type;
 }
 
-// ─── Build embeds & components ──────────────────────────────
+// IDs des rôles d'immunité vol
+const IMMUNITY_ROLE_IDS = [
+  "1470934040692392008", // 2H
+  "1470934642998644826", // 6H
+  "1470934696085946561", // 24H
+];
+
+// ─── Build embeds & components (design sobre) ───────────────
 
 function buildCategoryItemsEmbed(categoryId) {
   const category = getCategory(categoryId);
@@ -61,23 +70,17 @@ function buildCategoryItemsEmbed(categoryId) {
 
   let itemsList = "";
   for (const item of items) {
-    const durationStr = item.duration
-      ? ` • ⏱️ ${formatDuration(item.duration)}`
-      : "";
-    const targetStr = item.needsTarget ? " • 🎯 Cible requise" : "";
+    const durationStr = item.duration ? ` ・ ${formatDuration(item.duration)}` : "";
+    const targetStr = item.needsTarget ? " ・ Cible requise" : "";
     itemsList +=
-      `${item.emoji} **${item.label}**\n` +
-      `┗ ${formatCoins(item.price)}${durationStr}${targetStr}\n\n`;
+      `**${item.label}**\n` +
+      `${formatCoins(item.price)}${durationStr}${targetStr}\n\n`;
   }
 
   const embed = new EmbedBuilder()
-    .setTitle(`${category.emoji} ${category.label}`)
+    .setTitle(category.label)
     .setDescription(
-      `${category.description}\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        itemsList +
-        `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `💡 *Sélectionnez un article pour voir les détails.*`,
+      `${category.description}\n\n` + itemsList + `Selectionnez un article pour voir les details.`,
     )
     .setColor(category.color)
     .setTimestamp();
@@ -85,14 +88,14 @@ function buildCategoryItemsEmbed(categoryId) {
   const itemOptions = items.map((item) => ({
     label: item.label,
     value: item.id,
-    description: `${item.price} coins${item.duration ? ` • ${formatDuration(item.duration)}` : ""}`,
+    description: `${item.price} coins${item.duration ? ` ・ ${formatDuration(item.duration)}` : ""}`,
     emoji: item.emoji,
   }));
 
   const itemSelect = new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()
       .setCustomId("shop_items")
-      .setPlaceholder("🛒 Choisir un article...")
+      .setPlaceholder("Choisir un article...")
       .addOptions(itemOptions),
   );
 
@@ -104,51 +107,48 @@ function buildItemDetailEmbed(itemId) {
   const category = getCategory(item.category);
 
   const fields = [
-    { name: "💰 Prix", value: formatCoins(item.price), inline: true },
+    { name: "Prix", value: formatCoins(item.price), inline: true },
   ];
 
   if (item.duration) {
     fields.push({
-      name: "⏱️ Durée",
+      name: "Duree",
       value: formatDuration(item.duration),
       inline: true,
     });
   }
 
-  fields.push({ name: "📦 Type", value: getTypeLabel(item.type), inline: true });
+  fields.push({ name: "Type", value: getTypeLabel(item.type), inline: true });
 
   if (item.needsTarget) {
     fields.push({
-      name: "🎯 Cible",
+      name: "Cible",
       value: "Un joueur de votre choix",
       inline: true,
     });
   }
 
   const embed = new EmbedBuilder()
-    .setTitle(`${item.emoji} ${item.label}`)
+    .setTitle(item.label)
     .setDescription(item.description)
     .setColor(category.color)
     .addFields(fields)
-    .setFooter({ text: `Catégorie : ${category.label}` })
+    .setFooter({ text: `Categorie : ${category.label}` })
     .setTimestamp();
 
   const buttons = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`shop_confirm.${itemId}`)
       .setLabel("Confirmer l'achat")
-      .setStyle(ButtonStyle.Success)
-      .setEmoji("🛒"),
+      .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId(`shop_back.${item.category}`)
       .setLabel("Retour")
-      .setStyle(ButtonStyle.Secondary)
-      .setEmoji("◀"),
+      .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId("shop_cancel")
       .setLabel("Annuler")
-      .setStyle(ButtonStyle.Danger)
-      .setEmoji("❌"),
+      .setStyle(ButtonStyle.Danger),
   );
 
   return { embed, components: [buttons] };
@@ -166,15 +166,13 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
 
   if (balance < price) {
     const errorEmbed = new EmbedBuilder()
-      .setTitle("❌ Solde insuffisant")
+      .setTitle("Solde insuffisant")
       .setDescription(
-        `Vous avez besoin de ${formatCoins(item.price)} mais vous n'avez que ${formatCoins(userData.balance)}.\n\n` +
-          `💡 Gagnez des coins avec les jeux du casino !`,
+        `Vous avez besoin de ${formatCoins(item.price)} mais vous n'avez que ${formatCoins(userData.balance)}.`,
       )
       .setColor(COLORS.ERROR)
       .setTimestamp();
 
-    // Selon le type d'interaction, reply ou update
     if (interaction.isModalSubmit()) {
       return interaction.reply({ embeds: [errorEmbed], flags: 64 });
     }
@@ -194,37 +192,147 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
     switch (item.type) {
       case "temp_role": {
         const guild = interaction.guild;
-        // Le rôle peut cibler quelqu'un d'autre OU soi-même
         const roleTargetId = item.needsTarget ? targetId : userId;
         const member = await guild.members.fetch(roleTargetId).catch(() => null);
 
         if (!member) {
-          await db.updateBalance(userId, item.price); // Remboursement
-          return sendError(interaction, "Le membre ciblé est introuvable. Vous avez été remboursé.");
+          await db.updateBalance(userId, item.price);
+          return sendError(interaction, "Le membre cible est introuvable. Vous avez ete rembourse.");
         }
 
         if (member.roles.cache.has(item.roleId)) {
-          await db.updateBalance(userId, item.price); // Remboursement
+          await db.updateBalance(userId, item.price);
           const msg = item.needsTarget
-            ? `<@${roleTargetId}> possède déjà ce rôle. Vous avez été remboursé.`
-            : "Vous possédez déjà ce rôle ! Vous avez été remboursé.";
+            ? `<@${roleTargetId}> possede deja ce role. Vous avez ete rembourse.`
+            : "Vous possedez deja ce role. Vous avez ete rembourse.";
           return sendError(interaction, msg);
         }
 
         await member.roles.add(item.roleId).catch(async (err) => {
-          console.error("Erreur ajout rôle shop:", err);
-          await db.updateBalance(userId, item.price); // Remboursement
-          throw new Error("Impossible d'ajouter le rôle. Vérifiez les permissions du bot.");
+          console.error("Erreur ajout role shop:", err);
+          await db.updateBalance(userId, item.price);
+          throw new Error("Impossible d'ajouter le role. Verifiez les permissions du bot.");
         });
 
         const expiresAt = Date.now() + item.duration;
         await db.addRoleExpiration(roleTargetId, item.roleId, expiresAt);
 
         if (item.needsTarget) {
-          effectDescription = `<@${roleTargetId}> a reçu le rôle <@&${item.roleId}> pour **${formatDuration(item.duration)}** !`;
+          effectDescription = `<@${roleTargetId}> a recu le role <@&${item.roleId}> pour **${formatDuration(item.duration)}**.`;
         } else {
-          effectDescription = `Vous avez obtenu le rôle <@&${item.roleId}> pour **${formatDuration(item.duration)}** !`;
+          effectDescription = `Vous avez obtenu le role <@&${item.roleId}> pour **${formatDuration(item.duration)}**.`;
         }
+        break;
+      }
+
+      case "soumission": {
+        const guild = interaction.guild;
+        const member = await guild.members.fetch(targetId).catch(() => null);
+
+        if (!member) {
+          await db.updateBalance(userId, item.price);
+          return sendError(interaction, "Le membre cible est introuvable. Vous avez ete rembourse.");
+        }
+
+        if (member.roles.cache.has(item.roleId)) {
+          await db.updateBalance(userId, item.price);
+          return sendError(interaction, `<@${targetId}> est deja soumis. Vous avez ete rembourse.`);
+        }
+
+        // Sauvegarder tous les rôles actuels (exclure @everyone et les rôles managés)
+        const savedRoleIds = member.roles.cache
+          .filter((role) => role.id !== guild.id && !role.managed)
+          .map((role) => role.id);
+
+        // Retirer tous les rôles
+        for (const roleId of savedRoleIds) {
+          await member.roles.remove(roleId).catch((err) => {
+            console.error(`[Shop] Erreur retrait role ${roleId} pour soumission:`, err.message);
+          });
+        }
+
+        // Ajouter le rôle soumis
+        await member.roles.add(item.roleId).catch(async (err) => {
+          console.error("Erreur ajout role soumis shop:", err);
+          // Tenter de restaurer les rôles en cas d'échec
+          for (const roleId of savedRoleIds) {
+            await member.roles.add(roleId).catch(() => {});
+          }
+          await db.updateBalance(userId, item.price);
+          throw new Error("Impossible d'ajouter le role soumis. Roles restaures, rembourse.");
+        });
+
+        // Sauvegarder dans shop_effects pour restauration automatique
+        const expiresAt = Date.now() + item.duration;
+        await db.addShopEffect(
+          targetId,
+          userId,
+          "soumission",
+          item.roleId,
+          JSON.stringify(savedRoleIds),
+          expiresAt,
+        );
+
+        // Envoyer un MP a la victime
+        try {
+          const dmEmbed = new EmbedBuilder()
+            .setTitle("Vous avez ete soumis")
+            .setDescription(
+              `Un joueur a utilise la boutique pour vous soumettre.\n\n` +
+                `Duree : **${formatDuration(item.duration)}**\n` +
+                `Vos roles seront restaures automatiquement a la fin du delai.`,
+            )
+            .setColor(COLORS.ERROR)
+            .setTimestamp();
+          await member.send({ embeds: [dmEmbed] }).catch(() => {});
+        } catch (e) {}
+
+        effectDescription = `<@${targetId}> a ete soumis pour **${formatDuration(item.duration)}**.\nTous ses roles ont ete retires et seront restaures automatiquement.`;
+        break;
+      }
+
+      case "instant_steal": {
+        const guild = interaction.guild;
+
+        // Vérifier l'immunité de la cible
+        const targetMember = await guild.members.fetch(targetId).catch(() => null);
+        if (targetMember) {
+          const activeImmunity = IMMUNITY_ROLE_IDS.find((roleId) =>
+            targetMember.roles.cache.has(roleId),
+          );
+          if (activeImmunity) {
+            await db.updateBalance(userId, item.price);
+            return sendError(
+              interaction,
+              `<@${targetId}> possede une immunite contre les vols. Vous avez ete rembourse.`,
+            );
+          }
+        }
+
+        // Vérifier le solde de la cible
+        const targetData = await db.getUser(targetId);
+        const targetBalance = BigInt(targetData.balance);
+
+        if (targetBalance < 50n) {
+          await db.updateBalance(userId, item.price);
+          return sendError(
+            interaction,
+            `<@${targetId}> est trop pauvre pour etre vole. Vous avez ete rembourse.`,
+          );
+        }
+
+        // Calculer le montant volé (10-30% du solde cible)
+        const targetBalanceNum = Number(targetBalance);
+        const stealAmount = BigInt(
+          Math.floor(targetBalanceNum * (Math.random() * 0.2 + 0.1)),
+        );
+        const finalSteal = stealAmount < 50n ? 50n : stealAmount;
+
+        // Transférer les coins
+        await db.updateBalance(targetId, -finalSteal);
+        await db.updateBalance(userId, finalSteal);
+
+        effectDescription = `Vous avez vole ${formatCoins(finalSteal)} a <@${targetId}>.`;
         break;
       }
 
@@ -234,47 +342,42 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
 
         if (!member) {
           await db.updateBalance(userId, item.price);
-          return sendError(interaction, "Le membre ciblé est introuvable. Vous avez été remboursé.");
+          return sendError(interaction, "Le membre cible est introuvable. Vous avez ete rembourse.");
         }
 
         if (!member.moderatable) {
           await db.updateBalance(userId, item.price);
-          return sendError(interaction, "Impossible de mute ce membre (permissions insuffisantes du bot). Vous avez été remboursé.");
+          return sendError(interaction, "Impossible de mute ce membre. Vous avez ete rembourse.");
         }
 
         if (member.isCommunicationDisabled()) {
           await db.updateBalance(userId, item.price);
-          return sendError(interaction, `<@${targetId}> est déjà mute ! Vous avez été remboursé.`);
+          return sendError(interaction, `<@${targetId}> est deja mute. Vous avez ete rembourse.`);
         }
 
-        const reason = `🛒 Boutique — Acheté par ${interaction.user.username} (${formatDuration(item.duration)})`;
+        const reason = `Boutique — Achete par ${interaction.user.username} (${formatDuration(item.duration)})`;
 
-        // Timeout Discord natif
         await member.timeout(item.duration, reason).catch(async (err) => {
           console.error("Erreur timeout shop:", err);
           await db.updateBalance(userId, item.price);
-          throw new Error("Impossible de mute ce membre. Vérifiez les permissions du bot.");
+          throw new Error("Impossible de mute ce membre. Verifiez les permissions du bot.");
         });
 
-        // Envoyer un MP à la victime
         try {
           const dmEmbed = new EmbedBuilder()
-            .setTitle("🤐 Vous avez été rendu muet !")
+            .setTitle("Vous avez ete rendu muet")
             .setDescription(
-              `Un joueur a utilisé la **Boutique du Casino** pour vous rendre muet.\n\n` +
-                `⏱️ **Durée :** ${formatDuration(item.duration)}\n` +
-                `📝 **Raison :** Achat en boutique par **${interaction.user.username}**\n\n` +
-                `Vous retrouverez la parole automatiquement à la fin du délai.`,
+              `Un joueur a utilise la boutique pour vous rendre muet.\n\n` +
+                `Duree : **${formatDuration(item.duration)}**\n` +
+                `Raison : Achat en boutique par **${interaction.user.username}**\n\n` +
+                `Vous retrouverez la parole automatiquement a la fin du delai.`,
             )
             .setColor(COLORS.ERROR)
             .setTimestamp();
-
           await member.send({ embeds: [dmEmbed] }).catch(() => {});
-        } catch (e) {
-          // MP désactivés, on continue
-        }
+        } catch (e) {}
 
-        effectDescription = `<@${targetId}> a été rendu muet pour **${formatDuration(item.duration)}** ! Un MP lui a été envoyé.`;
+        effectDescription = `<@${targetId}> a ete rendu muet pour **${formatDuration(item.duration)}**.`;
         break;
       }
 
@@ -284,25 +387,22 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
 
         if (!member) {
           await db.updateBalance(userId, item.price);
-          return sendError(interaction, "Le membre ciblé est introuvable. Vous avez été remboursé.");
+          return sendError(interaction, "Le membre cible est introuvable. Vous avez ete rembourse.");
         }
 
-        // Sauvegarder l'ancien surnom
         const oldNickname = member.nickname || member.user.displayName;
-
-        // Changer le surnom
         const newNickname = extraData || "Le Soumis du Casino";
+
         await member.setNickname(newNickname).catch(async (err) => {
           console.error("Erreur changement surnom shop:", err);
           await db.updateBalance(userId, item.price);
-          throw new Error("Impossible de changer le surnom. Vérifiez les permissions du bot.");
+          throw new Error("Impossible de changer le surnom. Verifiez les permissions du bot.");
         });
 
-        // Stocker l'effet pour reversion automatique
         const expiresAt = Date.now() + item.duration;
         await db.addShopEffect(targetId, userId, "nickname", newNickname, oldNickname, expiresAt);
 
-        effectDescription = `Le surnom de <@${targetId}> a été changé en **"${newNickname}"** pour **${formatDuration(item.duration)}** !`;
+        effectDescription = `Le surnom de <@${targetId}> a ete change en **"${newNickname}"** pour **${formatDuration(item.duration)}**.`;
         break;
       }
 
@@ -313,31 +413,30 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
 
         if (!prMember) {
           await db.updateBalance(userId, item.price);
-          return sendError(interaction, "Impossible de vous trouver. Vous avez été remboursé.");
+          return sendError(interaction, "Impossible de vous trouver. Vous avez ete rembourse.");
         }
 
         if (prMember.roles.cache.has(item.roleId)) {
           await db.updateBalance(userId, item.price);
-          return sendError(interaction, "Vous possédez déjà ce rôle ! Vous avez été remboursé.");
+          return sendError(interaction, "Vous possedez deja ce role. Vous avez ete rembourse.");
         }
 
         await prMember.roles.add(item.roleId).catch(async (err) => {
-          console.error("Erreur ajout rôle permanent shop:", err);
+          console.error("Erreur ajout role permanent shop:", err);
           await db.updateBalance(userId, item.price);
-          throw new Error("Impossible d'ajouter le rôle. Vérifiez les permissions du bot.");
+          throw new Error("Impossible d'ajouter le role. Verifiez les permissions du bot.");
         });
 
-        effectDescription = `Vous avez obtenu le rôle <@&${item.roleId}> de manière **permanente** !`;
+        effectDescription = `Vous avez obtenu le role <@&${item.roleId}> de maniere **permanente**.`;
         break;
       }
 
       case "role_select": {
-        // extraData contient l'ID du rôle choisi par l'utilisateur
         const selectedRoleId = extraData;
 
         if (!selectedRoleId) {
           await db.updateBalance(userId, item.price);
-          return sendError(interaction, "Aucun rôle sélectionné. Vous avez été remboursé.");
+          return sendError(interaction, "Aucun role selectionne. Vous avez ete rembourse.");
         }
 
         const rsMember = await interaction.guild.members
@@ -346,25 +445,26 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
 
         if (!rsMember) {
           await db.updateBalance(userId, item.price);
-          return sendError(interaction, "Impossible de vous trouver. Vous avez été remboursé.");
+          return sendError(interaction, "Impossible de vous trouver. Vous avez ete rembourse.");
         }
 
         if (rsMember.roles.cache.has(selectedRoleId)) {
           await db.updateBalance(userId, item.price);
-          return sendError(interaction, "Vous possédez déjà ce rôle ! Vous avez été remboursé.");
+          return sendError(interaction, "Vous possedez deja ce role. Vous avez ete rembourse.");
         }
 
         await rsMember.roles.add(selectedRoleId).catch(async (err) => {
-          console.error("Erreur ajout rôle select shop:", err);
+          console.error("Erreur ajout role select shop:", err);
           await db.updateBalance(userId, item.price);
-          throw new Error("Impossible d'ajouter le rôle. Vérifiez les permissions du bot.");
+          throw new Error("Impossible d'ajouter le role. Verifiez les permissions du bot.");
         });
 
         const expiresAtRS = Date.now() + item.duration;
         await db.addRoleExpiration(userId, selectedRoleId, expiresAtRS);
 
-        const selectedRoleLabel = item.roles?.find((r) => r.id === selectedRoleId)?.label || "Inconnu";
-        effectDescription = `Vous avez obtenu le rôle couleur **${selectedRoleLabel}** (<@&${selectedRoleId}>) pour **${formatDuration(item.duration)}** !`;
+        const selectedRoleLabel =
+          item.roles?.find((r) => r.id === selectedRoleId)?.label || "Inconnu";
+        effectDescription = `Vous avez obtenu le role couleur **${selectedRoleLabel}** (<@&${selectedRoleId}>) pour **${formatDuration(item.duration)}**.`;
         break;
       }
 
@@ -372,7 +472,7 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
         const expiresAt = Date.now() + item.duration;
         await db.addShopEffect(userId, null, "xp_boost", item.value.toString(), null, expiresAt);
 
-        effectDescription = `Boost XP **+${item.value}%** activé pour **${formatDuration(item.duration)}** !`;
+        effectDescription = `Boost XP **+${item.value}%** active pour **${formatDuration(item.duration)}**.`;
         break;
       }
 
@@ -397,19 +497,19 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
               allow: ["ViewChannel", "SendMessages"],
             },
             {
-              id: "1469071689848721510", // Staff Role
+              id: "1469071689848721510",
               allow: ["ViewChannel", "SendMessages"],
             },
           ],
         });
 
         const ticketEmbed = createEmbed(
-          "🎨 Demande d'Emoji Personnalisé",
-          `<@${userId}>, bienvenue dans votre ticket !\n\n` +
-            `📝 **Décrivez l'emoji que vous souhaitez :**\n` +
-            `• Envoyez une image ou un lien vers l'image\n` +
-            `• Précisez le nom souhaité pour l'emoji\n\n` +
-            `Un administrateur viendra traiter votre demande. 🎨`,
+          "Demande d'Emoji Personnalise",
+          `<@${userId}>, bienvenue dans votre ticket.\n\n` +
+            `Decrivez l'emoji que vous souhaitez :\n` +
+            `・ Envoyez une image ou un lien vers l'image\n` +
+            `・ Precisez le nom souhaite pour l'emoji\n\n` +
+            `Un administrateur viendra traiter votre demande.`,
           COLORS.VIOLET,
         );
 
@@ -418,54 +518,60 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
           embeds: [ticketEmbed],
         });
 
-        effectDescription = `Ticket créé : ${channel}\nUn admin traitera votre demande d'emoji personnalisé !`;
+        effectDescription = `Ticket cree : ${channel}\nUn admin traitera votre demande d'emoji personnalise.`;
         break;
       }
 
       case "tirage": {
-        // Ajouter des tirages au joueur
         const newTirages = await db.updateTirages(userId, 1);
-        effectDescription = `Vous avez reçu **1 tirage** supplémentaire ! Vous en avez maintenant **${newTirages}**.`;
+        effectDescription = `Vous avez recu **1 tirage** supplementaire. Vous en avez maintenant **${newTirages}**.`;
         break;
       }
 
       case "shop_effect": {
-        // Vérifier si l'utilisateur a déjà cet effet actif
         const hasEffect = await db.hasActiveShopEffect(userId, item.value);
         if (hasEffect) {
           await db.updateBalance(userId, item.price);
-          return sendError(interaction, `Vous avez déjà l'effet **${item.label}** actif. Vous avez été remboursé.`);
+          return sendError(
+            interaction,
+            `Vous avez deja l'effet **${item.label}** actif. Vous avez ete rembourse.`,
+          );
         }
 
         const expiresAt = item.duration ? Date.now() + item.duration : null;
         await db.addShopEffect(userId, null, item.value, null, null, expiresAt);
 
         if (item.duration) {
-          effectDescription = `Effet **${item.label}** activé pour **${formatDuration(item.duration)}** !`;
+          effectDescription = `Effet **${item.label}** active pour **${formatDuration(item.duration)}**.`;
         } else {
-          effectDescription = `Effet **${item.label}** activé *(usage unique)* !`;
+          effectDescription = `Effet **${item.label}** active ・ usage unique.`;
         }
         break;
       }
 
       default: {
         await db.updateBalance(userId, item.price);
-        return sendError(interaction, `Type d'article inconnu : ${item.type}. Vous avez été remboursé.`);
+        return sendError(
+          interaction,
+          `Type d'article inconnu : ${item.type}. Vous avez ete rembourse.`,
+        );
       }
     }
   } catch (error) {
     console.error("Erreur application effet shop:", error);
-    return sendError(interaction, error.message || "Une erreur est survenue lors de l'application de l'effet.");
+    return sendError(
+      interaction,
+      error.message || "Une erreur est survenue lors de l'application de l'effet.",
+    );
   }
 
   // Embed de succès
   const successEmbed = new EmbedBuilder()
-    .setTitle("✅ Achat réussi !")
+    .setTitle("Achat effectue")
     .setDescription(
-      `Vous avez acheté **${item.emoji} ${item.label}** pour ${formatCoins(item.price)}.\n\n` +
+      `**${item.label}** ・ ${formatCoins(item.price)}\n\n` +
         `${effectDescription}\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `💰 **Nouveau solde :** ${formatCoins(newBalance)}`,
+        `Nouveau solde : ${formatCoins(newBalance)}`,
     )
     .setColor(COLORS.SUCCESS)
     .setTimestamp();
@@ -478,7 +584,7 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
 
 function sendError(interaction, message) {
   const errorEmbed = new EmbedBuilder()
-    .setTitle("❌ Erreur")
+    .setTitle("Erreur")
     .setDescription(message)
     .setColor(COLORS.ERROR)
     .setTimestamp();
@@ -492,10 +598,6 @@ function sendError(interaction, message) {
 // ─── Interaction Handler ────────────────────────────────────
 
 module.exports = {
-  /**
-   * Gère toutes les interactions liées à la boutique.
-   * Retourne true si l'interaction a été traitée, false sinon.
-   */
   async handleInteraction(interaction, db) {
     const customId = interaction.customId;
     if (!customId?.startsWith("shop_")) return false;
@@ -509,12 +611,12 @@ module.exports = {
         await interaction.reply({
           embeds: [embed],
           components,
-          flags: 64, // EPHEMERAL
+          flags: 64,
         });
         return true;
       }
 
-      // ── Sélection d'article (message éphémère) ──
+      // ── Sélection d'article ──
       if (interaction.isStringSelectMenu() && customId === "shop_items") {
         const itemId = interaction.values[0];
         const { embed, components } = buildItemDetailEmbed(itemId);
@@ -538,11 +640,11 @@ module.exports = {
         // Si l'article nécessite une cible
         if (item.needsTarget) {
           const targetEmbed = new EmbedBuilder()
-            .setTitle(`🎯 Choisir une cible — ${item.emoji} ${item.label}`)
+            .setTitle(`Choisir une cible ・ ${item.label}`)
             .setDescription(
-              `Sélectionnez le joueur sur qui appliquer l'effet.\n\n` +
-                `💰 **Prix :** ${formatCoins(item.price)}\n` +
-                `⏱️ **Durée :** ${formatDuration(item.duration)}`,
+              `Selectionnez le joueur sur qui appliquer l'effet.\n\n` +
+                `Prix : ${formatCoins(item.price)}` +
+                (item.duration ? `\nDuree : ${formatDuration(item.duration)}` : ""),
             )
             .setColor(COLORS.GOLD)
             .setTimestamp();
@@ -550,7 +652,7 @@ module.exports = {
           const targetSelect = new ActionRowBuilder().addComponents(
             new UserSelectMenuBuilder()
               .setCustomId(`shop_target.${itemId}`)
-              .setPlaceholder("🎯 Sélectionner un joueur...")
+              .setPlaceholder("Selectionner un joueur...")
               .setMinValues(1)
               .setMaxValues(1),
           );
@@ -559,8 +661,7 @@ module.exports = {
             new ButtonBuilder()
               .setCustomId("shop_cancel")
               .setLabel("Annuler")
-              .setStyle(ButtonStyle.Danger)
-              .setEmoji("❌"),
+              .setStyle(ButtonStyle.Danger),
           );
 
           await interaction.update({
@@ -570,7 +671,7 @@ module.exports = {
           return true;
         }
 
-        // Si c'est un role_select, afficher le menu de choix de rôle
+        // Si c'est un role_select
         if (item.type === "role_select" && item.roles?.length > 0) {
           const roleOptions = item.roles.map((role) => ({
             label: role.label,
@@ -579,12 +680,12 @@ module.exports = {
           }));
 
           const roleSelectEmbed = new EmbedBuilder()
-            .setTitle(`🌈 Choisissez votre couleur — ${item.emoji} ${item.label}`)
+            .setTitle(`Choisissez votre couleur ・ ${item.label}`)
             .setDescription(
-              `Sélectionnez le rôle couleur que vous souhaitez.\n\n` +
-                `💰 **Prix :** ${formatCoins(item.price)}\n` +
-                `⏱️ **Durée :** ${formatDuration(item.duration)}\n\n` +
-                `💡 *Les coins seront déduits après votre choix.*`,
+              `Selectionnez le role couleur que vous souhaitez.\n\n` +
+                `Prix : ${formatCoins(item.price)}\n` +
+                `Duree : ${formatDuration(item.duration)}\n\n` +
+                `Les coins seront deduits apres votre choix.`,
             )
             .setColor(COLORS.GOLD)
             .setTimestamp();
@@ -592,7 +693,7 @@ module.exports = {
           const roleSelect = new ActionRowBuilder().addComponents(
             new StringSelectMenuBuilder()
               .setCustomId(`shop_roleselect.${itemId}`)
-              .setPlaceholder("🌈 Choisir une couleur...")
+              .setPlaceholder("Choisir une couleur...")
               .addOptions(roleOptions),
           );
 
@@ -600,8 +701,7 @@ module.exports = {
             new ButtonBuilder()
               .setCustomId("shop_cancel")
               .setLabel("Annuler")
-              .setStyle(ButtonStyle.Danger)
-              .setEmoji("❌"),
+              .setStyle(ButtonStyle.Danger),
           );
 
           await interaction.update({
@@ -616,7 +716,7 @@ module.exports = {
         return true;
       }
 
-      // ── Sélection de rôle couleur (StringSelectMenu) ──
+      // ── Sélection de rôle couleur ──
       if (interaction.isStringSelectMenu() && customId.startsWith("shop_roleselect.")) {
         const itemId = customId.split(".")[1];
         const item = getItem(itemId);
@@ -626,12 +726,11 @@ module.exports = {
           return sendError(interaction, "Article introuvable."), true;
         }
 
-        // processPurchase avec le roleId choisi dans extraData
         await processPurchase(interaction, item, db, null, selectedRoleId);
         return true;
       }
 
-      // ── Sélection de cible (UserSelectMenu) ──
+      // ── Sélection de cible ──
       if (interaction.isUserSelectMenu() && customId.startsWith("shop_target.")) {
         const itemId = customId.split(".")[1];
         const item = getItem(itemId);
@@ -641,7 +740,6 @@ module.exports = {
           return sendError(interaction, "Article introuvable."), true;
         }
 
-        // Validations de la cible
         const targetUser = await interaction.client.users
           .fetch(targetId)
           .catch(() => null);
@@ -654,8 +752,8 @@ module.exports = {
           await interaction.update({
             embeds: [
               new EmbedBuilder()
-                .setTitle("❌ Cible invalide")
-                .setDescription("Vous ne pouvez pas cibler un bot !")
+                .setTitle("Cible invalide")
+                .setDescription("Vous ne pouvez pas cibler un bot.")
                 .setColor(COLORS.ERROR)
                 .setTimestamp(),
             ],
@@ -664,12 +762,26 @@ module.exports = {
           return true;
         }
 
-        if (targetId === interaction.user.id) {
+        if (targetId === interaction.user.id && item.type !== "instant_steal") {
           await interaction.update({
             embeds: [
               new EmbedBuilder()
-                .setTitle("❌ Cible invalide")
-                .setDescription("Vous ne pouvez pas vous cibler vous-même !")
+                .setTitle("Cible invalide")
+                .setDescription("Vous ne pouvez pas vous cibler vous-meme.")
+                .setColor(COLORS.ERROR)
+                .setTimestamp(),
+            ],
+            components: [],
+          });
+          return true;
+        }
+
+        if (targetId === interaction.user.id && item.type === "instant_steal") {
+          await interaction.update({
+            embeds: [
+              new EmbedBuilder()
+                .setTitle("Cible invalide")
+                .setDescription("Vous ne pouvez pas vous voler vous-meme.")
                 .setColor(COLORS.ERROR)
                 .setTimestamp(),
             ],
@@ -682,7 +794,7 @@ module.exports = {
         if (item.type === "nickname") {
           const modal = new ModalBuilder()
             .setCustomId(`shop_nick.${itemId}.${targetId}`)
-            .setTitle("📝 Surnom Forcé");
+            .setTitle("Surnom Force");
 
           const nicknameInput = new TextInputBuilder()
             .setCustomId("nickname_input")
@@ -701,7 +813,7 @@ module.exports = {
           return true;
         }
 
-        // Sinon, achat direct avec cible
+        // Achat direct avec cible
         await processPurchase(interaction, item, db, targetId);
         return true;
       }
@@ -718,12 +830,11 @@ module.exports = {
         }
 
         const nickname = interaction.fields.getTextInputValue("nickname_input");
-
         await processPurchase(interaction, item, db, targetId, nickname);
         return true;
       }
 
-      // ── Bouton Retour (vers liste articles) ──
+      // ── Bouton Retour ──
       if (interaction.isButton() && customId.startsWith("shop_back.")) {
         const categoryId = customId.split(".")[1];
         const { embed, components } = buildCategoryItemsEmbed(categoryId);
@@ -740,10 +851,10 @@ module.exports = {
         await interaction.update({
           embeds: [
             new EmbedBuilder()
-              .setTitle("❌ Achat annulé")
+              .setTitle("Achat annule")
               .setDescription(
-                "L'achat a été annulé. Aucun coin n'a été déduit.\n\n" +
-                  "💡 *Vous pouvez relancer la boutique depuis le message principal.*",
+                "L'achat a ete annule. Aucun coin n'a ete deduit.\n\n" +
+                  "Vous pouvez relancer la boutique depuis le message principal.",
               )
               .setColor(COLORS.ERROR)
               .setTimestamp(),
@@ -759,9 +870,9 @@ module.exports = {
 
       try {
         const errorEmbed = new EmbedBuilder()
-          .setTitle("❌ Erreur")
+          .setTitle("Erreur")
           .setDescription(
-            "Une erreur est survenue. Veuillez réessayer.\n" +
+            "Une erreur est survenue. Veuillez reessayer.\n" +
               `\`${error.message}\``,
           )
           .setColor(COLORS.ERROR)
@@ -782,6 +893,7 @@ module.exports = {
 
   /**
    * Initialise le système de vérification des effets expirés.
+   * Vérifie toutes les 15 secondes pour les effets courts (soumission 2min).
    */
   async init(client, db) {
     const checkExpiredEffects = async () => {
@@ -792,56 +904,108 @@ module.exports = {
 
         for (const effect of expiredEffects) {
           try {
-            // Traiter selon le type d'effet
-            if (effect.effect_type === "nickname") {
-              // Restaurer l'ancien surnom
-              const guild = client.guilds.cache.first();
-              if (guild) {
-                const member = await guild.members
-                  .fetch(effect.user_id)
-                  .catch(() => null);
+            const guild = client.guilds.cache.first();
+            if (!guild) continue;
 
-                if (member) {
-                  const originalNickname = effect.extra_data; // Ancien surnom stocké
-                  // Si l'ancien surnom était le displayName (pas de nickname custom), on met null
-                  await member
-                    .setNickname(originalNickname === member.user.displayName ? null : originalNickname)
-                    .catch((err) => {
-                      console.error(
-                        `Erreur restauration surnom pour ${effect.user_id}:`,
-                        err,
-                      );
-                    });
-                  console.log(
-                    `[Shop] Surnom restauré pour ${member.user.tag} → "${originalNickname || "défaut"}"`,
+            // ── Restauration de surnom ──
+            if (effect.effect_type === "nickname") {
+              const member = await guild.members.fetch(effect.user_id).catch(() => null);
+
+              if (member) {
+                const originalNickname = effect.extra_data;
+                await member
+                  .setNickname(
+                    originalNickname === member.user.displayName ? null : originalNickname,
+                  )
+                  .catch((err) => {
+                    console.error(`Erreur restauration surnom pour ${effect.user_id}:`, err);
+                  });
+                console.log(
+                  `[Shop] Surnom restaure pour ${member.user.tag} -> "${originalNickname || "defaut"}"`,
+                );
+              }
+            }
+
+            // ── Restauration soumission (re-ajouter les rôles) ──
+            if (effect.effect_type === "soumission") {
+              const member = await guild.members.fetch(effect.user_id).catch(() => null);
+
+              if (member) {
+                // Retirer le rôle soumis
+                const soumisRoleId = effect.value;
+                await member.roles.remove(soumisRoleId).catch((err) => {
+                  console.error(
+                    `[Shop] Erreur retrait role soumis pour ${effect.user_id}:`,
+                    err.message,
                   );
+                });
+
+                // Restaurer les rôles sauvegardés
+                let savedRoleIds = [];
+                try {
+                  savedRoleIds = JSON.parse(effect.extra_data || "[]");
+                } catch (e) {
+                  console.error("[Shop] Erreur parsing roles sauvegardes:", e);
                 }
+
+                let restoredCount = 0;
+                for (const roleId of savedRoleIds) {
+                  try {
+                    const role = guild.roles.cache.get(roleId);
+                    if (role && !role.managed) {
+                      await member.roles.add(roleId);
+                      restoredCount++;
+                    }
+                  } catch (err) {
+                    console.error(
+                      `[Shop] Erreur restauration role ${roleId} pour ${effect.user_id}:`,
+                      err.message,
+                    );
+                  }
+                }
+
+                console.log(
+                  `[Shop] Soumission expiree pour ${member.user.tag} : ${restoredCount}/${savedRoleIds.length} roles restaures`,
+                );
+
+                // Envoyer un MP
+                try {
+                  const dmEmbed = new EmbedBuilder()
+                    .setTitle("Soumission terminee")
+                    .setDescription(
+                      `Votre soumission est terminee.\nVos roles ont ete restaures (${restoredCount}/${savedRoleIds.length}).`,
+                    )
+                    .setColor(COLORS.SUCCESS)
+                    .setTimestamp();
+                  await member.send({ embeds: [dmEmbed] }).catch(() => {});
+                } catch (e) {}
+              } else {
+                console.log(
+                  `[Shop] Membre ${effect.user_id} introuvable pour restauration soumission`,
+                );
               }
             }
 
             // Désactiver l'effet
             await db.deactivateShopEffect(effect.id);
             console.log(
-              `[Shop] Effet expiré désactivé: ${effect.effect_type} pour user ${effect.user_id}`,
+              `[Shop] Effet expire desactive: ${effect.effect_type} pour user ${effect.user_id}`,
             );
           } catch (err) {
-            console.error(
-              `Erreur traitement effet expiré ${effect.id}:`,
-              err,
-            );
+            console.error(`Erreur traitement effet expire ${effect.id}:`, err);
           }
         }
       } catch (err) {
-        console.error("Erreur vérification effets shop expirés:", err);
+        console.error("Erreur verification effets shop expires:", err);
       }
     };
 
     // Vérifier au démarrage
     checkExpiredEffects();
 
-    // Vérifier toutes les 60 secondes
-    setInterval(checkExpiredEffects, 60 * 1000);
+    // Vérifier toutes les 15 secondes (pour les soumissions de 2min)
+    setInterval(checkExpiredEffects, 15 * 1000);
 
-    console.log("[Shop] Système de boutique initialisé");
+    console.log("[Shop] Systeme de boutique initialise (check toutes les 15s)");
   },
 };

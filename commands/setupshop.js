@@ -21,31 +21,29 @@ module.exports = {
     }
 
     try {
-      // Construire la description des catégories depuis le JSON
+      // Construire la description des catégories
       let categoriesDescription = "";
       for (const cat of shopData.categories) {
         const itemCount = shopData.items.filter(
           (i) => i.category === cat.id,
         ).length;
         categoriesDescription +=
-          `${cat.emoji} **${cat.label}**\n` +
-          `┗ ${cat.description} *(${itemCount} articles)*\n\n`;
+          `**${cat.label}** ・ ${itemCount} articles\n` +
+          `${cat.description}\n\n`;
       }
 
-      // Embed principal de la boutique
+      // Embed principal sobre
       const shopEmbed = new EmbedBuilder()
-        .setTitle("🛒 BOUTIQUE DU CASINO")
+        .setTitle("BOUTIQUE")
         .setDescription(
-          `**Bienvenue dans la boutique !**\n` +
-            `Dépensez vos coins durement gagnés pour obtenir des pouvoirs, des boosts et des objets exclusifs.\n\n` +
-            `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `Bienvenue dans la boutique du casino.\n` +
+            `Depensez vos coins pour obtenir des pouvoirs, boosts et objets exclusifs.\n\n` +
             categoriesDescription +
-            `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-            `💡 *Sélectionnez une catégorie ci-dessous pour parcourir les articles.*`,
+            `Selectionnez une categorie ci-dessous.`,
         )
-        .setColor(COLORS.GOLD)
+        .setColor(COLORS.PRIMARY)
         .setFooter({
-          text: "Les achats sont définitifs • Vérifiez votre solde avec ;bal",
+          text: "Les achats sont definitifs ・ Verifiez votre solde avec ;bal",
         })
         .setTimestamp();
 
@@ -60,7 +58,7 @@ module.exports = {
       const categorySelect = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
           .setCustomId("shop_category")
-          .setPlaceholder("🛒 Choisir une catégorie...")
+          .setPlaceholder("Choisir une categorie...")
           .addOptions(categoryOptions),
       );
 
@@ -74,10 +72,9 @@ module.exports = {
       await message.reply({
         embeds: [
           createEmbed(
-            "✅ Boutique installée !",
-            `L'embed de la boutique a été envoyé dans ce salon.\n\n` +
-              `**${shopData.categories.length}** catégories • **${shopData.items.length}** articles disponibles\n\n` +
-              `⚠️ **N'oubliez pas** de remplacer les IDs de rôles placeholders dans \`shop.json\` par les vrais IDs Discord.`,
+            "Boutique installee",
+            `L'embed de la boutique a ete envoye dans ce salon.\n\n` +
+              `**${shopData.categories.length}** categories ・ **${shopData.items.length}** articles disponibles`,
             COLORS.SUCCESS,
           ),
         ],
