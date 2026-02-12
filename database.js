@@ -374,6 +374,21 @@ module.exports = {
     );
   },
 
+  // Persistence helpers — liste TOUS les effets actifs (pas que les expirés)
+  getAllActiveShopEffectsList: async () => {
+    const res = await pool.query(
+      'SELECT * FROM shop_effects WHERE active = TRUE ORDER BY expires_at ASC'
+    );
+    return res.rows;
+  },
+
+  getAllPendingRoleExpirations: async () => {
+    const res = await pool.query(
+      'SELECT * FROM role_expirations ORDER BY expires_at ASC'
+    );
+    return res.rows;
+  },
+
   getShopPurchases: async (userId, limit = 20) => {
     const res = await pool.query(
       'SELECT * FROM shop_purchases WHERE user_id = $1 ORDER BY purchased_at DESC LIMIT $2',

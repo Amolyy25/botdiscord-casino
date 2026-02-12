@@ -159,24 +159,21 @@ function buildItemDetailEmbed(itemId) {
 async function processPurchase(interaction, item, db, targetId = null, extraData = null) {
   const userId = interaction.user.id;
 
+  // Defer immédiatement pour éviter le timeout 3s de Discord
+  // (les achats comme soumission font beaucoup d'appels API)
+  if (interaction.isModalSubmit()) {
+    await interaction.deferReply({ flags: 64 });
+  } else {
+    await interaction.deferUpdate();
+  }
+
   // Vérifier le solde
   const userData = await db.getUser(userId);
   const balance = BigInt(userData.balance);
   const price = BigInt(item.price);
 
   if (balance < price) {
-    const errorEmbed = new EmbedBuilder()
-      .setTitle("Solde insuffisant")
-      .setDescription(
-        `Vous avez besoin de ${formatCoins(item.price)} mais vous n'avez que ${formatCoins(userData.balance)}.`,
-      )
-      .setColor(COLORS.ERROR)
-      .setTimestamp();
-
-    if (interaction.isModalSubmit()) {
-      return interaction.reply({ embeds: [errorEmbed], flags: 64 });
-    }
-    return interaction.update({ embeds: [errorEmbed], components: [] });
+    return sendError(interaction, `Vous avez besoin de ${formatCoins(item.price)} mais vous n'avez que ${formatCoins(userData.balance)}.`);
   }
 
   // Déduire les coins
@@ -576,10 +573,7 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
     .setColor(COLORS.SUCCESS)
     .setTimestamp();
 
-  if (interaction.isModalSubmit()) {
-    return interaction.reply({ embeds: [successEmbed], flags: 64 });
-  }
-  return interaction.update({ embeds: [successEmbed], components: [] });
+  return interaction.editReply({ embeds: [successEmbed], components: [] });
 }
 
 function sendError(interaction, message) {
@@ -589,6 +583,11 @@ function sendError(interaction, message) {
     .setColor(COLORS.ERROR)
     .setTimestamp();
 
+  // Si l'interaction est déjà deferred ou replied, utiliser editReply
+  if (interaction.deferred || interaction.replied) {
+    return interaction.editReply({ embeds: [errorEmbed], components: [] });
+  }
+  // Sinon, répondre normalement
   if (interaction.isModalSubmit()) {
     return interaction.reply({ embeds: [errorEmbed], flags: 64 });
   }
@@ -893,9 +892,118 @@ module.exports = {
 
   /**
    * Initialise le système de vérification des effets expirés.
-   * Vérifie toutes les 15 secondes pour les effets courts (soumission 2min).
+   * Au démarrage : scan complet, traite les expirés, log les actifs restants.
+   * Puis vérifie toutes les 15 secondes.
    */
   async init(client, db) {
+    // ── Fonction de traitement d'un effet expiré ──
+    // Retourne true si l'effet doit être désactivé, false pour réessayer au prochain cycle
+    const processExpiredEffect = async (effect, guild) => {
+      // ── Restauration de surnom ──
+      if (effect.effect_type === "nickname") {
+        const member = await guild.members.fetch({ user: effect.user_id, force: true }).catch((err) => {
+          console.error(`[Shop] Erreur fetch membre ${effect.user_id} pour nickname:`, err.message);
+          return null;
+        });
+
+        if (!member) {
+          // Si l'effet a plus de 24h, on nettoie (le membre a probablement quitté)
+          const effectAge = Date.now() - Number(effect.expires_at);
+          if (effectAge > 24 * 60 * 60 * 1000) {
+            console.log(`[Shop] Nickname pour ${effect.user_id} expire depuis >24h, nettoyage`);
+            return true;
+          }
+          console.log(`[Shop] Membre ${effect.user_id} introuvable pour nickname, reessai prochain cycle`);
+          return false; // Ne PAS désactiver, réessayer
+        }
+
+        const originalNickname = effect.extra_data;
+        await member
+          .setNickname(
+            originalNickname === member.user.displayName ? null : originalNickname,
+          )
+          .catch((err) => {
+            console.error(`[Shop] Erreur restauration surnom pour ${effect.user_id}:`, err.message);
+          });
+        console.log(
+          `[Shop] Surnom restaure pour ${member.user.tag} -> "${originalNickname || "defaut"}"`,
+        );
+        return true;
+      }
+
+      // ── Restauration soumission ──
+      if (effect.effect_type === "soumission") {
+        const member = await guild.members.fetch({ user: effect.user_id, force: true }).catch((err) => {
+          console.error(`[Shop] Erreur fetch membre ${effect.user_id} pour soumission:`, err.message);
+          return null;
+        });
+
+        if (!member) {
+          const effectAge = Date.now() - Number(effect.expires_at);
+          if (effectAge > 24 * 60 * 60 * 1000) {
+            console.log(`[Shop] Soumission pour ${effect.user_id} expire depuis >24h, nettoyage`);
+            return true;
+          }
+          console.log(`[Shop] Membre ${effect.user_id} introuvable pour soumission, reessai prochain cycle`);
+          return false; // Ne PAS désactiver, réessayer
+        }
+
+        // Retirer le rôle soumis
+        const soumisRoleId = effect.value;
+        await member.roles.remove(soumisRoleId).catch((err) => {
+          console.error(
+            `[Shop] Erreur retrait role soumis pour ${effect.user_id}:`,
+            err.message,
+          );
+        });
+
+        // Restaurer les rôles sauvegardés
+        let savedRoleIds = [];
+        try {
+          savedRoleIds = JSON.parse(effect.extra_data || "[]");
+        } catch (e) {
+          console.error("[Shop] Erreur parsing roles sauvegardes:", e);
+        }
+
+        let restoredCount = 0;
+        for (const roleId of savedRoleIds) {
+          try {
+            const role = guild.roles.cache.get(roleId);
+            if (role && !role.managed) {
+              await member.roles.add(roleId);
+              restoredCount++;
+            }
+          } catch (err) {
+            console.error(
+              `[Shop] Erreur restauration role ${roleId} pour ${effect.user_id}:`,
+              err.message,
+            );
+          }
+        }
+
+        console.log(
+          `[Shop] Soumission expiree pour ${member.user.tag} : ${restoredCount}/${savedRoleIds.length} roles restaures`,
+        );
+
+        try {
+          const dmEmbed = new EmbedBuilder()
+            .setTitle("Soumission terminee")
+            .setDescription(
+              `Votre soumission est terminee.\nVos roles ont ete restaures (${restoredCount}/${savedRoleIds.length}).`,
+            )
+            .setColor(COLORS.SUCCESS)
+            .setTimestamp();
+          await member.send({ embeds: [dmEmbed] }).catch(() => {});
+        } catch (e) {}
+
+        return true;
+      }
+
+      // Autres types d'effets : toujours désactiver
+      return true;
+    };
+
+    // ── Check régulier des effets expirés ──
     const checkExpiredEffects = async () => {
       const now = Date.now();
 
@@ -907,105 +1015,57 @@ module.exports = {
             const guild = client.guilds.cache.first();
             if (!guild) continue;
 
-            // ── Restauration de surnom ──
-            if (effect.effect_type === "nickname") {
-              const member = await guild.members.fetch(effect.user_id).catch(() => null);
-
-              if (member) {
-                const originalNickname = effect.extra_data;
-                await member
-                  .setNickname(
-                    originalNickname === member.user.displayName ? null : originalNickname,
-                  )
-                  .catch((err) => {
-                    console.error(`Erreur restauration surnom pour ${effect.user_id}:`, err);
-                  });
-                console.log(
-                  `[Shop] Surnom restaure pour ${member.user.tag} -> "${originalNickname || "defaut"}"`,
-                );
-              }
+            const shouldDeactivate = await processExpiredEffect(effect, guild);
+            if (shouldDeactivate) {
+              await db.deactivateShopEffect(effect.id);
+              console.log(`[Shop] Effet expire desactive: ${effect.effect_type} pour user ${effect.user_id}`);
             }
-
-            // ── Restauration soumission (re-ajouter les rôles) ──
-            if (effect.effect_type === "soumission") {
-              const member = await guild.members.fetch(effect.user_id).catch(() => null);
-
-              if (member) {
-                // Retirer le rôle soumis
-                const soumisRoleId = effect.value;
-                await member.roles.remove(soumisRoleId).catch((err) => {
-                  console.error(
-                    `[Shop] Erreur retrait role soumis pour ${effect.user_id}:`,
-                    err.message,
-                  );
-                });
-
-                // Restaurer les rôles sauvegardés
-                let savedRoleIds = [];
-                try {
-                  savedRoleIds = JSON.parse(effect.extra_data || "[]");
-                } catch (e) {
-                  console.error("[Shop] Erreur parsing roles sauvegardes:", e);
-                }
-
-                let restoredCount = 0;
-                for (const roleId of savedRoleIds) {
-                  try {
-                    const role = guild.roles.cache.get(roleId);
-                    if (role && !role.managed) {
-                      await member.roles.add(roleId);
-                      restoredCount++;
-                    }
-                  } catch (err) {
-                    console.error(
-                      `[Shop] Erreur restauration role ${roleId} pour ${effect.user_id}:`,
-                      err.message,
-                    );
-                  }
-                }
-
-                console.log(
-                  `[Shop] Soumission expiree pour ${member.user.tag} : ${restoredCount}/${savedRoleIds.length} roles restaures`,
-                );
-
-                // Envoyer un MP
-                try {
-                  const dmEmbed = new EmbedBuilder()
-                    .setTitle("Soumission terminee")
-                    .setDescription(
-                      `Votre soumission est terminee.\nVos roles ont ete restaures (${restoredCount}/${savedRoleIds.length}).`,
-                    )
-                    .setColor(COLORS.SUCCESS)
-                    .setTimestamp();
-                  await member.send({ embeds: [dmEmbed] }).catch(() => {});
-                } catch (e) {}
-              } else {
-                console.log(
-                  `[Shop] Membre ${effect.user_id} introuvable pour restauration soumission`,
-                );
-              }
-            }
-
-            // Désactiver l'effet
-            await db.deactivateShopEffect(effect.id);
-            console.log(
-              `[Shop] Effet expire desactive: ${effect.effect_type} pour user ${effect.user_id}`,
-            );
           } catch (err) {
-            console.error(`Erreur traitement effet expire ${effect.id}:`, err);
+            console.error(`[Shop] Erreur traitement effet expire ${effect.id}:`, err);
           }
         }
       } catch (err) {
-        console.error("Erreur verification effets shop expires:", err);
+        console.error("[Shop] Erreur verification effets expires:", err);
       }
     };
 
-    // Vérifier au démarrage
-    checkExpiredEffects();
+    // ── Startup recovery : scan complet ──
+    try {
+      console.log("[Shop] Demarrage recovery...");
 
-    // Vérifier toutes les 15 secondes (pour les soumissions de 2min)
+      // 1. Traiter tous les effets qui ont expiré pendant que le bot était éteint
+      await checkExpiredEffects();
+
+      // 2. Lister tous les effets encore actifs (pour le log)
+      const allActive = await db.getAllActiveShopEffectsList();
+      const activeWithExpiry = allActive.filter((e) => e.expires_at);
+      const activeNoExpiry = allActive.filter((e) => !e.expires_at);
+
+      if (activeWithExpiry.length > 0) {
+        console.log(`[Shop] ${activeWithExpiry.length} effet(s) a duree encore actif(s) :`);
+        for (const effect of activeWithExpiry) {
+          const remaining = Math.max(0, Number(effect.expires_at) - Date.now());
+          const remainingStr = formatDuration(remaining);
+          console.log(
+            `  - ${effect.effect_type} pour user ${effect.user_id} (expire dans ${remainingStr})`,
+          );
+        }
+      }
+
+      if (activeNoExpiry.length > 0) {
+        console.log(`[Shop] ${activeNoExpiry.length} effet(s) permanent(s) actif(s)`);
+      }
+
+      if (allActive.length === 0) {
+        console.log("[Shop] Aucun effet actif a restaurer");
+      }
+    } catch (err) {
+      console.error("[Shop] Erreur lors du startup recovery:", err);
+    }
+
+    // ── Interval régulier ──
     setInterval(checkExpiredEffects, 15 * 1000);
 
-    console.log("[Shop] Systeme de boutique initialise (check toutes les 15s)");
+    console.log("[Shop] Systeme initialise ・ check toutes les 15s ・ persistence DB active");
   },
 };

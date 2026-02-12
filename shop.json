@@ -278,19 +278,6 @@
       "needsTarget": false
     },
     {
-      "id": "vol_inarretable",
-      "category": "casino",
-      "label": "Vol Inarrêtable",
-      "emoji": "🥷",
-      "description": "Votre prochain ;vole ne pourra pas être arrêté ! Usage unique.",
-      "price": 1000,
-      "type": "shop_effect",
-      "roleId": null,
-      "value": "unstoppable_steal",
-      "duration": null,
-      "needsTarget": false
-    },
-    {
       "id": "vol_immediat",
       "category": "casino",
       "label": "Vol Immédiat",
