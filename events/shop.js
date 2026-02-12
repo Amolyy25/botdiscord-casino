@@ -62,6 +62,26 @@ const IMMUNITY_ROLE_IDS = [
   "1470934696085946561", // 24H
 ];
 
+const LOG_CHANNEL_ID = "1471509327419543552";
+
+async function sendShopLog(guild, title, description, color, fields = []) {
+  try {
+    const channel = await guild.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
+    if (!channel) return;
+
+    const embed = new EmbedBuilder()
+      .setTitle(title)
+      .setDescription(description)
+      .setColor(color)
+      .addFields(fields)
+      .setTimestamp();
+
+    await channel.send({ embeds: [embed] });
+  } catch (err) {
+    console.error("[Shop] Erreur envoi log:", err.message);
+  }
+}
+
 // ─── Build embeds & components (design sobre) ───────────────
 
 function buildCategoryItemsEmbed(categoryId) {
@@ -562,6 +582,17 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
     );
   }
 
+  // Log de l'achat
+  await sendShopLog(
+    interaction.guild,
+    "Achat Effectue",
+    `**Joueur :** <@${userId}> (${userId})\n` +
+      `**Article :** ${item.label}\n` +
+      `**Prix :** ${formatCoins(item.price)}\n` +
+      `**Details :** ${effectDescription}`,
+    COLORS.PRIMARY,
+  );
+
   // Embed de succès
   const successEmbed = new EmbedBuilder()
     .setTitle("Achat effectue")
@@ -897,25 +928,13 @@ module.exports = {
    */
   async init(client, db) {
     // ── Fonction de traitement d'un effet expiré ──
-    // Retourne true si l'effet doit être désactivé, false pour réessayer au prochain cycle
+    // Retourne true si l'effet doit être désactivé, false si membre introuvable sur cette guilde
     const processExpiredEffect = async (effect, guild) => {
       // ── Restauration de surnom ──
       if (effect.effect_type === "nickname") {
-        const member = await guild.members.fetch({ user: effect.user_id, force: true }).catch((err) => {
-          console.error(`[Shop] Erreur fetch membre ${effect.user_id} pour nickname:`, err.message);
-          return null;
-        });
+        const member = await guild.members.fetch({ user: effect.user_id, force: true }).catch(() => null);
 
-        if (!member) {
-          // Si l'effet a plus de 24h, on nettoie (le membre a probablement quitté)
-          const effectAge = Date.now() - Number(effect.expires_at);
-          if (effectAge > 24 * 60 * 60 * 1000) {
-            console.log(`[Shop] Nickname pour ${effect.user_id} expire depuis >24h, nettoyage`);
-            return true;
-          }
-          console.log(`[Shop] Membre ${effect.user_id} introuvable pour nickname, reessai prochain cycle`);
-          return false; // Ne PAS désactiver, réessayer
-        }
+        if (!member) return false; // Introuvable sur cette guilde
 
         const originalNickname = effect.extra_data;
         await member
@@ -928,25 +947,21 @@ module.exports = {
         console.log(
           `[Shop] Surnom restaure pour ${member.user.tag} -> "${originalNickname || "defaut"}"`,
         );
+
+        await sendShopLog(
+          guild,
+          "Restauration Surnom",
+          `Le surnom de <@${effect.user_id}> a ete restaure a : **${originalNickname || "Défaut"}**.`,
+          COLORS.SUCCESS
+        );
         return true;
       }
 
       // ── Restauration soumission ──
       if (effect.effect_type === "soumission") {
-        const member = await guild.members.fetch({ user: effect.user_id, force: true }).catch((err) => {
-          console.error(`[Shop] Erreur fetch membre ${effect.user_id} pour soumission:`, err.message);
-          return null;
-        });
+        const member = await guild.members.fetch({ user: effect.user_id, force: true }).catch(() => null);
 
-        if (!member) {
-          const effectAge = Date.now() - Number(effect.expires_at);
-          if (effectAge > 24 * 60 * 60 * 1000) {
-            console.log(`[Shop] Soumission pour ${effect.user_id} expire depuis >24h, nettoyage`);
-            return true;
-          }
-          console.log(`[Shop] Membre ${effect.user_id} introuvable pour soumission, reessai prochain cycle`);
-          return false; // Ne PAS désactiver, réessayer
-        }
+        if (!member) return false; // Introuvable sur cette guilde
 
         // Retirer le rôle soumis
         const soumisRoleId = effect.value;
@@ -985,6 +1000,13 @@ module.exports = {
           `[Shop] Soumission expiree pour ${member.user.tag} : ${restoredCount}/${savedRoleIds.length} roles restaures`,
         );
 
+        await sendShopLog(
+          guild,
+          "Soumission Terminee",
+          `La soumission de <@${effect.user_id}> est terminee.\n**Roles restaures :** ${restoredCount}/${savedRoleIds.length}`,
+          COLORS.SUCCESS
+        );
+
         try {
           const dmEmbed = new EmbedBuilder()
             .setTitle("Soumission terminee")
@@ -1011,17 +1033,43 @@ module.exports = {
         const expiredEffects = await db.getExpiredShopEffects(now);
 
         for (const effect of expiredEffects) {
-          try {
-            const guild = client.guilds.cache.first();
-            if (!guild) continue;
+          let processed = false;
 
-            const shouldDeactivate = await processExpiredEffect(effect, guild);
-            if (shouldDeactivate) {
-              await db.deactivateShopEffect(effect.id);
-              console.log(`[Shop] Effet expire desactive: ${effect.effect_type} pour user ${effect.user_id}`);
+          // Essayer sur toutes les guildes du bot
+          for (const guild of client.guilds.cache.values()) {
+            try {
+              const result = await processExpiredEffect(effect, guild);
+              if (result === true) {
+                processed = true;
+                break; // Traité avec succès sur cette guilde
+              }
+            } catch (err) {
+              console.error(`[Shop] Erreur traitement effet ${effect.id} sur guilde ${guild.id}:`, err);
             }
-          } catch (err) {
-            console.error(`[Shop] Erreur traitement effet expire ${effect.id}:`, err);
+          }
+
+          if (processed) {
+            await db.deactivateShopEffect(effect.id);
+            console.log(`[Shop] Effet ${effect.id} desactive avec succes.`);
+          } else {
+            // Membre introuvable sur aucune guilde
+            // Vérifier si cela fait plus de 24h
+            const effectAge = Date.now() - Number(effect.expires_at);
+            if (effectAge > 24 * 60 * 60 * 1000) {
+              console.log(`[Shop] Membre ${effect.user_id} introuvable partout > 24h. Nettoyage.`);
+              await db.deactivateShopEffect(effect.id);
+              
+              const logGuild = client.guilds.cache.first();
+              if (logGuild) {
+                await sendShopLog(
+                  logGuild,
+                  "Nettoyage Effet Expire",
+                  `Membre <@${effect.user_id}> (${effect.user_id}) introuvable sur aucun serveur.\nL'effet **${effect.effect_type}** a ete force-supprime de la base de donnees.`,
+                  COLORS.GOLD
+                );
+              }
+            }
+            // Sinon, on laisse actif et on réessaiera au prochain cycle (boucle normale)
           }
         }
       } catch (err) {
