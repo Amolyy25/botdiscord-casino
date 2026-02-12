@@ -966,21 +966,6 @@ module.exports = {
 
         if (!member) return false; // Introuvable sur cette guilde
 
-        // Retirer le rôle soumis
-        const soumisRoleId = effect.value;
-        if (soumisRoleId && guild.roles.cache.has(soumisRoleId)) {
-             await member.roles.remove(soumisRoleId).catch((err) => {
-              console.error(
-                `[Shop] Erreur retrait role soumis (${soumisRoleId}) pour ${effect.user_id}:`,
-                err.message,
-              );
-            });
-        } else {
-             // Si le rôle n'existe plus, on log juste un warning mais on continue
-             console.warn(`[Shop] Role soumis (${soumisRoleId}) introuvable ou invalide pour le retrait.`);
-        }
-
-        // Restaurer les rôles sauvegardés
         let savedRoleIds = [];
         try {
           savedRoleIds = JSON.parse(effect.extra_data || "[]");
@@ -988,33 +973,65 @@ module.exports = {
           console.error("[Shop] Erreur parsing roles sauvegardes:", e);
         }
 
-        // S'assurer que le cache des rôles est à jour
+        const soumisRoleId = effect.value;
+
+        // 🔍 VÉRIFICATION DU CONTEXTE GUILD (Fix multi-serveurs)
+        // On vérifie si les rôles à restaurer (ou le rôle soumis) existent sur ce serveur.
+        // Si aucun rôle n'existe, c'est probablement qu'on est sur le mauvais serveur (ex: dev vs prod)
+        // et qu'on a trouvé le membre sur ce mauvais serveur.
+        
         await guild.roles.fetch().catch(() => console.warn("[Shop] Echec fetch roles, utilisation cache"));
 
         const rolesToRestore = [];
+        let matchingRolesCount = 0;
+
+        // Vérifier le rôle soumis
+        if (soumisRoleId && guild.roles.cache.has(soumisRoleId)) {
+            matchingRolesCount++;
+        }
+
+        // Vérifier les rôles sauvegardés et préparer la liste
         const failedRoles = [];
         
         for (const roleId of savedRoleIds) {
              const role = guild.roles.cache.get(roleId);
              
-             if (!role) {
-                 console.warn(`[Shop] Role ${roleId} introuvable (supprimé ?) pour restoration sur ${member.user.tag}`);
+             if (role) {
+                 matchingRolesCount++;
+                 if (role.editable) {
+                     rolesToRestore.push(roleId);
+                 } else {
+                     failedRoles.push(`${role.name} (Hiérarchie)`);
+                 }
+             } else {
                  failedRoles.push(`ID: ${roleId} (Introuvable)`);
-                 continue;
              }
-             
-             if (!role.editable) {
-                 console.error(`[Shop] CRITIQUE: Impossible de restaurer le role "${role.name}" (${roleId}) à ${member.user.tag}. Le rôle du bot est trop bas dans la hiérarchie !`);
-                 failedRoles.push(`${role.name} (Hiérarchie)`);
-                 continue;
-             }
-             
-             rolesToRestore.push(roleId);
+        }
+
+        // Si aucun rôle n'est trouvé (ni le soumis, ni ceux à rendre) alors qu'il y en avait,
+        // on considère qu'on est sur le mauvais serveur.
+        // On retourne false pour laisser la boucle essayer la guilde suivante.
+        if (matchingRolesCount === 0 && (savedRoleIds.length > 0 || soumisRoleId)) {
+            // Petite protection : si l'utilisateur n'a vraiment plus aucun rôle nulle part, ça finira en timeout 24h.
+            console.log(`[Shop] Membre ${member.user.tag} trouvé sur ${guild.name} mais aucun rôle correspondant n'existe. Skip.`);
+            return false; 
+        }
+
+        // --- PROCÉDURE DE RESTAURATION ---
+
+        // Retirer le rôle soumis (si présent)
+        if (soumisRoleId && guild.roles.cache.has(soumisRoleId)) {
+             await member.roles.remove(soumisRoleId).catch((err) => {
+              console.error(
+                `[Shop] Erreur retrait role soumis (${soumisRoleId}) pour ${effect.user_id}:`,
+                err.message,
+              );
+            });
         }
 
         let restoredCount = 0;
         
-        // Tentative de restauration en masse (plus efficace)
+        // Tentative de restauration en masse
         if (rolesToRestore.length > 0) {
             try {
                 await member.roles.add(rolesToRestore);
@@ -1036,7 +1053,7 @@ module.exports = {
         }
 
         console.log(
-          `[Shop] Soumission expiree pour ${member.user.tag} : ${restoredCount}/${savedRoleIds.length} roles restaures`,
+          `[Shop] Soumission expiree pour ${member.user.tag} : ${restoredCount}/${savedRoleIds.length} roles restaures sur ${guild.name}`,
         );
 
         let logDescription = `La soumission de <@${effect.user_id}> est terminee.\n**Roles restaures :** ${restoredCount}/${savedRoleIds.length}`;
@@ -1086,6 +1103,9 @@ module.exports = {
 
           // Essayer sur toutes les guildes du bot
           for (const guild of client.guilds.cache.values()) {
+            // Restriction au serveur principal
+            if (guild.id !== "1469071689399926786") continue;
+
             try {
               const result = await processExpiredEffect(effect, guild);
               if (result === true) {
