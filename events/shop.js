@@ -62,6 +62,20 @@ const IMMUNITY_ROLE_IDS = [
   "1470934696085946561", // 24H
 ];
 
+// IDs des rôles Staff à protéger contre les effets agressifs
+const STAFF_ROLE_IDS = [
+  "1469071689848721510", // Admin/Staff 1
+  "1469071689831940310", // Admin/Staff 2
+];
+
+// Types d'items considérés comme agressifs/troll
+const AGGRESSIVE_ITEM_TYPES = [
+  "soumission",
+  "timeout",
+  "nickname",
+  "instant_steal",
+];
+
 const LOG_CHANNEL_ID = "1471509327419543552";
 
 async function sendShopLog(guild, title, description, color, fields = []) {
@@ -201,6 +215,37 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
 
   // Enregistrer l'achat
   await db.addShopPurchase(userId, item.id, targetId, item.price);
+
+  // 🛡️ PROTECTION STAFF : Empêcher les actions agressives sur le staff
+  if (targetId && AGGRESSIVE_ITEM_TYPES.includes(item.type)) {
+    try {
+      const guild = interaction.guild;
+      // On fetch le membre cible pour vérifier ses rôles
+      const targetMember = await guild.members.fetch(targetId).catch(() => null);
+
+      if (targetMember) {
+        // Vérifier si la cible possède un des rôles staff protégés
+        const isStaff = STAFF_ROLE_IDS.some((roleId) =>
+          targetMember.roles.cache.has(roleId)
+        );
+
+        if (isStaff) {
+          // Remboursement
+          await db.updateBalance(userId, item.price);
+          
+          return sendError(
+            interaction,
+            `🛡️ **Action impossible !**\n\n` +
+            `Vous ne pouvez pas utiliser cet objet sur un membre du Staff (<@${targetId}>).\n` +
+            `Vous avez ete rembourse de **${formatCoins(item.price)}**.`
+          );
+        }
+      }
+    } catch (err) {
+      console.error("[Shop] Erreur verification staff:", err);
+      // En cas d'erreur de vérif, on laisse passer (ou on bloque par sécurité ? On laisse passer pour éviter blocage total si API error)
+    }
+  }
 
   // Appliquer l'effet selon le type
   let effectDescription = "";
