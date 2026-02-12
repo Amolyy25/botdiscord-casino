@@ -1092,7 +1092,12 @@ module.exports = {
     };
 
     // ── Check régulier des effets expirés ──
+    let isProcessing = false;
+
     const checkExpiredEffects = async () => {
+      if (isProcessing) return;
+      isProcessing = true;
+      
       const now = Date.now();
 
       try {
@@ -1121,19 +1126,20 @@ module.exports = {
             await db.deactivateShopEffect(effect.id);
             console.log(`[Shop] Effet ${effect.id} desactive avec succes.`);
           } else {
-            // Membre introuvable sur aucune guilde
-            // Vérifier si cela fait plus de 24h
+            // Membre introuvable sur le serveur principal
+            // On vérifie si cela fait plus de 1h (réduit de 24h pour éviter le spam inutile)
             const effectAge = Date.now() - Number(effect.expires_at);
-            if (effectAge > 24 * 60 * 60 * 1000) {
-              console.log(`[Shop] Membre ${effect.user_id} introuvable partout > 24h. Nettoyage.`);
+            // 1h = 60 * 60 * 1000
+            if (effectAge > 60 * 60 * 1000) {
+              console.log(`[Shop] Membre ${effect.user_id} introuvable sur le serveur > 1h. Nettoyage.`);
               await db.deactivateShopEffect(effect.id);
               
-              const logGuild = client.guilds.cache.first();
+              const logGuild = client.guilds.cache.get("1469071689399926786");
               if (logGuild) {
                 await sendShopLog(
                   logGuild,
                   "Nettoyage Effet Expire",
-                  `Membre <@${effect.user_id}> (${effect.user_id}) introuvable sur aucun serveur.\nL'effet **${effect.effect_type}** a ete force-supprime de la base de donnees.`,
+                  `Membre <@${effect.user_id}> (${effect.user_id}) introuvable sur le serveur.\nL'effet **${effect.effect_type}** a ete force-supprime de la base de donnees.`,
                   COLORS.GOLD
                 );
               }
@@ -1143,6 +1149,8 @@ module.exports = {
         }
       } catch (err) {
         console.error("[Shop] Erreur verification effets expires:", err);
+      } finally {
+        isProcessing = false;
       }
     };
 
