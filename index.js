@@ -7,6 +7,7 @@ const { COLORS, createEmbed, formatCoins } = require('./utils');
 const mathQuiz = require('./events/mathQuiz');
 const roleExpiration = require('./events/roleExpiration');
 const braquage = require('./events/braquage');
+const shop = require('./events/shop');
 
 const client = new Client({
     intents: [
@@ -43,6 +44,9 @@ client.once('clientReady', async () => {
 
         // Init Braquage System
         await braquage.init(client, db);
+
+        // Init Shop System
+        await shop.init(client, db);
 
     } catch (err) {
         console.error('Failed to initialize database:', err);
@@ -92,8 +96,16 @@ client.on('messageCreate', async message => {
     }
 });
 
-// Handle button interactions for casino access
+// Handle all interactions
 client.on('interactionCreate', async interaction => {
+    // Shop interactions (select menus, buttons, modals starting with shop_)
+    try {
+        const handled = await shop.handleInteraction(interaction, db);
+        if (handled) return;
+    } catch (err) {
+        console.error('Erreur handler shop:', err);
+    }
+
     if (!interaction.isButton()) return;
 
     if (interaction.customId === 'access_casino') {

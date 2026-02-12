@@ -1,0 +1,294 @@
+{
+  "categories": [
+    {
+      "id": "pouvoir_troll",
+      "label": "POUVOIR & TROLL",
+      "description": "Pseudo forcé, mutes, soumissions...",
+      "emoji": "⚡",
+      "color": "#FF4444"
+    },
+    {
+      "id": "commandes_lana",
+      "label": "COMMANDES LANA",
+      "description": "Obtenez un rôle d'accès aux commandes du bot Lana",
+      "emoji": "🤖",
+      "color": "#9B59B6"
+    },
+    {
+      "id": "xp",
+      "label": "XP",
+      "description": "Boost d'XP temporaires",
+      "emoji": "✨",
+      "color": "#00FF88"
+    },
+    {
+      "id": "prestige",
+      "label": "PRESTIGE",
+      "description": "Émojis persos & rôles couleur exclusifs",
+      "emoji": "👑",
+      "color": "#FFD700"
+    },
+    {
+      "id": "casino",
+      "label": "CASINO",
+      "description": "Immunités braquage, tirages, vols",
+      "emoji": "🎰",
+      "color": "#2b2d31"
+    }
+  ],
+  "items": [
+    {
+      "id": "pseudo_1h",
+      "category": "pouvoir_troll",
+      "label": "Pseudo Forcé (1h)",
+      "emoji": "📝",
+      "description": "Changez le pseudo de quelqu'un pendant 1 heure !",
+      "price": 300,
+      "type": "nickname",
+      "roleId": null,
+      "duration": 3600000,
+      "needsTarget": true
+    },
+    {
+      "id": "mute_5",
+      "category": "pouvoir_troll",
+      "label": "Mute (5min)",
+      "emoji": "🤐",
+      "description": "Rend muet quelqu'un pendant 5 minutes ! La victime sera notifiée par MP.",
+      "price": 500,
+      "type": "timeout",
+      "roleId": null,
+      "duration": 300000,
+      "needsTarget": true
+    },
+    {
+      "id": "mute_10",
+      "category": "pouvoir_troll",
+      "label": "Mute (10min)",
+      "emoji": "🤐",
+      "description": "Rend muet quelqu'un pendant 10 minutes ! La victime sera notifiée par MP.",
+      "price": 1000,
+      "type": "timeout",
+      "roleId": null,
+      "duration": 600000,
+      "needsTarget": true
+    },
+    {
+      "id": "soumission_2",
+      "category": "pouvoir_troll",
+      "label": "Soumission (2min)",
+      "emoji": "🙇",
+      "description": "Rend soumis quelqu'un pendant 2 minutes !",
+      "price": 600,
+      "type": "temp_role",
+      "roleId": "1469308068239249613",
+      "duration": 120000,
+      "needsTarget": true
+    },
+    {
+      "id": "soumission_5",
+      "category": "pouvoir_troll",
+      "label": "Soumission (5min)",
+      "emoji": "🙇",
+      "description": "Rend soumis quelqu'un pendant 5 minutes !",
+      "price": 1200,
+      "type": "temp_role",
+      "roleId": "1469308068239249613",
+      "duration": 300000,
+      "needsTarget": true
+    },
+    {
+      "id": "cmd_fake",
+      "category": "commandes_lana",
+      "label": "Rôle Commande -fake",
+      "emoji": "🎭",
+      "description": "Obtenez le rôle d'accès permanent à la commande ;fake du bot Lana.",
+      "price": 300,
+      "type": "permanent_role",
+      "roleId": "1471477120122224822",
+      "duration": null,
+      "needsTarget": false
+    },
+    {
+      "id": "cmd_pic",
+      "category": "commandes_lana",
+      "label": "Rôle Commande -pic",
+      "emoji": "📸",
+      "description": "Obtenez le rôle d'accès permanent à la commande ;pic du bot Lana.",
+      "price": 300,
+      "type": "permanent_role",
+      "roleId": "1471477261726257376",
+      "duration": null,
+      "needsTarget": false
+    },
+    {
+      "id": "cmd_mirror",
+      "category": "commandes_lana",
+      "label": "Rôle Commande -mirror",
+      "emoji": "🪞",
+      "description": "Obtenez le rôle d'accès permanent à la commande ;mirror du bot Lana.",
+      "price": 500,
+      "type": "permanent_role",
+      "roleId": "1471477373365911627",
+      "duration": null,
+      "needsTarget": false
+    },
+    {
+      "id": "cmd_userinfo",
+      "category": "commandes_lana",
+      "label": "Rôle Commande -userinfo",
+      "emoji": "🔍",
+      "description": "Obtenez le rôle d'accès permanent à la commande ;userinfo du bot Lana.",
+      "price": 300,
+      "type": "permanent_role",
+      "roleId": "1471488999611830356",
+      "duration": null,
+      "needsTarget": false
+    },
+    {
+      "id": "xp_1_5_24h",
+      "category": "xp",
+      "label": "Boost XP +1.5% (24h)",
+      "emoji": "📈",
+      "description": "Augmente vos gains d'XP de 1.5% pendant 24 heures !",
+      "price": 500,
+      "type": "temp_role",
+      "roleId": "1470931245381845216",
+      "duration": 86400000,
+      "needsTarget": false
+    },
+    {
+      "id": "xp_2_24h",
+      "category": "xp",
+      "label": "Boost XP +2% (24h)",
+      "emoji": "🚀",
+      "description": "Augmente vos gains d'XP de 2% pendant 24 heures !",
+      "price": 750,
+      "type": "temp_role",
+      "roleId": "1470931333760155854",
+      "duration": 86400000,
+      "needsTarget": false
+    },
+    {
+      "id": "emoji_perso",
+      "category": "prestige",
+      "label": "Emoji Personnalisé",
+      "emoji": "🎨",
+      "description": "Ouvre un ticket pour ajouter votre propre emoji sur le serveur !",
+      "price": 230,
+      "type": "ticket",
+      "roleId": null,
+      "duration": null,
+      "needsTarget": false
+    },
+    {
+      "id": "emoji_anime",
+      "category": "prestige",
+      "label": "Emoji Personnalisé Animé",
+      "emoji": "✨",
+      "description": "Ouvre un ticket pour ajouter votre propre emoji animé sur le serveur !",
+      "price": 300,
+      "type": "ticket",
+      "roleId": null,
+      "duration": null,
+      "needsTarget": false
+    },
+    {
+      "id": "role_couleur_basic",
+      "category": "prestige",
+      "label": "Rôle Couleur Basic (24h)",
+      "emoji": "🌈",
+      "description": "Choisissez un rôle couleur parmi 10 options pour 24 heures !",
+      "price": 1500,
+      "type": "role_select",
+      "roleId": null,
+      "duration": 86400000,
+      "needsTarget": false,
+      "roles": [
+        { "id": "1469071689823289446", "label": "Noir", "emoji": "⬛" },
+        { "id": "1469071689823289445", "label": "Cyan", "emoji": "🩵" },
+        { "id": "1469071689823289444", "label": "Jaune", "emoji": "🟡" },
+        { "id": "1469071689823289443", "label": "Rouge Foncé", "emoji": "🟥" },
+        { "id": "1469071689823289442", "label": "Rouge Clair", "emoji": "❤️" },
+        { "id": "1469071689823289441", "label": "Orange", "emoji": "🟠" },
+        { "id": "1469071689823289440", "label": "Vert", "emoji": "🟢" },
+        { "id": "1469071689823289439", "label": "Vert Clair", "emoji": "💚" },
+        { "id": "1469071689823289438", "label": "Bleu Foncé", "emoji": "🔵" },
+        { "id": "1469071689823289437", "label": "Bleu Clair", "emoji": "💙" }
+      ]
+    },
+    {
+      "id": "role_couleur_holo",
+      "category": "prestige",
+      "label": "Rôle Holographique (24h)",
+      "emoji": "💎",
+      "description": "Le rôle le plus rare ! Couleur holographique pendant 24 heures !",
+      "price": 5000,
+      "type": "temp_role",
+      "roleId": "1471487736161505361",
+      "duration": 86400000,
+      "needsTarget": false
+    },
+    {
+      "id": "immunite_braquage_2h",
+      "category": "casino",
+      "label": "Immunité Braquage (2h)",
+      "emoji": "🛡️",
+      "description": "Immunité au braquage pendant 2 heures !",
+      "price": 400,
+      "type": "temp_role",
+      "roleId": "1470934040692392008",
+      "duration": 7200000,
+      "needsTarget": false
+    },
+    {
+      "id": "immunite_braquage_6h",
+      "category": "casino",
+      "label": "Immunité Braquage (6h)",
+      "emoji": "🛡️",
+      "description": "Immunité au braquage pendant 6 heures !",
+      "price": 1000,
+      "type": "temp_role",
+      "roleId": "1470934642998644826",
+      "duration": 21600000,
+      "needsTarget": false
+    },
+    {
+      "id": "immunite_braquage_24h",
+      "category": "casino",
+      "label": "Immunité Braquage (24h)",
+      "emoji": "🛡️",
+      "description": "Immunité au braquage pendant 24 heures !",
+      "price": 2000,
+      "type": "temp_role",
+      "roleId": "1470934696085946561",
+      "duration": 86400000,
+      "needsTarget": false
+    },
+    {
+      "id": "tirage_1",
+      "category": "casino",
+      "label": "1 Tirage",
+      "emoji": "🎫",
+      "description": "Obtenez 1 tirage supplémentaire pour la roue des rôles !",
+      "price": 600,
+      "type": "tirage",
+      "roleId": null,
+      "duration": null,
+      "needsTarget": false
+    },
+    {
+      "id": "vol_inarretable",
+      "category": "casino",
+      "label": "Vol Inarrêtable",
+      "emoji": "🥷",
+      "description": "Votre prochain ;vole ne pourra pas être arrêté ! Usage unique.",
+      "price": 1000,
+      "type": "shop_effect",
+      "roleId": null,
+      "value": "unstoppable_steal",
+      "duration": null,
+      "needsTarget": false
+    }
+  ]
+}

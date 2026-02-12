@@ -49,6 +49,35 @@ const initDb = async () => {
       role_expires_at BIGINT,
       won_at TIMESTAMP DEFAULT NOW()
     );
+
+    CREATE TABLE IF NOT EXISTS active_braquages (
+      id SERIAL PRIMARY KEY,
+      guild_id TEXT NOT NULL,
+      code TEXT NOT NULL,
+      embed_description TEXT NOT NULL,
+      status TEXT DEFAULT 'pending',
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS shop_purchases (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      item_id TEXT NOT NULL,
+      target_id TEXT,
+      price BIGINT NOT NULL,
+      purchased_at TIMESTAMP DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS shop_effects (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      target_id TEXT,
+      effect_type TEXT NOT NULL,
+      value TEXT,
+      extra_data TEXT,
+      expires_at BIGINT,
+      active BOOLEAN DEFAULT TRUE
+    );
   `);
 };
 
@@ -259,5 +288,105 @@ module.exports = {
       'UPDATE braquage_winners SET role_expires_at = NULL WHERE id = $1',
       [id]
     );
+  },
+
+  // Active Braquage Persistence
+  createActiveBraquage: async (guildId, code, embedDescription, status = 'pending') => {
+    const res = await pool.query(
+      'INSERT INTO active_braquages (guild_id, code, embed_description, status) VALUES ($1, $2, $3, $4) RETURNING *',
+      [guildId, code, embedDescription, status]
+    );
+    return res.rows[0];
+  },
+
+  getActiveBraquage: async () => {
+    const res = await pool.query(
+      "SELECT * FROM active_braquages WHERE status IN ('pending', 'active') ORDER BY created_at DESC LIMIT 1"
+    );
+    return res.rows[0] || null;
+  },
+
+  updateBraquageStatus: async (id, status) => {
+    await pool.query(
+      'UPDATE active_braquages SET status = $1 WHERE id = $2',
+      [status, id]
+    );
+  },
+
+  closeAllActiveBraquages: async () => {
+    await pool.query(
+      "UPDATE active_braquages SET status = 'closed' WHERE status IN ('pending', 'active')"
+    );
+  },
+
+  // Shop System
+  addShopPurchase: async (userId, itemId, targetId, price) => {
+    await pool.query(
+      'INSERT INTO shop_purchases (user_id, item_id, target_id, price) VALUES ($1, $2, $3, $4)',
+      [userId, itemId, targetId, BigInt(price)]
+    );
+  },
+
+  addShopEffect: async (userId, targetId, effectType, value, extraData, expiresAt) => {
+    const res = await pool.query(
+      'INSERT INTO shop_effects (user_id, target_id, effect_type, value, extra_data, expires_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [userId, targetId, effectType, value, extraData, expiresAt]
+    );
+    return res.rows[0];
+  },
+
+  getActiveShopEffects: async (userId, effectType) => {
+    const res = await pool.query(
+      'SELECT * FROM shop_effects WHERE user_id = $1 AND effect_type = $2 AND active = TRUE',
+      [userId, effectType]
+    );
+    return res.rows;
+  },
+
+  hasActiveShopEffect: async (userId, effectType) => {
+    const res = await pool.query(
+      'SELECT COUNT(*) as count FROM shop_effects WHERE user_id = $1 AND effect_type = $2 AND active = TRUE',
+      [userId, effectType]
+    );
+    return parseInt(res.rows[0].count) > 0;
+  },
+
+  consumeShopEffect: async (userId, effectType) => {
+    const res = await pool.query(
+      'UPDATE shop_effects SET active = FALSE WHERE id = (SELECT id FROM shop_effects WHERE user_id = $1 AND effect_type = $2 AND active = TRUE ORDER BY id LIMIT 1) RETURNING *',
+      [userId, effectType]
+    );
+    return res.rows[0];
+  },
+
+  getExpiredShopEffects: async (now) => {
+    const res = await pool.query(
+      'SELECT * FROM shop_effects WHERE active = TRUE AND expires_at IS NOT NULL AND expires_at <= $1',
+      [now]
+    );
+    return res.rows;
+  },
+
+  deactivateShopEffect: async (id) => {
+    await pool.query(
+      'UPDATE shop_effects SET active = FALSE WHERE id = $1',
+      [id]
+    );
+  },
+
+  getShopPurchases: async (userId, limit = 20) => {
+    const res = await pool.query(
+      'SELECT * FROM shop_purchases WHERE user_id = $1 ORDER BY purchased_at DESC LIMIT $2',
+      [userId, limit]
+    );
+    return res.rows;
+  },
+
+  getShopPurchaseCount: async (userId) => {
+    const res = await pool.query(
+      'SELECT COUNT(*) as count, COALESCE(SUM(price), 0) as total_spent FROM shop_purchases WHERE user_id = $1',
+      [userId]
+    );
+    return { count: parseInt(res.rows[0].count), totalSpent: BigInt(res.rows[0].total_spent) };
   }
 };
