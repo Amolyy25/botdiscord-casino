@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require("discord.js");
-const { createEmbed, COLORS, formatCoins } = require("./utils");
+const { createEmbed, COLORS, formatCoins, sendLog } = require("./utils");
 const cron = require("node-cron");
 
 // IDs de configuration
@@ -195,7 +195,15 @@ function startBraquageCollector({
                 // 5. Enregistrer l'expiration du rôle (7 jours)
                 const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
                 await db.addBraquageWinner(winnerId, code, BRAQUAGE_REWARD, ROLE_BRAQUAGE_ID, expiresAt);
-                await db.addRoleExpiration(winnerId, ROLE_BRAQUAGE_ID, expiresAt);
+                await db.addRoleExpiration(winnerId, ROLE_BRAQUAGE_ID, expiresAt, guild.id);
+
+                // LOG
+                await sendLog(
+                    guild,
+                    '🎭 Vainqueur Braquage (Rôle)',
+                    `<@${winnerId}> a remporté le braquage et obtenu le rôle <@&${ROLE_BRAQUAGE_ID}> pour **7 jours**.\nCode trouvé : ||${code}||`,
+                    COLORS.GOLD
+                );
 
                 // 6. Verrouiller le salon
                 await reponseChannel.permissionOverwrites.edit(guild.id, {

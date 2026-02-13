@@ -9,7 +9,7 @@ const {
   TextInputBuilder,
   TextInputStyle,
 } = require("discord.js");
-const { createEmbed, COLORS, formatCoins } = require("../utils");
+const { createEmbed, COLORS, formatCoins, sendLog } = require("../utils");
 const shopData = require("../shop.json");
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -66,6 +66,7 @@ const IMMUNITY_ROLE_IDS = [
 const STAFF_ROLE_IDS = [
   "1469071689848721510", // Admin/Staff 1
   "1469071689831940310", // Admin/Staff 2
+  "1471465293233803274", // Modo
 ];
 
 // Types d'items considérés comme agressifs/troll
@@ -75,26 +76,6 @@ const AGGRESSIVE_ITEM_TYPES = [
   "nickname",
   "instant_steal",
 ];
-
-const LOG_CHANNEL_ID = "1471509327419543552";
-
-async function sendShopLog(guild, title, description, color, fields = []) {
-  try {
-    const channel = await guild.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
-    if (!channel) return;
-
-    const embed = new EmbedBuilder()
-      .setTitle(title)
-      .setDescription(description)
-      .setColor(color)
-      .addFields(fields)
-      .setTimestamp();
-
-    await channel.send({ embeds: [embed] });
-  } catch (err) {
-    console.error("[Shop] Erreur envoi log:", err.message);
-  }
-}
 
 // ─── Build embeds & components (design sobre) ───────────────
 
@@ -277,9 +258,10 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
         });
 
         const expiresAt = Date.now() + item.duration;
-        await db.addRoleExpiration(roleTargetId, item.roleId, expiresAt);
+        await db.addRoleExpiration(roleTargetId, item.roleId, expiresAt, guild.id);
 
         if (item.needsTarget) {
+
           effectDescription = `<@${roleTargetId}> a recu le role <@&${item.roleId}> pour **${formatDuration(item.duration)}**.`;
         } else {
           effectDescription = `Vous avez obtenu le role <@&${item.roleId}> pour **${formatDuration(item.duration)}**.`;
@@ -525,7 +507,7 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
         });
 
         const expiresAtRS = Date.now() + item.duration;
-        await db.addRoleExpiration(userId, selectedRoleId, expiresAtRS);
+        await db.addRoleExpiration(userId, selectedRoleId, expiresAtRS, interaction.guild.id);
 
         const selectedRoleLabel =
           item.roles?.find((r) => r.id === selectedRoleId)?.label || "Inconnu";
@@ -631,7 +613,7 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
   }
 
   // Log de l'achat
-  await sendShopLog(
+  await sendLog(
     interaction.guild,
     "Achat Effectue",
     `**Joueur :** <@${userId}> (${userId})\n` +

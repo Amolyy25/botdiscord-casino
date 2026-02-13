@@ -35,6 +35,7 @@ const initDb = async () => {
 
     CREATE TABLE IF NOT EXISTS role_expirations (
       user_id TEXT,
+      guild_id TEXT,
       role_id TEXT,
       expires_at BIGINT,
       PRIMARY KEY (user_id, role_id)
@@ -243,10 +244,10 @@ module.exports = {
   },
 
   // Role Expiration System
-  addRoleExpiration: async (userId, roleId, expiresAt) => {
+  addRoleExpiration: async (userId, roleId, expiresAt, guildId = null) => {
     await pool.query(
-      'INSERT INTO role_expirations (user_id, role_id, expires_at) VALUES ($1, $2, $3) ON CONFLICT (user_id, role_id) DO UPDATE SET expires_at = $3',
-      [userId, roleId, expiresAt]
+      'INSERT INTO role_expirations (user_id, role_id, expires_at, guild_id) VALUES ($1, $2, $3, $4) ON CONFLICT (user_id, role_id) DO UPDATE SET expires_at = $3, guild_id = $4',
+      [userId, roleId, expiresAt, guildId]
     );
   },
 

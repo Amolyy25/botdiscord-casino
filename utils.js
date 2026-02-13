@@ -36,4 +36,24 @@ function formatCoins(amount) {
     return `**${val.toLocaleString('fr-FR')}** ${CURRENCY}`;
 }
 
-module.exports = { COLORS, CURRENCY, createEmbed, parseBet, formatCoins };
+const LOG_CHANNEL_ID = '1471509327419543552';
+
+async function sendLog(guild, title, description, color, fields = []) {
+    try {
+        const channel = await guild.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
+        if (!channel) return;
+
+        const embed = new EmbedBuilder()
+            .setTitle(title)
+            .setDescription(description)
+            .setColor(color)
+            .addFields(fields)
+            .setTimestamp();
+
+        await channel.send({ embeds: [embed] });
+    } catch (err) {
+        console.error("[Logger] Erreur envoi log:", err.message);
+    }
+}
+
+module.exports = { COLORS, CURRENCY, createEmbed, parseBet, formatCoins, sendLog };

@@ -6,15 +6,55 @@ module.exports = {
 
             for (const entry of expiredRoles) {
                 try {
-                    const guild = client.guilds.cache.first();
-                    if (!guild) continue;
+                    let guild;
+                    let member;
 
-                    const member = await guild.members.fetch(entry.user_id).catch(() => null);
+                    // 1. Essayer de récupérer la guilde via guild_id stocké
+                    if (entry.guild_id) {
+                        guild = client.guilds.cache.get(entry.guild_id);
+                    }
+
+                    // 2. Fallback avec ID spécifique fourni
+                    if (!guild) {
+                        guild = client.guilds.cache.get('1469071689399926786');
+                    }
+
+                    // 2. Fallback : si pas de guild_id (legacy) ou guilde introuvable, essayer de trouver le membre dans toutes les guildes
+                    if (!guild) {
+                        // On cherche le membre dans toutes les guildes du bot
+                        for (const g of client.guilds.cache.values()) {
+                            try {
+                                const m = await g.members.fetch(entry.user_id).catch(() => null);
+                                if (m && m.roles.cache.has(entry.role_id)) {
+                                    guild = g;
+                                    member = m;
+                                    break; 
+                                }
+                            } catch (e) {}
+                        }
+                    } else {
+                        // Si on a la guilde, on fetch le membre
+                        member = await guild.members.fetch(entry.user_id).catch(() => null);
+                    }
 
                     if (member) {
                         try {
-                            await member.roles.remove(entry.role_id);
-                            console.log(`[RoleExpiration] Role ${entry.role_id} retire de ${member.user.tag}`);
+                            if (member.roles.cache.has(entry.role_id)) {
+                                await member.roles.remove(entry.role_id);
+                                console.log(`[RoleExpiration] Role ${entry.role_id} retire de ${member.user.tag} (Guild: ${guild.name})`);
+                                
+                                // LOG
+                                const { sendLog, COLORS } = require('../utils');
+                                await sendLog(
+                                    guild, 
+                                    '⏳ Rôle Expiré',
+                                    `Le rôle <@&${entry.role_id}> a été retiré de <@${entry.user_id}> car sa durée est écoulée.`,
+                                    COLORS.GOLD
+                                );
+
+                            } else {
+                                console.log(`[RoleExpiration] Role ${entry.role_id} deja absent de ${member.user.tag}`);
+                            }
                             await db.removeRoleExpiration(entry.user_id, entry.role_id);
                         } catch (removeErr) {
                             console.error(
@@ -23,7 +63,9 @@ module.exports = {
                             );
                         }
                     } else {
-                        console.log(`[RoleExpiration] Membre ${entry.user_id} introuvable, nettoyage`);
+                        // Membre introuvable
+                        // Si on avait un guild_id mais qu'il n'est plus là, ou si on a checké toutes les guildes sans le trouver
+                        console.log(`[RoleExpiration] Membre ${entry.user_id} introuvable (Guild ID: ${entry.guild_id || 'Unknown'}), nettoyage DB`);
                         await db.removeRoleExpiration(entry.user_id, entry.role_id);
                     }
                 } catch (error) {

@@ -1,4 +1,4 @@
-const { createEmbed, COLORS, formatCoins } = require("../utils");
+const { createEmbed, COLORS, formatCoins, sendLog } = require("../utils");
 const { drawRole, ROLE_POOL, WINS_CHANNEL_ID } = require("../roleConfig");
 
 module.exports = {
@@ -112,7 +112,16 @@ module.exports = {
       // Handle role expiration if applicable
       if (wonReward.duration) {
         const expiresAt = Date.now() + wonReward.duration;
-        await db.addRoleExpiration(message.author.id, wonReward.id, expiresAt);
+        await db.addRoleExpiration(message.author.id, wonReward.id, expiresAt, message.guild.id);
+        
+        // LOG
+        const durationText = (wonReward.duration / (60*60*1000)).toFixed(1) + 'h';
+        await sendLog(
+            message.guild,
+            '🎁 Role Temporaire Gagné (Tirage)',
+            `<@${message.author.id}> a gagné le rôle <@&${wonReward.id}> via un tirage.\n\n**Durée :** ${durationText}`,
+            COLORS.SUCCESS
+        );
       }
 
       // Announce role win
