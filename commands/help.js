@@ -24,6 +24,8 @@ module.exports = {
             `\`${prefix}roulette [mise/all] [rouge/noir/vert]\` - Roulette`,
             `\`${prefix}cf [mise/all] [pile/face]\` - Coinflip`,
             `\`${prefix}crash [mise/all]\` - Crash`,
+            `\`${prefix}mines [mise/all] [mines]\` - Mines (mn)`,
+            `\`${prefix}towers [mise/all]\` - Towers (tw)`,
             ``,
             `**Admin**`,
             `\`${prefix}setupcasino\` - Configurer le système de casino`,

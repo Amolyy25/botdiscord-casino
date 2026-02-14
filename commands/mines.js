@@ -50,15 +50,15 @@ function buildGrid(state, revealAll = false) {
             const btn = new ButtonBuilder().setCustomId(`mines_${idx}`);
 
             if (revealAll && state.minePositions.has(idx) && !state.revealed.has(idx)) {
-                btn.setLabel('MINE').setStyle(ButtonStyle.Danger).setDisabled(true);
+                btn.setLabel('MINE').setEmoji('💣').setStyle(ButtonStyle.Danger).setDisabled(true);
             } else if (state.revealed.has(idx)) {
                 if (state.minePositions.has(idx)) {
-                    btn.setLabel('MINE').setStyle(ButtonStyle.Danger).setDisabled(true);
+                    btn.setLabel('MINE').setEmoji('💣').setStyle(ButtonStyle.Danger).setDisabled(true);
                 } else {
-                    btn.setLabel('OK').setStyle(ButtonStyle.Success).setDisabled(true);
+                    btn.setLabel('OK').setEmoji('💎').setStyle(ButtonStyle.Success).setDisabled(true);
                 }
             } else {
-                btn.setLabel('?').setStyle(ButtonStyle.Secondary).setDisabled(revealAll || state.gameOver);
+                btn.setLabel('?').setEmoji('❓').setStyle(ButtonStyle.Secondary).setDisabled(revealAll || state.gameOver);
             }
             row.addComponents(btn);
         }
@@ -93,6 +93,7 @@ function buildEmbed(state, status = 'playing') {
 
 module.exports = {
     name: 'mines',
+    aliases: ['mn'],
     description: 'Jouez au Demineur (Mines)',
     async execute(message, args, db) {
         const userId = message.author.id;

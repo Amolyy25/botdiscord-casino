@@ -33,6 +33,7 @@ function buildComponents(state) {
                 new ButtonBuilder()
                     .setCustomId(`towers_door_${d}`)
                     .setLabel('Porte')
+                    .setEmoji('🚪')
                     .setStyle(ButtonStyle.Secondary)
             );
         }
@@ -50,14 +51,14 @@ function buildComponents(state) {
 
             if (d === f.chosen) {
                 if (f.won) {
-                    btn.setLabel('Gagne').setStyle(ButtonStyle.Success);
+                    btn.setLabel('Gagne').setEmoji('✅').setStyle(ButtonStyle.Success);
                 } else {
-                    btn.setLabel('Perdu').setStyle(ButtonStyle.Danger);
+                    btn.setLabel('Perdu').setEmoji('❌').setStyle(ButtonStyle.Danger);
                 }
             } else if (d === f.losingDoor) {
                 // Reveal losing door on game end only
                 if (state.gameOver) {
-                    btn.setLabel('Perdu').setStyle(ButtonStyle.Danger);
+                    btn.setLabel('Perdu').setEmoji('❌').setStyle(ButtonStyle.Danger);
                 } else {
                     btn.setLabel('-').setStyle(ButtonStyle.Secondary);
                 }
@@ -140,6 +141,7 @@ function buildEmbed(state, status = 'playing') {
 
 module.exports = {
     name: 'towers',
+    aliases: ['tw'],
     description: 'Jouez a Towers (La Tour)',
     async execute(message, args, db) {
         const userId = message.author.id;
