@@ -1,4 +1,5 @@
 const { createEmbed, COLORS, parseBet, formatCoins } = require('../utils');
+const eventsManager = require('../events/eventsManager');
 
 module.exports = {
     name: 'cf',
@@ -28,8 +29,11 @@ module.exports = {
         const gain = win ? bet : -bet;
 
         if (win) {
+            let profit = bet;
+            if (eventsManager.isDoubleGainActive()) profit *= 2n;
+
             // Refund bet + gain
-            await db.updateBalance(message.author.id, bet + bet);
+            await db.updateBalance(message.author.id, bet + profit);
         }
         // If lost, bet is already deducted
 

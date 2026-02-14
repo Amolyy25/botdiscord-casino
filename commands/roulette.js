@@ -1,4 +1,5 @@
 const { createEmbed, COLORS, parseBet, formatCoins } = require('../utils');
+const eventsManager = require('../events/eventsManager');
 
 module.exports = {
     name: 'roulette',
@@ -38,6 +39,11 @@ module.exports = {
         if (choice === resultColor) {
             win = true;
             gain = choice === 'vert' ? bet * 35n : bet;
+            
+            if (eventsManager.isDoubleGainActive()) {
+                gain *= 2n;
+            }
+
             // Refund bet + gain
             await db.updateBalance(message.author.id, bet + gain);
         } else {

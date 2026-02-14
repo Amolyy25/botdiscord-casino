@@ -38,6 +38,28 @@ module.exports = {
 
         const targetMember = await message.guild.members.fetch(target.id).catch(() => null);
         
+        // --- ÉVÉNEMENT VOL DE GÉNIE ---
+        const eventsManager = require('../events/eventsManager');
+        let bypassImmunity = false;
+        let bonusMultiplier = 1.0;
+
+        const genieResult = await eventsManager.triggerVolDeGenie(message, db, target);
+        
+        if (genieResult.triggered) {
+            if (genieResult.success) {
+                bypassImmunity = true;
+                bonusMultiplier = 1.1; // +10% gain
+            } else {
+                // Echec : Amende et arrêt du vol
+                const fine = 50n;
+                await db.updateBalance(message.author.id, -fine);
+                return message.channel.send({ 
+                    embeds: [createEmbed('Vol avorté 👮', `Vous avez échoué au test de sécurité ! Vous payez une amende de ${formatCoins(fine)}.`, COLORS.ERROR)]
+                });
+            }
+        }
+        // -----------------------------
+
         if (targetMember) {
             const immunityRoles = [
                 '1470934040692392008', // 2H
@@ -48,7 +70,7 @@ module.exports = {
             // 1. Check if they have the role on Discord
             const activeImmunityRole = immunityRoles.find(roleId => targetMember.roles.cache.has(roleId));
 
-            if (activeImmunityRole) {
+            if (activeImmunityRole && !bypassImmunity) {
                 // 2. Double check in DB if it hasn't expired yet (since cleanup is every 15m)
                 const now = Date.now();
                 const expiration = await db.getRoleExpiration(target.id, activeImmunityRole);
@@ -82,7 +104,12 @@ module.exports = {
         }
 
         const balanceNum = Number(targetData.balance);
-        const stealAmount = BigInt(Math.floor(balanceNum * (Math.random() * 0.2 + 0.1)));
+        let stealAmount = BigInt(Math.floor(balanceNum * (Math.random() * 0.2 + 0.1)));
+        
+        // Apply bonus from Vol de Génie
+        if (bonusMultiplier > 1.0) {
+            stealAmount = BigInt(Math.floor(Number(stealAmount) * bonusMultiplier));
+        }
 
         await db.updateVole(message.author.id, now);
 

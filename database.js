@@ -79,6 +79,12 @@ const initDb = async () => {
       expires_at BIGINT,
       active BOOLEAN DEFAULT TRUE
     );
+
+    CREATE TABLE IF NOT EXISTS bot_status (
+      key TEXT PRIMARY KEY,
+      value TEXT,
+      end_time BIGINT
+    );
   `);
 };
 
@@ -241,6 +247,19 @@ module.exports = {
   getConfig: async (key) => {
     const res = await pool.query('SELECT value FROM system_config WHERE key = $1', [key]);
     return res.rows[0]?.value;
+  },
+
+  // Event Status System
+  setEventStatus: async (key, active, endTime) => {
+    await pool.query(
+      'INSERT INTO bot_status (key, value, end_time) VALUES ($1, $2, $3) ON CONFLICT (key) DO UPDATE SET value = $2, end_time = $3',
+      [key, active.toString(), endTime]
+    );
+  },
+
+  getEventStatus: async (key) => {
+    const res = await pool.query('SELECT * FROM bot_status WHERE key = $1', [key]);
+    return res.rows[0];
   },
 
   // Role Expiration System

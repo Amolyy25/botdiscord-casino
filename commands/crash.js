@@ -1,5 +1,6 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const { createEmbed, COLORS, parseBet, formatCoins } = require('../utils');
+const eventsManager = require('../events/eventsManager');
 
 module.exports = {
     name: 'crash',
@@ -74,8 +75,12 @@ module.exports = {
             collector.stop();
 
             const total = BigInt(Math.floor(Number(bet) * currentMultiplier));
-            const winAmount = total - bet;
+            let winAmount = total - bet;
             
+            if (eventsManager.isDoubleGainActive()) {
+                winAmount *= 2n;
+            }
+
             await db.updateBalance(message.author.id, winAmount);
 
             // Announce big wins (500+ coins profit)

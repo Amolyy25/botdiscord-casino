@@ -1,5 +1,6 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { createEmbed, COLORS, parseBet, formatCoins } = require('../utils');
+const eventsManager = require('../events/eventsManager');
 
 module.exports = {
     name: 'bj',
@@ -144,10 +145,14 @@ module.exports = {
                 let result;
                 let finalGain = 0n;
                 if (dealerVal > 21 || playerVal > dealerVal) {
-                    result = 'Gagné !';
-                    finalGain = bet;
-                    // Refund bet + win amount (2x bet)
-                    await db.updateBalance(message.author.id, bet * 2n);
+                    let winAmount = bet;
+                    if (eventsManager.isDoubleGainActive()) winAmount *= 2n;
+
+                    result = 'Gagné !' + (eventsManager.isDoubleGainActive() ? ' (Double Gain! ⚡)' : '');
+                    finalGain = winAmount;
+
+                    // Refund bet + win amount
+                    await db.updateBalance(message.author.id, bet + winAmount);
                     
                     // Announce big wins (500+ coins)
                     if (bet >= 500n) {

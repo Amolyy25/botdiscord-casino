@@ -48,6 +48,12 @@ client.once('clientReady', async () => {
         // Init Shop System
         await shop.init(client, db);
 
+        // Init Events Manager (L'Heure de Gloire etc.)
+        const eventsManager = require('./events/eventsManager');
+        await eventsManager.init(client, db);
+        client.eventsManager = eventsManager; // Attach to client for easy access
+
+
     } catch (err) {
         console.error('Failed to initialize database:', err);
     }
