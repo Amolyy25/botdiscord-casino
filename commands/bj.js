@@ -98,7 +98,8 @@ module.exports = {
             
             let footerText = `Mise: ${bet.toLocaleString('fr-FR')} coins`;
             if (status.includes('Gagné') && gain > 0n) {
-                footerText += ` | Gain: +${gain.toLocaleString('fr-FR')} coins 💰`;
+                const eventIndicator = gloryStatus.active ? ' (x2) ⚡️' : '';
+                footerText += ` | Profit: +${gain.toLocaleString('fr-FR')} coins${eventIndicator} 💰`;
             } else if (status.includes('Perdu')) {
                 footerText += ` | Perte: -${bet.toLocaleString('fr-FR')} coins`;
             }

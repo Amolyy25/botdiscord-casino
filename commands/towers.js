@@ -112,6 +112,8 @@ function buildEmbed(state, status = 'playing') {
 
     desc += `Mise: ${formatCoins(state.bet)}\n`;
 
+    const eventIndicator = gloryStatus.active ? ' (x2) ⚡️' : '';
+
     if (status === 'playing') {
         // Show summary of hidden floors
         if (completedFloors.length > MAX_VISIBLE_ROWS) {
@@ -121,7 +123,8 @@ function buildEmbed(state, status = 'playing') {
         desc += `\nEtage actuel: **${state.currentFloor}** / ${MAX_FLOOR}\n`;
         desc += `Multiplicateur suivant: **x${nextMult.toFixed(2)}**\n`;
         if (completedFloors.length > 0) {
-            desc += `Gain actuel: ${formatCoins(currentGain)} (x${mult.toFixed(2)})\n`;
+            const currentProfit = currentGain - state.bet;
+            desc += `Profit actuel: ${formatCoins(currentProfit)}${eventIndicator} (x${mult.toFixed(2)})\n`;
         }
         desc += `\nChoisissez une porte !`;
     } else if (status === 'lost') {
@@ -134,9 +137,10 @@ function buildEmbed(state, status = 'playing') {
             const profit = cashGain - state.bet;
             cashGain = state.bet + (profit * 2n);
         }
+        const finalProfit = cashGain - state.bet;
         desc += `\nEtages completes: **${completedFloors.length}** / ${MAX_FLOOR}\n`;
         desc += `Multiplicateur: **x${cashMult.toFixed(2)}**\n`;
-        desc += `Gain: ${formatCoins(cashGain)}\n\nVous avez recupere vos gains !`;
+        desc += `Profit: ${formatCoins(finalProfit)}${eventIndicator}\n\nVous avez recupere vos gains !`;
     } else if (status === 'cleared') {
         const cashMult = MULTIPLIERS[MAX_FLOOR - 1];
         let cashGain = BigInt(Math.floor(Number(state.bet) * cashMult));
@@ -144,9 +148,10 @@ function buildEmbed(state, status = 'playing') {
             const profit = cashGain - state.bet;
             cashGain = state.bet + (profit * 2n);
         }
+        const finalProfit = cashGain - state.bet;
         desc += `\nTous les etages completes !\n`;
         desc += `Multiplicateur: **x${cashMult.toFixed(2)}**\n`;
-        desc += `Gain: ${formatCoins(cashGain)}\n\nFelicitations, tour complete !`;
+        desc += `Profit: ${formatCoins(finalProfit)}${eventIndicator}\n\nFelicitations, tour complete !`;
     } else if (status === 'timeout') {
         desc += `\nTemps ecoule. Mise perdue.`;
     }

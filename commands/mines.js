@@ -77,6 +77,9 @@ function buildEmbed(state, status = 'playing') {
         potentialGain = state.bet + (profit * 2n);
     }
 
+    const currentProfit = potentialGain - state.bet;
+    const eventIndicator = gloryStatus.active ? ' (x2) ⚡️' : '';
+
     let desc = '';
     if (gloryStatus.active && status !== 'lost' && status !== 'timeout') {
         desc += `**${gloryStatus.text}**\n\n`;
@@ -87,11 +90,11 @@ function buildEmbed(state, status = 'playing') {
     desc += `Multiplicateur: **x${state.multiplier.toFixed(2)}**\n`;
 
     if (status === 'playing') {
-        desc += `Gain potentiel: ${formatCoins(potentialGain)}\n\nCliquez sur une case [?] pour la révéler.`;
+        desc += `Profit potentiel: ${formatCoins(currentProfit)}${eventIndicator}\n\nCliquez sur une case [?] pour la révéler.`;
     } else if (status === 'lost') {
         desc += `\nVous avez touché une mine ! Mise perdue.`;
     } else if (status === 'cashout') {
-        desc += `Gain: ${formatCoins(potentialGain)}\n\nVous avez récupéré vos gains !`;
+        desc += `Profit: ${formatCoins(currentProfit)}${eventIndicator}\n\nVous avez récupéré vos gains !`;
     } else if (status === 'timeout') {
         desc += `\nTemps écoulé. Mise perdue.`;
     }

@@ -60,9 +60,9 @@ module.exports = {
         }
 
         const embedColor = win ? COLORS.SUCCESS : COLORS.ERROR;
-        const gloryStatus = eventsManager.getGloryHourStatus();
+        const eventIndicator = (gloryStatus.active && win) ? ' (x2) ⚡️' : '';
         let description = `La pièce est tombée sur **${outcome.toUpperCase()}** !\n\n` +
-            (win ? `Félicitations ! Vous gagnez ${formatCoins(bet)}.` : `Dommage, vous avez perdu ${formatCoins(bet)}.`);
+            (win ? `Félicitations ! Vous gagnez ${formatCoins(bet)}${eventIndicator}.` : `Dommage, vous avez perdu ${formatCoins(bet)}.`);
         
         if (gloryStatus.active && win) {
             description = `**${gloryStatus.text}**\n\n` + description;

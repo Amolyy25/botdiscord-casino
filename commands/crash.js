@@ -55,7 +55,8 @@ module.exports = {
             } else if (status === 'crashed') {
                 desc = `Le multiplicateur a crashé à **${crashPoint}x**.\n\nVous avez perdu ${formatCoins(bet)}.`;
             } else if (status === 'cashed') {
-                desc = `Vous avez retiré à **${multiplier}x**.\n\nGains: ${formatCoins(profit + bet)} (Profit: ${formatCoins(profit)})\n\nLe multiplicateur est finalement monté jusqu'à **${crashPoint}x** !`;
+                const eventIndicator = gloryStatus.active ? ' (x2) ⚡️' : '';
+                desc = `Vous avez retiré à **${multiplier}x**.\n\nProfit: ${formatCoins(profit)}${eventIndicator}`;
             }
 
             if (gloryStatus.active && status !== 'crashed') {
