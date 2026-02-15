@@ -107,10 +107,15 @@ client.on('messageCreate', async message => {
 client.on('interactionCreate', async interaction => {
     // Shop interactions (select menus, buttons, modals starting with shop_)
     try {
-        const handled = await shop.handleInteraction(interaction, db);
-        if (handled) return;
+        const handledShop = await shop.handleInteraction(interaction, db);
+        if (handledShop) return;
+
+        // Calendar interactions
+        const calendarManager = require('./events/calendarManager');
+        const handledCal = await calendarManager.handleInteraction(interaction, db);
+        if (handledCal) return;
     } catch (err) {
-        console.error('Erreur handler shop:', err);
+        console.error('Erreur handler interaction:', err);
     }
 
     if (!interaction.isButton()) return;

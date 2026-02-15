@@ -10,11 +10,14 @@ const {
 let doubleGainActive = false;
 let doubleGainEndTime = 0;
 
-const GLORY_HOUR_CHANCE = 0.05; // 5%
+const GLORY_HOUR_CHANCE_DAILY = 0.3; // 30% chance for a glory hour today
 const GLORY_HOUR_DURATION = 30 * 60 * 1000; // 30 minutes
 const VOLE_GENIE_CHANCE = 0.03; // 3%
 const CASINO_CHANNEL_ID = "1469713523549540536";
 const ROLE_ID = "1469713522194780404"; // Casino Role
+const EVENT_CONFIG_KEY = "glory_hour_schedule";
+
+let scheduledTimeouts = [];
 
 const QUESTIONS = [
   { q: "Combien font 7 x 8 ?", a: ["56"] },
@@ -37,24 +40,70 @@ const QUESTIONS = [
 
 module.exports = {
   init: async (client, db) => {
-    // Check for active event on startup
+    // Check for active event on startup (recovering currently running event)
     await module.exports.checkActiveEvent(client, db);
 
-    // Schedule cron for "L'Heure de Gloire"
+    // Schedule daily planner at 9 AM
     cron.schedule(
-      "0 * * * *",
+      "0 9 * * *",
       async () => {
-        // Every hour at minute 0
-        if (doubleGainActive) return; // Already active
-
-        if (Math.random() < GLORY_HOUR_CHANCE) {
-          await module.exports.startGloryHour(client, db);
-        }
+        await module.exports.scheduleDailyGloryHour(db);
+        await module.exports.loadAndScheduleEvents(client, db);
       },
-      {
-        timezone: "Europe/Paris",
-      },
+      { timezone: "Europe/Paris" }
     );
+
+    // Load schedule (recovering future events)
+    await module.exports.loadAndScheduleEvents(client, db);
+  },
+
+  scheduleDailyGloryHour: async (db) => {
+    const now = new Date();
+    const times = [];
+
+    // Decide if we have an event today
+    if (Math.random() < GLORY_HOUR_CHANCE_DAILY) {
+      const startMin = 10 * 60; // 10:00
+      const endMin = 21 * 60;   // 21:00
+      const randomMin = Math.floor(Math.random() * (endMin - startMin + 1)) + startMin;
+      
+      const timestamp = new Date(now);
+      timestamp.setHours(0, 0, 0, 0);
+      timestamp.setMinutes(randomMin);
+      
+      if (timestamp > now) {
+        times.push(timestamp.getTime());
+      }
+    }
+
+    await db.setConfig(EVENT_CONFIG_KEY, JSON.stringify(times));
+    console.log(`[Events] Glory Hour scheduled: ${times.length > 0 ? new Date(times[0]).toLocaleTimeString() : 'None today'}`);
+  },
+
+  loadAndScheduleEvents: async (client, db) => {
+    scheduledTimeouts.forEach(t => clearTimeout(t));
+    scheduledTimeouts = [];
+
+    const scheduleJson = await db.getConfig(EVENT_CONFIG_KEY);
+    if (!scheduleJson) {
+      // Past 9am and no schedule? Generate one.
+      if (new Date().getHours() >= 9) {
+        await module.exports.scheduleDailyGloryHour(db);
+        return module.exports.loadAndScheduleEvents(client, db);
+      }
+      return;
+    }
+
+    let times = JSON.parse(scheduleJson);
+    const now = Date.now();
+
+    times.forEach(timestamp => {
+      if (timestamp > now) {
+        const delay = timestamp - now;
+        const timeout = setTimeout(() => module.exports.startGloryHour(client, db), delay);
+        scheduledTimeouts.push(timeout);
+      }
+    });
   },
 
   checkActiveEvent: async (client, db) => {
