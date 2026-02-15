@@ -11,10 +11,19 @@ const initDb = async () => {
       balance BIGINT DEFAULT 100,
       last_daily BIGINT DEFAULT 0,
       last_vole BIGINT DEFAULT 0,
+      last_collect BIGINT DEFAULT 0,
       tirages INTEGER DEFAULT 2,
       last_weekly_tirage BIGINT DEFAULT 0,
       last_boost BIGINT DEFAULT 0
     );
+
+    -- Migration for existing tables
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='last_collect') THEN
+            ALTER TABLE users ADD COLUMN last_collect BIGINT DEFAULT 0;
+        END IF;
+    END $$;
     
     CREATE TABLE IF NOT EXISTS bounties (
       id SERIAL PRIMARY KEY,
@@ -129,6 +138,15 @@ module.exports = {
        VALUES ($1, $2, 100, 2) 
        ON CONFLICT (id) 
        DO UPDATE SET last_daily = $2`,
+      [id, time.toString()]
+    );
+  },
+  updateCollect: async (id, time) => {
+    await pool.query(
+      `INSERT INTO users (id, last_collect, balance, tirages) 
+       VALUES ($1, $2, 100, 2) 
+       ON CONFLICT (id) 
+       DO UPDATE SET last_collect = $2`,
       [id, time.toString()]
     );
   },

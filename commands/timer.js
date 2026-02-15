@@ -15,6 +15,12 @@ module.exports = {
                 emoji: '📅'
             },
             {
+                name: 'Collect',
+                last: parseInt(user.last_collect || 0),
+                duration: 30 * 60 * 1000,
+                emoji: '💰'
+            },
+            {
                 name: 'Vole',
                 last: parseInt(user.last_vole || 0),
                 duration: 2 * 60 * 60 * 1000,
