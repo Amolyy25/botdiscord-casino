@@ -96,10 +96,21 @@ function buildEmbed(state, status = 'playing') {
     const floorIdx = state.currentFloor - 1; // 0-indexed
     const mult = floorIdx > 0 ? MULTIPLIERS[floorIdx - 1] : 1.00;
     const nextMult = floorIdx < MAX_FLOOR ? MULTIPLIERS[floorIdx] : MULTIPLIERS[MAX_FLOOR - 1];
-    const currentGain = BigInt(Math.floor(Number(state.bet) * mult));
+    let currentGain = BigInt(Math.floor(Number(state.bet) * mult));
     const completedFloors = state.floors;
+    const gloryStatus = eventsManager.getGloryHourStatus();
 
-    let desc = `Mise: ${formatCoins(state.bet)}\n`;
+    if (gloryStatus.active) {
+        const profit = currentGain - state.bet;
+        currentGain = state.bet + (profit * 2n);
+    }
+
+    let desc = '';
+    if (gloryStatus.active && status !== 'lost' && status !== 'timeout') {
+        desc += `**${gloryStatus.text}**\n\n`;
+    }
+
+    desc += `Mise: ${formatCoins(state.bet)}\n`;
 
     if (status === 'playing') {
         // Show summary of hidden floors
@@ -118,13 +129,21 @@ function buildEmbed(state, status = 'playing') {
         desc += `\nVous avez choisi la mauvaise porte ! Mise perdue.`;
     } else if (status === 'cashout') {
         const cashMult = MULTIPLIERS[completedFloors.length - 1];
-        const cashGain = BigInt(Math.floor(Number(state.bet) * cashMult));
+        let cashGain = BigInt(Math.floor(Number(state.bet) * cashMult));
+        if (gloryStatus.active) {
+            const profit = cashGain - state.bet;
+            cashGain = state.bet + (profit * 2n);
+        }
         desc += `\nEtages completes: **${completedFloors.length}** / ${MAX_FLOOR}\n`;
         desc += `Multiplicateur: **x${cashMult.toFixed(2)}**\n`;
         desc += `Gain: ${formatCoins(cashGain)}\n\nVous avez recupere vos gains !`;
     } else if (status === 'cleared') {
         const cashMult = MULTIPLIERS[MAX_FLOOR - 1];
-        const cashGain = BigInt(Math.floor(Number(state.bet) * cashMult));
+        let cashGain = BigInt(Math.floor(Number(state.bet) * cashMult));
+        if (gloryStatus.active) {
+            const profit = cashGain - state.bet;
+            cashGain = state.bet + (profit * 2n);
+        }
         desc += `\nTous les etages completes !\n`;
         desc += `Multiplicateur: **x${cashMult.toFixed(2)}**\n`;
         desc += `Gain: ${formatCoins(cashGain)}\n\nFelicitations, tour complete !`;

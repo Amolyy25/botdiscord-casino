@@ -52,13 +52,26 @@ module.exports = {
             } else {
                 // Echec : Amende et arrêt du vol
                 const fine = 50n;
-                await db.updateBalance(message.author.id, -fine);
-                return message.channel.send({ 
-                    embeds: [createEmbed('Vol avorté 👮', `Vous avez échoué au test de sécurité ! Vous payez une amende de ${formatCoins(fine)}.`, COLORS.ERROR)]
-                });
+                const userBal = BigInt(user.balance);
+                
+                if (userBal >= fine) {
+                    await db.updateBalance(message.author.id, -fine);
+                    return message.channel.send({ 
+                        embeds: [createEmbed('Vol avorté 👮', `Vous avez échoué au test de sécurité ! Vous payez une amende de ${formatCoins(fine)}.`, COLORS.ERROR)]
+                    });
+                } else {
+                    // If they can't pay, set to 0 (or just take what they have)
+                    await db.updateBalance(message.author.id, -userBal);
+                    return message.channel.send({ 
+                        embeds: [createEmbed('Vol avorté 👮', `Vous avez échoué au test de sécurité ! Vous n'avez pas de quoi payer l'amende, mais vous repartez les mains vides.`, COLORS.ERROR)]
+                    });
+                }
             }
         }
         // -----------------------------
+
+        // Apply cooldown here, only if we proceed to actual robbery attempt
+        await db.updateVole(message.author.id, now);
 
         if (targetMember) {
             const immunityRoles = [
@@ -110,8 +123,6 @@ module.exports = {
         if (bonusMultiplier > 1.0) {
             stealAmount = BigInt(Math.floor(Number(stealAmount) * bonusMultiplier));
         }
-
-        await db.updateVole(message.author.id, now);
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()

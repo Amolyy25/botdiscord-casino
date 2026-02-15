@@ -62,6 +62,7 @@ module.exports = {
         const renderEmbed = (status = 'En cours...', gain = 0n) => {
             const playerVal = getHandValue(playerHand);
             const dealerVal = status === 'En cours...' ? '?' : getHandValue(dealerHand);
+            const gloryStatus = eventsManager.getGloryHourStatus();
             
             let color = COLORS.PRIMARY;
             let statusEmoji = '🎲';
@@ -77,7 +78,12 @@ module.exports = {
                 statusEmoji = '🤝';
             }
 
-            let description = `╔═══════════════════════════╗\n`;
+            let description = '';
+            if (gloryStatus.active && !status.includes('Perdu')) {
+                description += `**${gloryStatus.text}**\n\n`;
+            }
+
+            description += `╔═══════════════════════════╗\n`;
             description += `║  **CROUPIER**\n`;
             description += `║  ${formatHand(dealerHand, status === 'En cours...')}\n`;
             description += `║  Total: **${dealerVal}**\n`;

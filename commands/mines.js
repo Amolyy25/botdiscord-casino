@@ -3,8 +3,9 @@ const { createEmbed, COLORS, parseBet, formatCoins } = require('../utils');
 const eventsManager = require('../events/eventsManager');
 
 const activeGames = new Map();
-const GRID_SIZE = 5;
-const PLAYABLE_CELLS = 24; // 25th cell (index 24) is reserved for cashout
+const ROWS = 3;
+const COLS = 5;
+const PLAYABLE_CELLS = 15;
 
 // Combinatorial multiplier with 3% house edge
 function calculateMultiplier(mines, safeRevealed) {
@@ -20,33 +21,12 @@ function calculateMultiplier(mines, safeRevealed) {
 
 function buildGrid(state, revealAll = false) {
     const rows = [];
-    for (let r = 0; r < GRID_SIZE; r++) {
+    
+    // Grid rows (0 to ROWS-1)
+    for (let r = 0; r < ROWS; r++) {
         const row = new ActionRowBuilder();
-        for (let c = 0; c < GRID_SIZE; c++) {
-            const idx = r * GRID_SIZE + c;
-
-            // Position 24 = cashout slot
-            if (idx === 24) {
-                if (state.safeCount >= 1 && !state.gameOver) {
-                    row.addComponents(
-                        new ButtonBuilder()
-                            .setCustomId('mines_cashout')
-                            .setLabel('Recuperer Gains')
-                            .setStyle(ButtonStyle.Primary)
-                    );
-                } else {
-                    // Show as disabled empty cell (not playable)
-                    row.addComponents(
-                        new ButtonBuilder()
-                            .setCustomId('mines_24')
-                            .setLabel('-')
-                            .setStyle(ButtonStyle.Secondary)
-                            .setDisabled(true)
-                    );
-                }
-                continue;
-            }
-
+        for (let c = 0; c < COLS; c++) {
+            const idx = r * COLS + c;
             const btn = new ButtonBuilder().setCustomId(`mines_${idx}`);
 
             if (revealAll && state.minePositions.has(idx) && !state.revealed.has(idx)) {
@@ -64,43 +44,75 @@ function buildGrid(state, revealAll = false) {
         }
         rows.push(row);
     }
+
+    // Cashout row
+    const cashoutRow = new ActionRowBuilder();
+    if (state.safeCount >= 1 && !state.gameOver) {
+        cashoutRow.addComponents(
+            new ButtonBuilder()
+                .setCustomId('mines_cashout')
+                .setLabel('Récupérer Gains')
+                .setStyle(ButtonStyle.Primary)
+        );
+    } else {
+        cashoutRow.addComponents(
+            new ButtonBuilder()
+                .setCustomId('mines_cashout_disabled')
+                .setLabel('Récupérer Gains')
+                .setStyle(ButtonStyle.Secondary)
+                .setDisabled(true)
+        );
+    }
+    rows.push(cashoutRow);
+
     return rows;
 }
 
 function buildEmbed(state, status = 'playing') {
-    const potentialGain = BigInt(Math.floor(Number(state.bet) * state.multiplier));
+    let potentialGain = BigInt(Math.floor(Number(state.bet) * state.multiplier));
+    const gloryStatus = eventsManager.getGloryHourStatus();
 
-    let desc = `Mise: ${formatCoins(state.bet)}\n`;
-    desc += `Mines: **${state.numMines}** | Cases revelees: **${state.safeCount}**\n`;
+    if (gloryStatus.active) {
+        const profit = potentialGain - state.bet;
+        potentialGain = state.bet + (profit * 2n);
+    }
+
+    let desc = '';
+    if (gloryStatus.active && status !== 'lost' && status !== 'timeout') {
+        desc += `**${gloryStatus.text}**\n\n`;
+    }
+
+    desc += `Mise: ${formatCoins(state.bet)}\n`;
+    desc += `Mines: **${state.numMines}** | Cases révélées: **${state.safeCount}**\n`;
     desc += `Multiplicateur: **x${state.multiplier.toFixed(2)}**\n`;
 
     if (status === 'playing') {
-        desc += `Gain potentiel: ${formatCoins(potentialGain)}\n\nCliquez sur une case [?] pour la reveler.`;
+        desc += `Gain potentiel: ${formatCoins(potentialGain)}\n\nCliquez sur une case [?] pour la révéler.`;
     } else if (status === 'lost') {
-        desc += `\nVous avez touche une mine ! Mise perdue.`;
+        desc += `\nVous avez touché une mine ! Mise perdue.`;
     } else if (status === 'cashout') {
-        desc += `Gain: ${formatCoins(potentialGain)}\n\nVous avez recupere vos gains !`;
+        desc += `Gain: ${formatCoins(potentialGain)}\n\nVous avez récupéré vos gains !`;
     } else if (status === 'timeout') {
-        desc += `\nTemps ecoule. Mise perdue.`;
+        desc += `\nTemps écoulé. Mise perdue.`;
     }
 
     const color = status === 'cashout' ? COLORS.SUCCESS
                : status === 'lost' || status === 'timeout' ? COLORS.ERROR
                : COLORS.PRIMARY;
 
-    return createEmbed('Mines -- Demineur', desc, color);
+    return createEmbed('Mines -- Démineur', desc, color);
 }
 
 module.exports = {
     name: 'mines',
     aliases: ['mn'],
-    description: 'Jouez au Demineur (Mines)',
+    description: 'Jouez au Démineur (Mines)',
     async execute(message, args, db) {
         const userId = message.author.id;
 
         if (activeGames.has(userId)) {
             return message.reply({
-                embeds: [createEmbed('Erreur', 'Vous avez deja une partie de Mines en cours.', COLORS.ERROR)]
+                embeds: [createEmbed('Erreur', 'Vous avez déjà une partie de Mines en cours.', COLORS.ERROR)]
             });
         }
 
@@ -109,7 +121,7 @@ module.exports = {
 
         if (bet === null || bet <= 0n) {
             return message.reply({
-                embeds: [createEmbed('Usage', 'Format: `;mines [mise/all] [mines]`\nMines: 1 a 24 (defaut: 1)', COLORS.ERROR)]
+                embeds: [createEmbed('Usage', `Format: \`;mines [mise/all] [mines]\`\nMines: 1 à ${PLAYABLE_CELLS - 1} (défaut: 1)`, COLORS.ERROR)]
             });
         }
 
@@ -122,16 +134,16 @@ module.exports = {
         let numMines = 1;
         if (args[1]) {
             numMines = parseInt(args[1]);
-            if (isNaN(numMines) || numMines < 1 || numMines > 24) {
+            if (isNaN(numMines) || numMines < 1 || numMines >= PLAYABLE_CELLS) {
                 return message.reply({
-                    embeds: [createEmbed('Erreur', 'Le nombre de mines doit etre entre 1 et 24.', COLORS.ERROR)]
+                    embeds: [createEmbed('Erreur', `Le nombre de mines doit être entre 1 et ${PLAYABLE_CELLS - 1}.`, COLORS.ERROR)]
                 });
             }
         }
 
         await db.updateBalance(userId, -bet);
 
-        // Place mines randomly in positions 0-23 (24 playable cells)
+        // Place mines randomly in positions 0-14 (15 playable cells)
         const minePositions = new Set();
         while (minePositions.size < numMines) {
             minePositions.add(Math.floor(Math.random() * PLAYABLE_CELLS));
@@ -186,6 +198,12 @@ module.exports = {
 
                 announceBigWin(message, st, profit);
                 activeGames.delete(userId);
+                return;
+            }
+            
+            // Ignore disabled cashout clicks
+            if (i.customId === 'mines_cashout_disabled') {
+                await i.deferUpdate().catch(() => {});
                 return;
             }
 

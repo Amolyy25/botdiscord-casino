@@ -60,10 +60,17 @@ module.exports = {
         }
 
         const embedColor = win ? COLORS.SUCCESS : COLORS.ERROR;
+        const gloryStatus = eventsManager.getGloryHourStatus();
+        let description = `La pièce est tombée sur **${outcome.toUpperCase()}** !\n\n` +
+            (win ? `Félicitations ! Vous gagnez ${formatCoins(bet)}.` : `Dommage, vous avez perdu ${formatCoins(bet)}.`);
+        
+        if (gloryStatus.active && win) {
+            description = `**${gloryStatus.text}**\n\n` + description;
+        }
+
         const embed = createEmbed(
             'Coinflip 🪙',
-            `La pièce est tombée sur **${outcome.toUpperCase()}** !\n\n` +
-            (win ? `Félicitations ! Vous gagnez ${formatCoins(bet)}.` : `Dommage, vous avez perdu ${formatCoins(bet)}.`),
+            description,
             embedColor
         );
         

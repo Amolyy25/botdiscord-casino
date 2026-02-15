@@ -2,10 +2,18 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require(
 const { createEmbed, COLORS, parseBet, formatCoins } = require('../utils');
 const eventsManager = require('../events/eventsManager');
 
+const activeGames = new Set();
+
 module.exports = {
     name: 'crash',
     description: 'Jouez au Crash',
     async execute(message, args, db) {
+        if (activeGames.has(message.author.id)) {
+            return message.reply({ 
+                embeds: [createEmbed('Erreur', `Vous avez déjà une partie de Crash en cours !`, COLORS.ERROR)]
+            });
+        }
+
         const user = await db.getUser(message.author.id);
         const bet = parseBet(args[0], user.balance);
 
@@ -21,40 +29,77 @@ module.exports = {
             });
         }
 
+        activeGames.add(message.author.id);
+
         // Logic for crash point
         const crashPoint = Math.max(1.1, (100 / (Math.random() * 100)).toFixed(2));
         
         let currentMultiplier = 1.0;
+        let cashedOut = false;
         
+        const customId = `crash_cashout_${message.id}`;
+
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-                .setCustomId('cashout')
+                .setCustomId(customId)
                 .setLabel('CASH OUT')
                 .setStyle(ButtonStyle.Danger)
         );
 
+        const getEmbed = (status, multiplier, profit = 0n) => {
+            const gloryStatus = eventsManager.getGloryHourStatus();
+            let desc = `Multiplicateur: **${multiplier}x**\n\n`;
+            
+            if (status === 'playing') {
+                desc += `Cliquez sur le bouton pour encaisser !`;
+            } else if (status === 'crashed') {
+                desc = `Le multiplicateur a crashé à **${crashPoint}x**.\n\nVous avez perdu ${formatCoins(bet)}.`;
+            } else if (status === 'cashed') {
+                desc = `Vous avez retiré à **${multiplier}x**.\n\nGains: ${formatCoins(profit + bet)} (Profit: ${formatCoins(profit)})\n\nLe multiplicateur est finalement monté jusqu'à **${crashPoint}x** !`;
+            }
+
+            if (gloryStatus.active && status !== 'crashed') {
+                desc = `**${gloryStatus.text}**\n\n` + desc;
+            }
+
+            const color = status === 'playing' ? COLORS.PRIMARY 
+                        : status === 'crashed' ? COLORS.ERROR 
+                        : COLORS.SUCCESS;
+
+            return createEmbed(
+                status === 'playing' ? 'Crash 📈' : (status === 'crashed' ? 'CRASHED! 💥' : 'Cashed Out! 💰'),
+                desc,
+                color
+            );
+        };
+
         const msg = await message.reply({ 
-            embeds: [createEmbed('Crash 📈', `Multiplicateur: **${currentMultiplier.toFixed(2)}x**\n\nCliquez sur le bouton pour encaisser !`)],
+            embeds: [getEmbed('playing', currentMultiplier.toFixed(2))],
             components: [row]
         });
 
         const collector = msg.createMessageComponentCollector({ 
-            filter: i => i.user.id === message.author.id && i.customId === 'cashout',
+            filter: i => i.user.id === message.author.id && i.customId === customId,
             time: 60000 
         });
 
-        let cashedOut = false;
-        
         const interval = setInterval(async () => {
+            if (cashedOut) {
+                clearInterval(interval);
+                return;
+            }
+
             currentMultiplier += 0.1;
             
             if (currentMultiplier >= crashPoint) {
                 clearInterval(interval);
                 collector.stop();
+                
                 if (!cashedOut) {
+                    activeGames.delete(message.author.id);
                     await db.updateBalance(message.author.id, -bet);
                     msg.edit({ 
-                        embeds: [createEmbed('CRASHED! 💥', `Le multiplicateur a crashé à **${crashPoint}x**.\n\nVous avez perdu ${formatCoins(bet)}.`, COLORS.ERROR)],
+                        embeds: [getEmbed('crashed', crashPoint)],
                         components: []
                     }).catch(() => {});
                 }
@@ -62,7 +107,7 @@ module.exports = {
             }
 
             msg.edit({ 
-                embeds: [createEmbed('Crash 📈', `Multiplicateur: **${currentMultiplier.toFixed(2)}x**\n\nCliquez sur le bouton pour encaisser !`)],
+                embeds: [getEmbed('playing', currentMultiplier.toFixed(2))],
                 components: [row]
             }).catch(() => {});
 
@@ -73,6 +118,7 @@ module.exports = {
             cashedOut = true;
             clearInterval(interval);
             collector.stop();
+            activeGames.delete(message.author.id);
 
             const total = BigInt(Math.floor(Number(bet) * currentMultiplier));
             let winAmount = total - bet;
@@ -107,7 +153,7 @@ module.exports = {
             }
 
             await i.update({ 
-                embeds: [createEmbed('Cashed Out! 💰', `Vous avez retiré à **${currentMultiplier.toFixed(2)}x**.\n\nGains: ${formatCoins(total)} (Profit: ${formatCoins(winAmount)})\n\nLe multiplicateur est finalement monté jusqu'à **${crashPoint}x** !`, COLORS.SUCCESS)],
+                embeds: [getEmbed('cashed', currentMultiplier.toFixed(2), winAmount)],
                 components: []
             }).catch(() => {});
         });

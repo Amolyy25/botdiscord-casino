@@ -75,10 +75,17 @@ module.exports = {
         }
 
         const embedColor = win ? COLORS.SUCCESS : COLORS.ERROR;
+        const gloryStatus = eventsManager.getGloryHourStatus();
+        let description = `La bille s'est arrêtée sur : **${resultColor.toUpperCase()} (${outcome})**\n\n` +
+            (win ? `Félicitations ! Vous gagnez ${formatCoins(gain)}.` : `Dommage, vous avez perdu ${formatCoins(bet)}.`);
+        
+        if (gloryStatus.active && win) {
+            description = `**${gloryStatus.text}**\n\n` + description;
+        }
+
         const embed = createEmbed(
             'Roulette 🎡',
-            `La bille s'est arrêtée sur : **${resultColor.toUpperCase()} (${outcome})**\n\n` +
-            (win ? `Félicitations ! Vous gagnez ${formatCoins(gain)}.` : `Dommage, vous avez perdu ${formatCoins(bet)}.`),
+            description,
             embedColor
         );
         
