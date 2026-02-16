@@ -1,8 +1,14 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { createEmbed, COLORS, parseBet, formatCoins } = require('../utils');
 const eventsManager = require('../events/eventsManager');
 
 const activeGames = new Set();
+
+// --- CONFIGURATION DU GAME LOOP ---
+const TICK_INTERVAL = 200;       // Vérification du crash toutes les 200ms (précision)
+const DISPLAY_INTERVAL = 2000;   // Mise à jour de l'embed toutes les 2s (anti rate-limit)
+const MULTIPLIER_SPEED = 0.1;    // +0.1x par seconde
+const COLLECTOR_TIMEOUT = 120000; // 2 minutes max par partie
 
 module.exports = {
     name: 'crash',
@@ -29,32 +35,34 @@ module.exports = {
             });
         }
 
-        // Deduct bet immediately to prevent free rolls on bot crash
+        // Débit immédiat pour éviter les "free rolls" en cas de crash du bot
         await db.updateBalance(message.author.id, -bet);
-
         activeGames.add(message.author.id);
 
-        // Logic for crash point
-        const crashPoint = Math.max(1.1, (100 / (Math.random() * 100)).toFixed(2));
-        
-        let currentMultiplier = 1.0;
+        // --- CALCUL DU CRASH POINT ---
+        const crashPoint = Math.max(1.1, parseFloat((100 / (Math.random() * 100)).toFixed(2)));
+
+        // --- ÉTAT DU JEU (closure) ---
         let cashedOut = false;
-        
+        const startTime = Date.now(); // Référence temporelle pour le calcul time-delta
+        let lastEditTime = 0;         // Timestamp du dernier msg.edit (throttling)
+
         const customId = `crash_cashout_${message.id}`;
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId(customId)
-                .setLabel('CASH OUT')
+                .setLabel('💰 CASH OUT')
                 .setStyle(ButtonStyle.Danger)
         );
 
+        // --- FONCTION D'EMBED ---
         const getEmbed = (status, multiplier, profit = 0n) => {
             const gloryStatus = eventsManager.getGloryHourStatus();
-            let desc = `Multiplicateur: **${multiplier}x**\n\n`;
-            
+            let desc = '';
+
             if (status === 'playing') {
-                desc += `Cliquez sur le bouton pour encaisser !`;
+                desc = `Multiplicateur: **${multiplier}x**\n\nCliquez sur le bouton pour encaisser !`;
             } else if (status === 'crashed') {
                 desc = `Le multiplicateur a crashé à **${crashPoint}x**.\n\nVous avez perdu ${formatCoins(bet)}.`;
             } else if (status === 'cashed') {
@@ -77,76 +85,101 @@ module.exports = {
             );
         };
 
+        // --- CALCUL DU MULTIPLICATEUR BASÉ SUR LE TEMPS RÉEL ---
+        // Garantit la synchronisation même en cas de lag du bot
+        const getMultiplierAtTime = (timestamp) => {
+            const elapsed = (timestamp - startTime) / 1000;
+            return 1.0 + elapsed * MULTIPLIER_SPEED;
+        };
+
+        // --- ENVOI DU MESSAGE INITIAL ---
         const msg = await message.reply({ 
-            embeds: [getEmbed('playing', currentMultiplier.toFixed(2))],
+            embeds: [getEmbed('playing', '1.00')],
             components: [row]
         });
 
         const collector = msg.createMessageComponentCollector({ 
             filter: i => i.user.id === message.author.id && i.customId === customId,
-            time: 60000 
+            time: COLLECTOR_TIMEOUT
         });
 
-        const interval = setInterval(async () => {
-            if (cashedOut) {
-                // clearInterval(interval); // Done in collector
-                return;
-            }
+        // --- GAME LOOP (tick rapide, affichage throttlé) ---
+        // Le tick tourne à 200ms pour détecter le crash avec précision.
+        // L'embed n'est mis à jour que toutes les 2s pour éviter le rate-limit API Discord.
+        const interval = setInterval(() => {
+            if (cashedOut) return;
 
-            currentMultiplier += 0.1;
-            
+            const now = Date.now();
+            const currentMultiplier = getMultiplierAtTime(now);
+
+            // === CRASH DÉTECTÉ ===
             if (currentMultiplier >= crashPoint) {
                 clearInterval(interval);
+                cashedOut = true; // Empêche tout cashout tardif
                 collector.stop();
-                
-                if (!cashedOut) {
-                    activeGames.delete(message.author.id);
-                    // Bet already deducted at start
-                    msg.edit({ 
-                        embeds: [getEmbed('crashed', crashPoint)],
-                        components: []
-                    }).catch(() => {});
-                }
+                activeGames.delete(message.author.id);
+
+                // Mise à jour finale (crash) — .catch pour ne jamais planter la logique
+                msg.edit({ 
+                    embeds: [getEmbed('crashed', crashPoint)],
+                    components: []
+                }).catch(() => null);
                 return;
             }
 
-            msg.edit({ 
-                embeds: [getEmbed('playing', currentMultiplier.toFixed(2))],
-                components: [row]
-            }).catch(() => {});
+            // === THROTTLING DE L'AFFICHAGE ===
+            // On ne met à jour l'embed que si suffisamment de temps s'est écoulé
+            if (now - lastEditTime >= DISPLAY_INTERVAL) {
+                lastEditTime = now;
+                msg.edit({ 
+                    embeds: [getEmbed('playing', currentMultiplier.toFixed(2))],
+                    components: [row]
+                }).catch(() => null); // Silencieux si rate-limited
+            }
 
-        }, 1000);
+        }, TICK_INTERVAL);
 
+        // --- HANDLER CASH OUT ---
         collector.on('collect', async i => {
+            // Clic tardif après crash → defer silencieux
             if (cashedOut) {
-                await i.deferUpdate().catch(() => {});
+                await i.deferUpdate().catch(() => null);
                 return;
             }
+
             cashedOut = true;
             clearInterval(interval);
             collector.stop();
             activeGames.delete(message.author.id);
 
-            const total = BigInt(Math.floor(Number(bet) * currentMultiplier));
+            // === ANTI-TRICHE : recalcul au timestamp exact du clic ===
+            // On ne se fie PAS à la dernière valeur affichée dans l'embed.
+            // Le multiplicateur est recalculé au moment précis de l'interaction.
+            const cashoutMultiplier = getMultiplierAtTime(Date.now());
+
+            // Sécurité : ne jamais dépasser le crashPoint
+            const safeMult = Math.min(cashoutMultiplier, crashPoint);
+
+            const total = BigInt(Math.floor(Number(bet) * safeMult));
             const profit = total - bet;
             let finalGain = profit;
-            
+
             if (eventsManager.isDoubleGainActive()) {
                 finalGain *= 2n;
             }
 
-            const finalMultiplier = currentMultiplier.toFixed(2);
+            const finalMultiplier = safeMult.toFixed(2);
 
-            // Refund bet + finalGain (profit possibly doubled)
+            // Crédit atomique : mise + gain (éventuellement doublé)
             await db.updateBalance(message.author.id, bet + finalGain);
-            
-            // Update UI FIRST to ensure responsiveness and fix "stuck embed" issue
+
+            // Mise à jour UI — prioritaire pour la réactivité
             await i.update({ 
                 embeds: [getEmbed('cashed', finalMultiplier, finalGain)],
                 components: []
-            }).catch(() => {});
+            }).catch(() => null);
 
-            // Announce big wins (500+ coins profit)
+            // Annonce des gros gains (500+ coins de profit)
             if (finalGain >= 500n) {
                 try {
                     const { WINS_CHANNEL_ID } = require('../roleConfig');
