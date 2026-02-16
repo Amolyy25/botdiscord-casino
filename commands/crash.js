@@ -118,7 +118,10 @@ module.exports = {
         }, 1000);
 
         collector.on('collect', async i => {
-            if (cashedOut) return;
+            if (cashedOut) {
+                await i.deferUpdate().catch(() => {});
+                return;
+            }
             cashedOut = true;
             clearInterval(interval);
             collector.stop();

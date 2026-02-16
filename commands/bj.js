@@ -160,31 +160,6 @@ module.exports = {
 
                     // Refund bet + win amount
                     await db.updateBalance(message.author.id, bet + winAmount);
-                    
-                    await i.update({ embeds: [renderEmbed(result, finalGain)], components: [] });
-                    collector.stop();
-
-                    // Announce big wins (500+ coins)
-                    if (bet >= 500n) {
-                        try {
-                            const { WINS_CHANNEL_ID } = require('../roleConfig');
-                            const winsChannel = await message.client.channels.fetch(WINS_CHANNEL_ID);
-                            if (winsChannel) {
-                                const { createEmbed, COLORS, formatCoins } = require('../utils');
-                                const winEmbed = createEmbed(
-                                    '🎉 GROS GAIN AU BLACKJACK !',
-                                    `**${message.author.username}** vient de gagner ${formatCoins(bet)} au Blackjack !\n\n` +
-                                    `**Mise:** ${formatCoins(bet)}\n` +
-                                    `**Gain:** ${formatCoins(bet)}`,
-                                    COLORS.GOLD
-                                );
-                                winEmbed.setThumbnail(message.author.displayAvatarURL({ dynamic: true }));
-                                await winsChannel.send({ embeds: [winEmbed] });
-                            }
-                        } catch (e) {
-                            console.error('Failed to send win announcement:', e);
-                        }
-                    }
                 } else if (playerVal < dealerVal) {
                     result = 'Perdu';
                     finalGain = -bet;
@@ -193,8 +168,31 @@ module.exports = {
                     result = 'Égalité (Push)';
                     // Refund bet
                     await db.updateBalance(message.author.id, bet);
-                    await i.update({ embeds: [renderEmbed(result, finalGain)], components: [] });
-                    collector.stop();
+                }
+
+                await i.update({ embeds: [renderEmbed(result, finalGain)], components: [] });
+                collector.stop();
+
+                // Announce big wins (500+ coins) if won
+                if ((dealerVal > 21 || playerVal > dealerVal) && bet >= 500n) {
+                    try {
+                        const { WINS_CHANNEL_ID } = require('../roleConfig');
+                        const winsChannel = await message.client.channels.fetch(WINS_CHANNEL_ID);
+                        if (winsChannel) {
+                            const { createEmbed, COLORS, formatCoins } = require('../utils');
+                            const winEmbed = createEmbed(
+                                '🎉 GROS GAIN AU BLACKJACK !',
+                                `**${message.author.username}** vient de gagner ${formatCoins(finalGain)} au Blackjack !\n\n` +
+                                `**Mise:** ${formatCoins(bet)}\n` +
+                                `**Gain:** ${formatCoins(finalGain)}`,
+                                COLORS.GOLD
+                            );
+                            winEmbed.setThumbnail(message.author.displayAvatarURL({ dynamic: true }));
+                            await winsChannel.send({ embeds: [winEmbed] });
+                        }
+                    } catch (e) {
+                        console.error('Failed to send win announcement:', e);
+                    }
                 }
             }
         });

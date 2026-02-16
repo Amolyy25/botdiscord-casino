@@ -43,12 +43,15 @@ module.exports = {
                 const { WINS_CHANNEL_ID } = require('../roleConfig');
                 const winsChannel = await message.client.channels.fetch(WINS_CHANNEL_ID);
                 if (winsChannel) {
+                    let profit = bet;
+                    if (eventsManager.isDoubleGainActive()) profit *= 2n;
+
                     const winEmbed = createEmbed(
                         '🎉 GROS GAIN AU COINFLIP !',
-                        `**${message.author.username}** vient de gagner ${formatCoins(bet)} au Coinflip !\n\n` +
+                        `**${message.author.username}** vient de gagner ${formatCoins(profit)} au Coinflip !\n\n` +
                         `**Résultat:** ${outcome.toUpperCase()}\n` +
                         `**Mise:** ${formatCoins(bet)}\n` +
-                        `**Gain:** ${formatCoins(bet)}`,
+                        `**Gain:** ${formatCoins(profit)}`,
                         COLORS.GOLD
                     );
                     winEmbed.setThumbnail(message.author.displayAvatarURL({ dynamic: true }));
