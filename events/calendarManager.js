@@ -25,6 +25,13 @@ function buildCalendarEmbed(events) {
     let list = '';
     const now = Date.now();
 
+    // --- Mini Event : Heure de Gloire (statut en direct) ---
+    const gloryStatus = eventsManager.getGloryHourStatus();
+    let statusLine = '';
+    if (gloryStatus.active) {
+        statusLine = `⚡ **Mini Event actif : Heure de Gloire** — Gains doublés !\n\n`;
+    }
+
     if (events.length === 0) {
         list = 'Aucun événement prévu.';
     } else {
@@ -36,7 +43,7 @@ function buildCalendarEmbed(events) {
 
     return createEmbed(
         '🗓️ Calendrier des Événements',
-        `Voici les prochains événements programmés :\n\n${list}`,
+        `${statusLine}Voici les prochains événements programmés :\n\n${list}`,
         COLORS.GOLD
     );
 }

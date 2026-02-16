@@ -10,7 +10,7 @@ const {
 let doubleGainActive = false;
 let doubleGainEndTime = 0;
 
-const GLORY_HOUR_CHANCE_DAILY = 0.3; // 30% chance for a glory hour today
+// L'Heure de Gloire s'active 1 fois par jour, à une heure aléatoire entre 19h et 23h
 const GLORY_HOUR_DURATION = 30 * 60 * 1000; // 30 minutes
 const VOLE_GENIE_CHANCE = 0.03; // 3%
 const CASINO_CHANNEL_ID = "1469713523549540536";
@@ -40,44 +40,95 @@ const QUESTIONS = [
 
 module.exports = {
   init: async (client, db) => {
-    // Check for active event on startup (recovering currently running event)
+    // Récupérer un événement en cours (si le bot a redémarré pendant une Heure de Gloire)
     await module.exports.checkActiveEvent(client, db);
 
-    // Schedule daily planner at 9 AM
+    // --- PERSISTANCE INTELLIGENTE ---
+    // Au démarrage : vérifier si aujourd'hui a déjà un schedule, sinon en créer un
+    await module.exports.ensureTodaySchedule(db);
+    await module.exports.loadAndScheduleEvents(client, db);
+
+    // Cron quotidien à 9h → générer le schedule du jour (si pas déjà fait)
     cron.schedule(
       "0 9 * * *",
       async () => {
-        await module.exports.scheduleDailyGloryHour(db);
+        await module.exports.scheduleDailyGloryHour(db, true);
         await module.exports.loadAndScheduleEvents(client, db);
       },
       { timezone: "Europe/Paris" }
     );
-
-    // Load schedule (recovering future events)
-    await module.exports.loadAndScheduleEvents(client, db);
   },
 
-  scheduleDailyGloryHour: async (db) => {
-    const now = new Date();
-    const times = [];
+  // --- PERSISTANCE : vérifie si un schedule existe pour aujourd'hui ---
+  // Appelé au démarrage du bot pour ne jamais perdre l'événement du jour
+  ensureTodaySchedule: async (db) => {
+    const scheduleJson = await db.getConfig(EVENT_CONFIG_KEY);
+    if (scheduleJson) {
+      const times = JSON.parse(scheduleJson);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Decide if we have an event today
-    if (Math.random() < GLORY_HOUR_CHANCE_DAILY) {
-      const startMin = 10 * 60; // 10:00
-      const endMin = 21 * 60;   // 21:00
-      const randomMin = Math.floor(Math.random() * (endMin - startMin + 1)) + startMin;
-      
-      const timestamp = new Date(now);
-      timestamp.setHours(0, 0, 0, 0);
-      timestamp.setMinutes(randomMin);
-      
-      if (timestamp > now) {
-        times.push(timestamp.getTime());
+      // Vérifier si un timestamp stocké correspond à aujourd'hui
+      const hasTodayEvent = times.some(t => t >= today.getTime() && t < tomorrow.getTime());
+      if (hasTodayEvent) {
+        console.log(`[Events] Glory Hour schedule for today already exists, skipping generation.`);
+        return; // Schedule existe déjà pour aujourd'hui → ne pas écraser
       }
     }
 
-    await db.setConfig(EVENT_CONFIG_KEY, JSON.stringify(times));
-    console.log(`[Events] Glory Hour scheduled: ${times.length > 0 ? new Date(times[0]).toLocaleTimeString() : 'None today'}`);
+    // Pas de schedule pour aujourd'hui → en créer un
+    await module.exports.scheduleDailyGloryHour(db, false);
+  },
+
+  // force = true quand appelé par le cron (nouveau jour garanti)
+  scheduleDailyGloryHour: async (db, force = false) => {
+    // Si pas forcé, vérifier qu'on n'écrase pas un schedule existant
+    if (!force) {
+      const existing = await db.getConfig(EVENT_CONFIG_KEY);
+      if (existing) {
+        const times = JSON.parse(existing);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const hasTodayEvent = times.some(t => t >= today.getTime() && t < tomorrow.getTime());
+        if (hasTodayEvent) return; // Déjà programmé pour aujourd'hui
+      }
+    }
+
+    const now = new Date();
+    const plannedDate = new Date(now);
+    
+    // 1 Heure de Gloire par jour, heure aléatoire entre 19h et 23h
+    const startMin = 19 * 60; // 19:00
+    const endMin = 23 * 60;   // 23:00
+    const randomMin = Math.floor(Math.random() * (endMin - startMin)) + startMin;
+    
+    plannedDate.setHours(0, 0, 0, 0);
+    plannedDate.setMinutes(randomMin);
+    
+    const plannedTimestamp = plannedDate.getTime();
+    
+    // On récupère les schedules existants pour ne pas écraser ceux des autres jours (si jamais)
+    let allTimes = [];
+    const existingJson = await db.getConfig(EVENT_CONFIG_KEY);
+    if (existingJson) {
+        allTimes = JSON.parse(existingJson).filter(t => {
+            const d = new Date(t);
+            d.setHours(0, 0, 0, 0);
+            return d.getTime() !== plannedDate.getTime(); // Garder les autres jours
+        });
+    }
+    
+    allTimes.push(plannedTimestamp);
+    // Garder seulement les 7 derniers jours pour nettoyer la DB
+    allTimes.sort((a,b) => b-a);
+    allTimes = allTimes.slice(0, 7);
+
+    await db.setConfig(EVENT_CONFIG_KEY, JSON.stringify(allTimes));
+    console.log(`[Events] Glory Hour scheduled for ${plannedDate.toLocaleDateString()} at ${plannedDate.toLocaleTimeString()}`);
   },
 
   loadAndScheduleEvents: async (client, db) => {
@@ -85,23 +136,18 @@ module.exports = {
     scheduledTimeouts = [];
 
     const scheduleJson = await db.getConfig(EVENT_CONFIG_KEY);
-    if (!scheduleJson) {
-      // Past 9am and no schedule? Generate one.
-      if (new Date().getHours() >= 9) {
-        await module.exports.scheduleDailyGloryHour(db);
-        return module.exports.loadAndScheduleEvents(client, db);
-      }
-      return;
-    }
+    if (!scheduleJson) return;
 
     let times = JSON.parse(scheduleJson);
     const now = Date.now();
 
     times.forEach(timestamp => {
+      // On ne planifie que si c'est dans le futur
       if (timestamp > now) {
         const delay = timestamp - now;
         const timeout = setTimeout(() => module.exports.startGloryHour(client, db), delay);
         scheduledTimeouts.push(timeout);
+        console.log(`[Events] Glory Hour scheduled in ${Math.round(delay/1000/60)} min`);
       }
     });
   },
