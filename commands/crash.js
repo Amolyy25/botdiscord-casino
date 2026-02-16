@@ -59,7 +59,7 @@ module.exports = {
                 desc = `Le multiplicateur a crashé à **${crashPoint}x**.\n\nVous avez perdu ${formatCoins(bet)}.`;
             } else if (status === 'cashed') {
                 const eventIndicator = gloryStatus.active ? ' (x2) ⚡️' : '';
-                desc = `Vous avez retiré à **${multiplier}x**.\n\nProfit: ${formatCoins(profit)}${eventIndicator}`;
+                desc = `Vous avez retiré à **${multiplier}x**.\nProfit: ${formatCoins(profit)}${eventIndicator}\n\n(Le crash aurait eu lieu à **${crashPoint}x**)`;
             }
 
             if (gloryStatus.active && status !== 'crashed') {
@@ -89,7 +89,7 @@ module.exports = {
 
         const interval = setInterval(async () => {
             if (cashedOut) {
-                clearInterval(interval);
+                // clearInterval(interval); // Done in collector
                 return;
             }
 
@@ -132,8 +132,16 @@ module.exports = {
                 finalGain *= 2n;
             }
 
+            const finalMultiplier = currentMultiplier.toFixed(2);
+
             // Refund bet + finalGain (profit possibly doubled)
             await db.updateBalance(message.author.id, bet + finalGain);
+            
+            // Update UI FIRST to ensure responsiveness and fix "stuck embed" issue
+            await i.update({ 
+                embeds: [getEmbed('cashed', finalMultiplier, finalGain)],
+                components: []
+            }).catch(() => {});
 
             // Announce big wins (500+ coins profit)
             if (finalGain >= 500n) {
@@ -144,7 +152,7 @@ module.exports = {
                         const winEmbed = createEmbed(
                             '🎉 GROS GAIN AU CRASH !',
                             `**${message.author.username}** vient de gagner ${formatCoins(finalGain)} au Crash !\n\n` +
-                            `**Multiplicateur:** ${currentMultiplier.toFixed(2)}x\n` +
+                            `**Multiplicateur:** ${finalMultiplier}x\n` +
                             `**Mise:** ${formatCoins(bet)}\n` +
                             `**Gain total:** ${formatCoins(bet + finalGain)}\n` +
                             `**Profit:** ${formatCoins(finalGain)}`,
@@ -157,11 +165,6 @@ module.exports = {
                     console.error('Failed to send win announcement:', e);
                 }
             }
-
-            await i.update({ 
-                embeds: [getEmbed('cashed', currentMultiplier.toFixed(2), finalGain)],
-                components: []
-            }).catch(() => {});
         });
     }
 };

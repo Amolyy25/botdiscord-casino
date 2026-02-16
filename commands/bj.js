@@ -161,6 +161,9 @@ module.exports = {
                     // Refund bet + win amount
                     await db.updateBalance(message.author.id, bet + winAmount);
                     
+                    await i.update({ embeds: [renderEmbed(result, finalGain)], components: [] });
+                    collector.stop();
+
                     // Announce big wins (500+ coins)
                     if (bet >= 500n) {
                         try {
@@ -190,10 +193,9 @@ module.exports = {
                     result = 'Égalité (Push)';
                     // Refund bet
                     await db.updateBalance(message.author.id, bet);
+                    await i.update({ embeds: [renderEmbed(result, finalGain)], components: [] });
+                    collector.stop();
                 }
-
-                await i.update({ embeds: [renderEmbed(result, finalGain)], components: [] });
-                collector.stop();
             }
         });
 
