@@ -29,6 +29,9 @@ module.exports = {
             });
         }
 
+        // Deduct bet immediately to prevent free rolls on bot crash
+        await db.updateBalance(message.author.id, -bet);
+
         activeGames.add(message.author.id);
 
         // Logic for crash point
@@ -98,7 +101,7 @@ module.exports = {
                 
                 if (!cashedOut) {
                     activeGames.delete(message.author.id);
-                    await db.updateBalance(message.author.id, -bet);
+                    // Bet already deducted at start
                     msg.edit({ 
                         embeds: [getEmbed('crashed', crashPoint)],
                         components: []
@@ -122,27 +125,29 @@ module.exports = {
             activeGames.delete(message.author.id);
 
             const total = BigInt(Math.floor(Number(bet) * currentMultiplier));
-            let winAmount = total - bet;
+            const profit = total - bet;
+            let finalGain = profit;
             
             if (eventsManager.isDoubleGainActive()) {
-                winAmount *= 2n;
+                finalGain *= 2n;
             }
 
-            await db.updateBalance(message.author.id, winAmount);
+            // Refund bet + finalGain (profit possibly doubled)
+            await db.updateBalance(message.author.id, bet + finalGain);
 
             // Announce big wins (500+ coins profit)
-            if (winAmount >= 500n) {
+            if (finalGain >= 500n) {
                 try {
                     const { WINS_CHANNEL_ID } = require('../roleConfig');
                     const winsChannel = await message.client.channels.fetch(WINS_CHANNEL_ID);
                     if (winsChannel) {
                         const winEmbed = createEmbed(
                             '🎉 GROS GAIN AU CRASH !',
-                            `**${message.author.username}** vient de gagner ${formatCoins(winAmount)} au Crash !\n\n` +
+                            `**${message.author.username}** vient de gagner ${formatCoins(finalGain)} au Crash !\n\n` +
                             `**Multiplicateur:** ${currentMultiplier.toFixed(2)}x\n` +
                             `**Mise:** ${formatCoins(bet)}\n` +
-                            `**Gain total:** ${formatCoins(total)}\n` +
-                            `**Profit:** ${formatCoins(winAmount)}`,
+                            `**Gain total:** ${formatCoins(bet + finalGain)}\n` +
+                            `**Profit:** ${formatCoins(finalGain)}`,
                             COLORS.GOLD
                         );
                         winEmbed.setThumbnail(message.author.displayAvatarURL({ dynamic: true }));
@@ -154,7 +159,7 @@ module.exports = {
             }
 
             await i.update({ 
-                embeds: [getEmbed('cashed', currentMultiplier.toFixed(2), winAmount)],
+                embeds: [getEmbed('cashed', currentMultiplier.toFixed(2), finalGain)],
                 components: []
             }).catch(() => {});
         });
