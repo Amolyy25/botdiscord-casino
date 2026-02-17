@@ -79,9 +79,7 @@ const AGGRESSIVE_ITEM_TYPES = [
 
 // ─── Build embeds & components (design sobre) ───────────────
 
-  if (categoryId === "revente") {
-    return buildReventeItemsEmbed(interaction);
-  }
+function buildCategoryItemsEmbed(categoryId) {
 
   const category = getCategory(categoryId);
   const items = getItemsByCategory(categoryId);
@@ -117,6 +115,7 @@ const AGGRESSIVE_ITEM_TYPES = [
       .addOptions(itemOptions),
   );
 
+  return { embed, components: [itemSelect] };
   return { embed, components: [itemSelect] };
 }
 
@@ -185,6 +184,7 @@ async function buildReventeItemsEmbed(interaction) {
   );
 
   return { embed, components: [itemSelect] };
+}
 
 
 function buildItemDetailEmbed(itemId) {
