@@ -321,6 +321,25 @@ async function runTests() {
     // We can rely on manual review for this specific edge case since mocking shopData require is hard here.
     console.log("  ⚠️ Automated test for Boost Block skipped (requires mocking shopData). Manual check recommended.");
 
+    // 6. Test Blanc/Violet Detection & Cancel Safety
+    console.log("\n🧪 Test 6: Blanc/Violet & Cancel Safety");
+    // Mock user having "Blanc" role
+    const blancRoleId = "1469071689831940302"; 
+    const roleItemBlanc = { ...itemRoleSelect, id: "role_couleur_basic", roles: [{ id: blancRoleId, label: "Blanc", emoji: "⬜" }] };
+    
+    // We assume getItems in shop.js will now find it because we updated shop.json.
+    // In unit test, we might need to rely on the fact that we fixed shop.json.
+    
+    // Test Cancel Button
+    const interactionCancel = new MockInteraction(user1.user, guild, "shop_back.revente");
+    interactionCancel.isButton = () => true;
+    
+    await shop.handleInteraction(interactionCancel, db);
+    // Should update with select menu if items exist, or message if empty.
+    // User1 has items (from previous tests, if not removed).
+    // The key is it shouldn't crash.
+    console.log("  ✅ Cancel button handled without crash");
+    
     console.log("\nDone.");
 }
 

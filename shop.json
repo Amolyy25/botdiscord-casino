@@ -212,6 +212,8 @@
       "duration": 86400000,
       "needsTarget": false,
       "roles": [
+        { "id": "1469071689831940302", "label": "Blanc", "emoji": "⬜" },
+        { "id": "1469071689831940301", "label": "Violet", "emoji": "💜" },
         { "id": "1469071689823289446", "label": "Noir", "emoji": "⬛" },
         { "id": "1469071689823289445", "label": "Cyan", "emoji": "🩵" },
         { "id": "1469071689823289444", "label": "Jaune", "emoji": "🟡" },

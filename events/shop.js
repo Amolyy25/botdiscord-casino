@@ -1312,6 +1312,75 @@ module.exports = {
       // ── Bouton Retour ──
       if (interaction.isButton() && customId.startsWith("shop_back.")) {
         const categoryId = customId.split(".")[1];
+        
+        // Specifique REVENTE : On veut afficher la liste des objets a vendre (comme shop_sell_items)
+        // et non la liste d'achat de la categorie revente (qui est vide ou textuelle)
+        if (categoryId === "revente") {
+           // On re-simule le code de shop_sell_items car c'est un menu dynamique
+           // basÃ© sur l'inventaire et non static
+           // On doit appeler la logique de construction de menu de revente
+           // Mais ici on est dans un bouton, pas un select menu "shop_category"
+           // On doit dupliquer ou extraire la logique.
+           // Pour faire simple, on copie la logique de detection inventaire.
+           
+           const member = interaction.member;
+           const eligibleItems = shopData.items.filter(i => 
+             (i.category === "prestige" || i.category === "commandes_lana") && 
+             (i.price > 0)
+           );
+           
+           // Filter owned
+           const ownedItems = [];
+           for (const item of eligibleItems) {
+               if (item.type === "role_select" && item.roles) {
+                   if (item.roles.some(r => member.roles.cache.has(r.id))) {
+                       ownedItems.push(item);
+                   }
+               } else if (item.roleId && member.roles.cache.has(item.roleId)) {
+                   ownedItems.push(item);
+               }
+           }
+
+           if (ownedItems.length === 0) {
+              const embed = new EmbedBuilder()
+                .setTitle("Revente")
+                .setDescription("Vous ne possedez aucun objet eligible a la revente.")
+                .setColor(COLORS.GOLD);
+              // Retour menu principal
+              const row = new ActionRowBuilder().addComponents(
+                  new ButtonBuilder()
+                    .setCustomId("shop_cancel") // Act as cancel/home
+                    .setLabel("Retour Boutique")
+                    .setStyle(ButtonStyle.Secondary)
+              );
+              await interaction.update({ embeds: [embed], components: [row] });
+              return true;
+           }
+
+           const options = ownedItems.map(item => ({
+               label: item.label,
+               value: `sell_${item.id}`,
+               description: `Prix d'achat: ${item.price} coins`,
+               emoji: item.emoji
+           })).slice(0, 25); 
+
+           const embed = new EmbedBuilder()
+             .setTitle("Revente d'objets")
+             .setDescription("Selectionnez un objet a revendre (50% ou Prix Adaptatif).")
+             .setColor(COLORS.GOLD);
+
+           const row = new ActionRowBuilder().addComponents(
+             new StringSelectMenuBuilder()
+               .setCustomId("shop_sell_items")
+               .setPlaceholder("Choisir un objet a vendre...")
+               .addOptions(options)
+           );
+            
+           await interaction.update({ embeds: [embed], components: [row] });
+           return true;
+        }
+
+        // Default behavior for BUY categories
         const { embed, components } = buildCategoryItemsEmbed(categoryId);
 
         await interaction.update({
