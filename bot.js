@@ -14,6 +14,7 @@ const mathQuiz = require("./events/mathQuiz");
 const roleExpiration = require("./events/roleExpiration");
 const braquage = require("./events/braquage");
 const shop = require("./events/shop");
+const giveawayManager = require("./events/giveawayManager");
 
 const client = new Client({
   intents: [
@@ -55,6 +56,9 @@ client.once("clientReady", async () => {
 
     // Init Shop System
     await shop.init(client, db);
+
+    // Init Giveaway System
+    await giveawayManager.init(client, db);
 
     // Init Events Manager (L'Heure de Gloire etc.)
     const eventsManager = require("./events/eventsManager");
@@ -124,6 +128,10 @@ client.on("interactionCreate", async (interaction) => {
   try {
     const handledShop = await shop.handleInteraction(interaction, db);
     if (handledShop) return;
+
+    // Giveaway interactions
+    const handledGw = await giveawayManager.handleInteraction(interaction, db);
+    if (handledGw) return;
 
     // Calendar interactions
     const calendarManager = require("./events/calendarManager");

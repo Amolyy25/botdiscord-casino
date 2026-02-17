@@ -97,6 +97,38 @@ const initDb = async () => {
       value TEXT,
       end_time BIGINT
     );
+
+    CREATE TABLE IF NOT EXISTS giveaways (
+      id SERIAL PRIMARY KEY,
+      guild_id TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      message_id TEXT,
+      host_id TEXT NOT NULL,
+      prize_type TEXT NOT NULL,
+      prize_value TEXT NOT NULL,
+      winner_count INTEGER DEFAULT 1,
+      ends_at BIGINT NOT NULL,
+      temp_role_duration BIGINT,
+      status TEXT DEFAULT 'active',
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS giveaway_participants (
+      giveaway_id INTEGER REFERENCES giveaways(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL,
+      PRIMARY KEY (giveaway_id, user_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS scheduled_tasks (
+      id SERIAL PRIMARY KEY,
+      task_type TEXT NOT NULL,
+      guild_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      role_id TEXT,
+      execute_at BIGINT NOT NULL,
+      completed BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
   `);
 };
 
@@ -444,5 +476,108 @@ module.exports = {
       [userId]
     );
     return { count: parseInt(res.rows[0].count), totalSpent: BigInt(res.rows[0].total_spent) };
+  },
+
+  // ═══════════════════════════════════════════════
+  // Giveaway System
+  // ═══════════════════════════════════════════════
+
+  createGiveaway: async ({ guildId, channelId, messageId, hostId, prizeType, prizeValue, winnerCount, endsAt, tempRoleDuration }) => {
+    const res = await pool.query(
+      `INSERT INTO giveaways (guild_id, channel_id, message_id, host_id, prize_type, prize_value, winner_count, ends_at, temp_role_duration)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [guildId, channelId, messageId, hostId, prizeType, prizeValue, winnerCount, endsAt, tempRoleDuration || null]
+    );
+    return res.rows[0];
+  },
+
+  getActiveGiveaways: async () => {
+    const res = await pool.query("SELECT * FROM giveaways WHERE status = 'active' ORDER BY ends_at ASC");
+    return res.rows;
+  },
+
+  getGiveaway: async (id) => {
+    const res = await pool.query('SELECT * FROM giveaways WHERE id = $1', [id]);
+    return res.rows[0];
+  },
+
+  getGiveawayByMessage: async (messageId) => {
+    const res = await pool.query('SELECT * FROM giveaways WHERE message_id = $1', [messageId]);
+    return res.rows[0];
+  },
+
+  updateGiveawayMessage: async (id, messageId) => {
+    await pool.query('UPDATE giveaways SET message_id = $1 WHERE id = $2', [messageId, id]);
+  },
+
+  endGiveaway: async (id) => {
+    await pool.query("UPDATE giveaways SET status = 'ended' WHERE id = $1", [id]);
+  },
+
+  cancelGiveaway: async (id) => {
+    await pool.query("UPDATE giveaways SET status = 'cancelled' WHERE id = $1", [id]);
+  },
+
+  addGiveawayParticipant: async (giveawayId, userId) => {
+    const res = await pool.query(
+      'INSERT INTO giveaway_participants (giveaway_id, user_id) VALUES ($1, $2) ON CONFLICT (giveaway_id, user_id) DO NOTHING RETURNING *',
+      [giveawayId, userId]
+    );
+    return res.rows.length > 0; // true = newly added, false = already existed
+  },
+
+  isGiveawayParticipant: async (giveawayId, userId) => {
+    const res = await pool.query(
+      'SELECT 1 FROM giveaway_participants WHERE giveaway_id = $1 AND user_id = $2',
+      [giveawayId, userId]
+    );
+    return res.rows.length > 0;
+  },
+
+  getGiveawayParticipants: async (giveawayId) => {
+    const res = await pool.query(
+      'SELECT user_id FROM giveaway_participants WHERE giveaway_id = $1',
+      [giveawayId]
+    );
+    return res.rows.map(r => r.user_id);
+  },
+
+  getGiveawayParticipantCount: async (giveawayId) => {
+    const res = await pool.query(
+      'SELECT COUNT(*) as count FROM giveaway_participants WHERE giveaway_id = $1',
+      [giveawayId]
+    );
+    return parseInt(res.rows[0].count);
+  },
+
+  // ═══════════════════════════════════════════════
+  // Scheduled Tasks (generic)
+  // ═══════════════════════════════════════════════
+
+  addScheduledTask: async ({ taskType, guildId, userId, roleId, executeAt }) => {
+    const res = await pool.query(
+      'INSERT INTO scheduled_tasks (task_type, guild_id, user_id, role_id, execute_at) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [taskType, guildId, userId, roleId || null, executeAt]
+    );
+    return res.rows[0];
+  },
+
+  getPendingScheduledTasks: async (now) => {
+    const res = await pool.query(
+      'SELECT * FROM scheduled_tasks WHERE completed = FALSE AND execute_at <= $1',
+      [now]
+    );
+    return res.rows;
+  },
+
+  completeScheduledTask: async (id) => {
+    await pool.query('UPDATE scheduled_tasks SET completed = TRUE WHERE id = $1', [id]);
+  },
+
+  getAllPendingScheduledTasks: async () => {
+    const res = await pool.query(
+      'SELECT * FROM scheduled_tasks WHERE completed = FALSE ORDER BY execute_at ASC'
+    );
+    return res.rows;
   }
 };
