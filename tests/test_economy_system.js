@@ -237,6 +237,65 @@ async function runTests() {
         console.error("  ❌ Shield FAILED: Action went through");
     }
 
+
+    // 4. Test Role Selection (Revente)
+    console.log("\n🧪 Test 4: Role Selection Buyback");
+    const roleItem = shopData.items.find(i => i.id === "role_couleur_basic");
+    const roleToSell = roleItem.roles[0]; // "Noir", id: 1469071689823289446
+
+    // Give user the role
+    user1.roles.cache.set(roleToSell.id, { id: roleToSell.id });
+
+    // 1. Select item to sell
+    const interactionSellRole = new MockInteraction(user1.user, guild, "shop_sell_items", [`sell_${roleItem.id}`]);
+    interactionSellRole.isStringSelectMenu = () => true;
+
+    await shop.handleInteraction(interactionSellRole, db);
+
+    // Verify it asks for specific role selection (menu)
+    const update = interactionSellRole.updates[0];
+    if (update && update.components[0].components[0].data.custom_id === "shop_sell_role_select") {
+        console.log("  ✅ Role selection menu displayed");
+    } else {
+        console.error("  ❌ Failed to display role selection menu");
+    }
+
+    // 2. Select specific role from menu
+    const interactionSelectSpecific = new MockInteraction(user1.user, guild, "shop_sell_role_select", [`sellrole_${roleItem.id}_${roleToSell.id}`]);
+    interactionSelectSpecific.isStringSelectMenu = () => true;
+
+    await shop.handleInteraction(interactionSelectSpecific, db);
+
+    // Verify confirmation embed mentions specific role
+    const confirmUpdate = interactionSelectSpecific.updates[0];
+    if (confirmUpdate && confirmUpdate.embeds[0].data.title.includes(roleToSell.label)) { // "Revente : ... (Noir)"
+         console.log("  ✅ Confirmation for specific role displayed");
+    } else {
+         console.error("  ❌ Confirmation title invalid");
+    }
+
+    // 3. Confirm Sell
+    const interactionConfirmRole = new MockInteraction(user1.user, guild, `shop_confirm_sell.${roleItem.id}.${roleToSell.id}`);
+    interactionConfirmRole.isButton = () => true;
+
+    const balanceBeforeRole = BigInt((await db.getUser("u1")).balance);
+    await shop.handleInteraction(interactionConfirmRole, db);
+    const balanceAfterRole = BigInt((await db.getUser("u1")).balance);
+
+    const expectedRefundRole = BigInt(Math.floor(roleItem.price * 0.5));
+
+     if (balanceAfterRole - balanceBeforeRole === expectedRefundRole) {
+        console.log(`  ✅ Balance refunded correctly (+${expectedRefundRole})`);
+    } else {
+        console.error(`  ❌ Balance mismatch. Expected +${expectedRefundRole}, got +${balanceAfterRole - balanceBeforeRole}`);
+    }
+
+    if (!user1.roles.cache.has(roleToSell.id)) {
+        console.log("  ✅ Specific role removed correctly");
+    } else {
+         console.error("  ❌ Specific role NOT removed");
+    }
+
     console.log("\nDone.");
 }
 

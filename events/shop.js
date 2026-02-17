@@ -777,6 +777,45 @@ module.exports = {
           
           if (!item) return sendError(interaction, "Cet objet n'existe plus."), true;
 
+          // ── Gestion spéciale pour ROLE_SELECT (Choix de la couleur à vendre) ──
+          if (item.type === "role_select" && item.roles) {
+              const member = interaction.member;
+              const ownedRoles = item.roles.filter(r => member.roles.cache.has(r.id));
+              
+              if (ownedRoles.length === 0) {
+                  return sendError(interaction, "Vous ne possédez aucun rôle de cet objet."), true;
+              }
+
+              // Si le joueur a plusieurs rôles (ou même un seul, pour être explicite), on lui demande lequel vendre.
+              
+              const roleOptions = ownedRoles.map(r => ({
+                  label: r.label,
+                  value: `sellrole_${itemId}_${r.id}`,
+                  description: `Vendre la variante ${r.label}`,
+                  emoji: item.emoji // Ou un emoji spécifique si dispo
+              }));
+
+              const embed = new EmbedBuilder()
+                  .setTitle(`Revente : ${item.label}`)
+                  .setDescription(`Quelle variante souhaitez-vous vendre ?`)
+                  .setColor(COLORS.GOLD)
+                  .setTimestamp();
+              
+              const row = new ActionRowBuilder().addComponents(
+                  new StringSelectMenuBuilder()
+                     .setCustomId("shop_sell_role_select")
+                     .setPlaceholder("Choisir la couleur à vendre...")
+                     .addOptions(roleOptions)
+              );
+
+              await interaction.update({
+                  embeds: [embed],
+                  components: [row]
+              });
+              return true;
+          }
+
+          // ── Cas Standard (Permanent Role ou autre sans choix) ──
           const refundPrice = Math.floor(item.price * 0.5);
 
           const embed = new EmbedBuilder()
@@ -808,9 +847,58 @@ module.exports = {
           return true;
       }
 
+      // ── Sélection de variante à vendre (shop_sell_role_select) ──
+      if (interaction.isStringSelectMenu() && customId === "shop_sell_role_select") {
+          const value = interaction.values[0]; // Format: sellrole_itemId_roleId
+          const parts = value.split("_");
+          const itemId = parts[1];
+          const roleId = parts[2];
+          const item = getItem(itemId);
+
+          if (!item) return sendError(interaction, "Objet introuvable."), true;
+          
+          // Trouver le label du rôle spécifique
+          const roleOption = item.roles.find(r => r.id === roleId);
+          const roleLabel = roleOption ? roleOption.label : "Inconnu";
+
+          const refundPrice = Math.floor(item.price * 0.5);
+
+          const embed = new EmbedBuilder()
+            .setTitle(`Revente : ${item.label} (${roleLabel})`)
+            .setDescription(
+                `Etes-vous sur de vouloir revendre **${roleLabel}** ?\n\n` +
+                `**Prix d'achat :** ${formatCoins(item.price)}\n` +
+                `**Prix de revente :** ${formatCoins(refundPrice)} (50%)\n\n` +
+                `⚠️ Le rôle **${roleLabel}** sera retiré.`
+            )
+            .setColor(COLORS.GOLD)
+            .setTimestamp();
+          
+          // On passe le roleId dans le customId du bouton
+          const buttons = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId(`shop_confirm_sell.${itemId}.${roleId}`)
+              .setLabel("Confirmer la Vente")
+              .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+              .setCustomId(`shop_back.revente`)
+              .setLabel("Annuler")
+              .setStyle(ButtonStyle.Secondary),
+          );
+
+          await interaction.update({
+            embeds: [embed],
+            components: [buttons]
+          });
+          return true;
+      }
+
       // ── Confirmation de Vente ──
       if (interaction.isButton() && customId.startsWith("shop_confirm_sell.")) {
-          const itemId = customId.split(".")[1];
+          const parts = customId.split(".");
+          const itemId = parts[1];
+          const specificRoleId = parts[2]; // Optional: Specific role ID to sell
+
           const item = getItem(itemId);
           const userId = interaction.user.id;
           const member = interaction.member;
@@ -819,31 +907,37 @@ module.exports = {
 
           const refundPrice = Math.floor(item.price * 0.5);
           let roleRemoved = false;
+          let roleLabel = item.label;
 
           try {
-              if (item.type === "permanent_role") {
+              // 1. Cas : Rôle Spécifique (Role Select via menu)
+              if (specificRoleId) {
+                  if (member.roles.cache.has(specificRoleId)) {
+                      await member.roles.remove(specificRoleId);
+                      roleRemoved = true;
+                      
+                      // Try to find label for better UX
+                      if (item.roles) {
+                          const r = item.roles.find(x => x.id === specificRoleId);
+                          if (r) roleLabel += ` (${r.label})`;
+                      }
+                  }
+              } 
+              // 2. Cas : Rôle Permanent (pas de choix)
+              else if (item.type === "permanent_role") {
                   if (member.roles.cache.has(item.roleId)) {
                       await member.roles.remove(item.roleId);
                       roleRemoved = true;
                   }
-              } else if (item.type === "role_select") {
-                  // Find which role they have
+              } 
+              // 3. Cas : Role Select sans choix spécifique (fallback ou bug)
+              // On essaye de trouver un rôle que le joueur possède
+              else if (item.type === "role_select") {
                   const ownedRole = item.roles.find(r => member.roles.cache.has(r.id));
                   if (ownedRole) {
                       await member.roles.remove(ownedRole.id);
-                      // Also remove expiration logic if present (?) - DB cleanup on expiration check usually handles it
-                      // Ideally we should remove from DB role_expirations too if it was temporary, 
-                      // but role_select in shop is currently configured as duration=86400000 in shop.json
-                      // However REVENTE is only for permanent stuff or prestiges?
-                      // Wait, shop.json says role_select has duration 24h.
-                      // The prompt said: "Seuls les items de type permanent_role, role_select (catégories PRESTIGE et COMMANDES LANA)".
-                      // Prestige role_select is 24h. Allowing buyback on temporary items?
-                      // "Conditions de revente ... Catégories PRESTIGE"
-                      // If it is temporary, selling it back gives money back? Yes.
                       roleRemoved = true;
-                      
-                      // Clean from DB if possible to avoid auto-remove later trying to remove unmatched role
-                      // (optional but cleaner)
+                      roleLabel += ` (${ownedRole.label})`;
                   }
               }
 
@@ -856,14 +950,14 @@ module.exports = {
               await sendLog(
                 interaction.guild,
                 "Revente Boutique",
-                `**Joueur :** <@${userId}>\n**Objet :** ${item.label}\n**Gain :** ${formatCoins(refundPrice)}`,
+                `**Joueur :** <@${userId}>\n**Objet :** ${roleLabel}\n**Gain :** ${formatCoins(refundPrice)}`,
                 COLORS.GOLD
               );
 
               const successEmbed = new EmbedBuilder()
                 .setTitle("Vente reussie")
                 .setDescription(
-                    `Vous avez vendu **${item.label}** pour **${formatCoins(refundPrice)}**.\n` +
+                    `Vous avez vendu **${roleLabel}** pour **${formatCoins(refundPrice)}**.\n` +
                     `Le role a ete retire de votre profil.`
                 )
                 .setColor(COLORS.SUCCESS)
