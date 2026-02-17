@@ -5,6 +5,9 @@ const {
   Collection,
   InteractionResponseType,
   PermissionFlagsBits,
+  REST,
+  Routes,
+  SlashCommandBuilder,
 } = require("discord.js");
 const fs = require("fs");
 const path = require("path");
@@ -64,6 +67,19 @@ client.once("clientReady", async () => {
     const eventsManager = require("./events/eventsManager");
     await eventsManager.init(client, db);
     client.eventsManager = eventsManager; // Attach to client for easy access
+
+    // Register Slash Commands
+    try {
+      const slashCommands = [giveawayManager.slashCommand.toJSON()];
+      const rest = new REST().setToken(process.env.TOKEN);
+      await rest.put(
+        Routes.applicationCommands(process.env.CLIENT_ID),
+        { body: slashCommands }
+      );
+      console.log("Slash commands Casino enregistrées");
+    } catch (slashErr) {
+      console.error("Erreur enregistrement slash commands:", slashErr);
+    }
   } catch (err) {
     console.error("Failed to initialize database:", err);
   }
@@ -129,7 +145,7 @@ client.on("interactionCreate", async (interaction) => {
     const handledShop = await shop.handleInteraction(interaction, db);
     if (handledShop) return;
 
-    // Giveaway interactions
+    // Giveaway interactions (buttons)
     const handledGw = await giveawayManager.handleInteraction(interaction, db);
     if (handledGw) return;
 
@@ -139,6 +155,24 @@ client.on("interactionCreate", async (interaction) => {
     if (handledCal) return;
   } catch (err) {
     console.error("Erreur handler interaction:", err);
+  }
+
+  // Slash commands
+  if (interaction.isChatInputCommand()) {
+    if (interaction.commandName === "giveaway") {
+      try {
+        await giveawayManager.handleSlashCommand(interaction, db);
+      } catch (err) {
+        console.error("Erreur slash giveaway:", err);
+        const reply = { content: "❌ Une erreur est survenue.", flags: 64 };
+        if (interaction.replied || interaction.deferred) {
+          await interaction.followUp(reply).catch(() => {});
+        } else {
+          await interaction.reply(reply).catch(() => {});
+        }
+      }
+    }
+    return;
   }
 
   if (!interaction.isButton()) return;
