@@ -2,6 +2,7 @@ const { createEmbed, COLORS, formatCoins } = require('../utils');
 
 module.exports = {
     name: 'leaderboard',
+    aliases: ['top', 'lead'],
     description: 'Affiche le classement des joueurs les plus riches',
     async execute(message, args, db) {
         const limit = parseInt(args[0]) || 10;
