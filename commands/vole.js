@@ -38,6 +38,18 @@ module.exports = {
 
         const targetMember = await message.guild.members.fetch(target.id).catch(() => null);
         
+        // 🛡️ BOUCLIER NOUVEAU VENU (48h)
+        if (targetMember) {
+            const TWO_DAYS = 48 * 60 * 60 * 1000;
+            const joinedAt = targetMember.joinedTimestamp;
+            
+            if (Date.now() - joinedAt < TWO_DAYS) {
+                 return message.reply({ 
+                    embeds: [createEmbed('Cible protégée 🛡️', `Le bouclier "Nouveau Venu" protège **${target.username}** car il est sur le serveur depuis moins de 48 heures.`, COLORS.ERROR)]
+                });
+            }
+        }
+        
         // --- ÉVÉNEMENT VOL DE GÉNIE ---
         const eventsManager = require('../events/eventsManager');
         let bypassImmunity = false;

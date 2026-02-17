@@ -34,6 +34,13 @@
       "description": "Immunités braquage, tirages, vols",
       "emoji": "🎰",
       "color": "#2b2d31"
+    },
+    {
+      "id": "revente",
+      "label": "REVENTE",
+      "description": "Revendez vos objets pour 50% du prix d'achat.",
+      "emoji": "♻️",
+      "color": "#00FF00"
     }
   ],
   "items": [

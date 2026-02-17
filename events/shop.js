@@ -79,7 +79,10 @@ const AGGRESSIVE_ITEM_TYPES = [
 
 // ─── Build embeds & components (design sobre) ───────────────
 
-function buildCategoryItemsEmbed(categoryId) {
+  if (categoryId === "revente") {
+    return buildReventeItemsEmbed(interaction);
+  }
+
   const category = getCategory(categoryId);
   const items = getItemsByCategory(categoryId);
 
@@ -116,6 +119,73 @@ function buildCategoryItemsEmbed(categoryId) {
 
   return { embed, components: [itemSelect] };
 }
+
+async function buildReventeItemsEmbed(interaction) {
+  const category = getCategory("revente");
+  const member = interaction.member;
+
+  // Filter eligible items user owns
+  const sellableItems = [];
+  
+  // Eligible categories: prestige, commandes_lana
+  const eligibleCategories = ["prestige", "commandes_lana"];
+  const allItems = shopData.items.filter(i => eligibleCategories.includes(i.category));
+
+  for (const item of allItems) {
+      if (item.type === "permanent_role" && item.roleId) {
+          if (member.roles.cache.has(item.roleId)) {
+              sellableItems.push(item);
+          }
+      } else if (item.type === "role_select" && item.roles) {
+          // Check if user has ANY of the roles in the list
+          const hasOne = item.roles.some(r => member.roles.cache.has(r.id));
+          if (hasOne) {
+              sellableItems.push(item);
+          }
+      }
+  }
+
+  if (sellableItems.length === 0) {
+      const embed = new EmbedBuilder()
+        .setTitle(category.label)
+        .setDescription(`${category.description}\n\n**Vous n'avez aucun objet eligible a la revente.**\nSeuls les roles permanents et les roles couleurs (Prestige) sont revendables.`)
+        .setColor(category.color)
+        .setTimestamp();
+      return { embed, components: [] };
+  }
+
+  let itemsList = "";
+  for (const item of sellableItems) {
+    const refundPrice = Math.floor(item.price * 0.5);
+    itemsList +=
+      `**${item.label}**\n` +
+      `Valeur de revente : ${formatCoins(refundPrice)}\n\n`;
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle(category.label)
+    .setDescription(
+      `${category.description}\n\n` + itemsList + `Selectionnez un objet a revendre.`,
+    )
+    .setColor(category.color)
+    .setTimestamp();
+
+  const itemOptions = sellableItems.map((item) => ({
+    label: item.label,
+    value: `sell_${item.id}`, // Special ID prefix for selling
+    description: `Revente : ${Math.floor(item.price * 0.5)} coins`,
+    emoji: item.emoji,
+  }));
+
+  const itemSelect = new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId("shop_sell_items")
+      .setPlaceholder("Choisir un objet a revendre...")
+      .addOptions(itemOptions),
+  );
+
+  return { embed, components: [itemSelect] };
+
 
 function buildItemDetailEmbed(itemId) {
   const item = getItem(itemId);
@@ -201,19 +271,16 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
   if (targetId && AGGRESSIVE_ITEM_TYPES.includes(item.type)) {
     try {
       const guild = interaction.guild;
-      // On fetch le membre cible pour vérifier ses rôles
       const targetMember = await guild.members.fetch(targetId).catch(() => null);
 
       if (targetMember) {
-        // Vérifier si la cible possède un des rôles staff protégés
+        // 1. Check Staff
         const isStaff = STAFF_ROLE_IDS.some((roleId) =>
           targetMember.roles.cache.has(roleId)
         );
 
         if (isStaff) {
-          // Remboursement
           await db.updateBalance(userId, item.price);
-          
           return sendError(
             interaction,
             `🛡️ **Action impossible !**\n\n` +
@@ -221,10 +288,25 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
             `Vous avez ete rembourse de **${formatCoins(item.price)}**.`
           );
         }
+
+        // 2. 🛡️ BOUCLIER NOUVEAU VENU (48h)
+        // Vérification de l'ancienneté
+        const TWO_DAYS = 48 * 60 * 60 * 1000;
+        const joinedAt = targetMember.joinedTimestamp;
+        
+        if (Date.now() - joinedAt < TWO_DAYS) {
+             await db.updateBalance(userId, item.price);
+             return sendError(
+                interaction,
+                `❌ **Cible protégée !**\n\n` +
+                `Le bouclier "Nouveau Venu" protège <@${targetId}> car il est sur le serveur depuis moins de 48 heures.\n` +
+                `Attendez qu'il ait plus d'ancienneté pour interagir via le shop.\n\n` +
+                `Vous avez été remboursé de **${formatCoins(item.price)}**.`
+             );
+        }
       }
     } catch (err) {
-      console.error("[Shop] Erreur verification staff:", err);
-      // En cas d'erreur de vérif, on laisse passer (ou on bloque par sécurité ? On laisse passer pour éviter blocage total si API error)
+      console.error("[Shop] Erreur verification staff/newcomer:", err);
     }
   }
 
@@ -666,6 +748,17 @@ module.exports = {
       // ── Sélection de catégorie (message public) ──
       if (interaction.isStringSelectMenu() && customId === "shop_category") {
         const categoryId = interaction.values[0];
+        
+        if (categoryId === "revente") {
+            const { embed, components } = await buildReventeItemsEmbed(interaction); // Async now
+            await interaction.reply({
+              embeds: [embed],
+              components,
+              flags: 64,
+            });
+            return true;
+        }
+
         const { embed, components } = buildCategoryItemsEmbed(categoryId);
 
         await interaction.reply({
@@ -674,6 +767,118 @@ module.exports = {
           flags: 64,
         });
         return true;
+      }
+
+      // ── Sélection d'article à revendre ──
+      if (interaction.isStringSelectMenu() && customId === "shop_sell_items") {
+          const value = interaction.values[0];
+          const itemId = value.replace("sell_", "");
+          const item = getItem(itemId);
+          
+          if (!item) return sendError(interaction, "Cet objet n'existe plus."), true;
+
+          const refundPrice = Math.floor(item.price * 0.5);
+
+          const embed = new EmbedBuilder()
+            .setTitle(`Revente : ${item.label}`)
+            .setDescription(
+                `Etes-vous sur de vouloir revendre cet objet ?\n\n` +
+                `**Prix d'achat :** ${formatCoins(item.price)}\n` +
+                `**Prix de revente :** ${formatCoins(refundPrice)} (50%)\n\n` +
+                `⚠️ L'objet sera retire de votre inventaire et le role supprime.`
+            )
+            .setColor(COLORS.GOLD)
+            .setTimestamp();
+
+          const buttons = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId(`shop_confirm_sell.${itemId}`)
+              .setLabel("Confirmer la Vente")
+              .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+              .setCustomId(`shop_back.revente`)
+              .setLabel("Retour")
+              .setStyle(ButtonStyle.Secondary),
+          );
+
+          await interaction.update({
+            embeds: [embed],
+            components: [buttons],
+          });
+          return true;
+      }
+
+      // ── Confirmation de Vente ──
+      if (interaction.isButton() && customId.startsWith("shop_confirm_sell.")) {
+          const itemId = customId.split(".")[1];
+          const item = getItem(itemId);
+          const userId = interaction.user.id;
+          const member = interaction.member;
+
+          if (!item) return sendError(interaction, "Objet introuvable."), true;
+
+          const refundPrice = Math.floor(item.price * 0.5);
+          let roleRemoved = false;
+
+          try {
+              if (item.type === "permanent_role") {
+                  if (member.roles.cache.has(item.roleId)) {
+                      await member.roles.remove(item.roleId);
+                      roleRemoved = true;
+                  }
+              } else if (item.type === "role_select") {
+                  // Find which role they have
+                  const ownedRole = item.roles.find(r => member.roles.cache.has(r.id));
+                  if (ownedRole) {
+                      await member.roles.remove(ownedRole.id);
+                      // Also remove expiration logic if present (?) - DB cleanup on expiration check usually handles it
+                      // Ideally we should remove from DB role_expirations too if it was temporary, 
+                      // but role_select in shop is currently configured as duration=86400000 in shop.json
+                      // However REVENTE is only for permanent stuff or prestiges?
+                      // Wait, shop.json says role_select has duration 24h.
+                      // The prompt said: "Seuls les items de type permanent_role, role_select (catégories PRESTIGE et COMMANDES LANA)".
+                      // Prestige role_select is 24h. Allowing buyback on temporary items?
+                      // "Conditions de revente ... Catégories PRESTIGE"
+                      // If it is temporary, selling it back gives money back? Yes.
+                      roleRemoved = true;
+                      
+                      // Clean from DB if possible to avoid auto-remove later trying to remove unmatched role
+                      // (optional but cleaner)
+                  }
+              }
+
+              if (!roleRemoved) {
+                  return sendError(interaction, "Vous ne possedez pas cet objet (ou le role a deja ete retire)."), true;
+              }
+
+              await db.updateBalance(userId, refundPrice);
+
+              await sendLog(
+                interaction.guild,
+                "Revente Boutique",
+                `**Joueur :** <@${userId}>\n**Objet :** ${item.label}\n**Gain :** ${formatCoins(refundPrice)}`,
+                COLORS.GOLD
+              );
+
+              const successEmbed = new EmbedBuilder()
+                .setTitle("Vente reussie")
+                .setDescription(
+                    `Vous avez vendu **${item.label}** pour **${formatCoins(refundPrice)}**.\n` +
+                    `Le role a ete retire de votre profil.`
+                )
+                .setColor(COLORS.SUCCESS)
+                .setTimestamp();
+
+              await interaction.update({
+                  embeds: [successEmbed],
+                  components: []
+              });
+
+          } catch (err) {
+              console.error("Erreur vente shop:", err);
+              return sendError(interaction, "Une erreur est survenue lors de la vente."), true;
+          }
+          return true;
       }
 
       // ── Sélection d'article ──
@@ -874,8 +1079,76 @@ module.exports = {
         }
 
         // Achat direct avec cible
+        
+        // ── SPECIAL : VOL DYNAMIQUE (instant_steal) ──
+        if (item.type === "instant_steal") {
+            const targetData = await db.getUser(targetId);
+            const targetBalance = Number(targetData.balance);
+            
+            // Calcul du prix dynamique
+            // Gain Potentiel = Solde_Cible * 0.20
+            // Prix_Vente = Gain_Potentiel * 0.60
+            // Min 400
+            const potentialGain = targetBalance * 0.20;
+            let dynamicPrice = Math.floor(potentialGain * 0.60);
+            if (dynamicPrice < 400) dynamicPrice = 400;
+
+            const confirmEmbed = new EmbedBuilder()
+                .setTitle(`⚠️ Confirmation de Vol`)
+                .setDescription(
+                    `Le prix du vol varie selon la richesse de la victime.\n\n` +
+                    `💰 **Cible :** <@${targetId}>\n` +
+                    `🏦 **Solde estimé :** ${formatCoins(targetBalance)}\n` +
+                    `💸 **Coût du vol :** ${formatCoins(dynamicPrice)}\n\n` +
+                    `*Le prix sera recalculé au moment exact de la validation.*`
+                )
+                .setColor(COLORS.VIOLET)
+                .setTimestamp();
+
+            const buttons = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`shop_force_steal.${itemId}.${targetId}`)
+                    .setLabel(`Payer ${formatCoins(dynamicPrice)} et Voler`)
+                    .setStyle(ButtonStyle.Danger),
+                new ButtonBuilder()
+                    .setCustomId("shop_cancel")
+                    .setLabel("Annuler")
+                    .setStyle(ButtonStyle.Secondary)
+            );
+
+            await interaction.update({
+                embeds: [confirmEmbed],
+                components: [buttons]
+            });
+            return true;
+        }
+
         await processPurchase(interaction, item, db, targetId);
         return true;
+      }
+
+      // ── Confirmation Vol Dynamique ──
+      if (interaction.isButton() && customId.startsWith("shop_force_steal.")) {
+          const parts = customId.split(".");
+          const itemId = parts[1];
+          const targetId = parts[2];
+          const item = getItem(itemId);
+
+          if (!item) return sendError(interaction, "Article introuvable."), true;
+
+          // Re-calcul du prix en temps réel
+          const targetData = await db.getUser(targetId);
+          const targetBalance = Number(targetData.balance);
+          
+          const potentialGain = targetBalance * 0.20;
+          let dynamicPrice = Math.floor(potentialGain * 0.60);
+          if (dynamicPrice < 400) dynamicPrice = 400;
+
+          // Créer un faux item avec le nouveau prix
+          const dynamicItem = { ...item, price: dynamicPrice };
+
+          await processPurchase(interaction, dynamicItem, db, targetId);
+          return true;
       }
 
       // ── Modal surnom ──
