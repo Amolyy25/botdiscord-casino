@@ -232,7 +232,7 @@
       "label": "Rôle Holographique (24h)",
       "emoji": "💎",
       "description": "Le rôle le plus rare ! Couleur holographique pendant 24 heures !",
-      "price": 5000,
+      "price": 80000,
       "type": "temp_role",
       "roleId": "1471487736161505361",
       "duration": 86400000,
