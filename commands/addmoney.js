@@ -29,7 +29,7 @@ module.exports = {
             });
         }
 
-        await db.updateBalance(target.id, BigInt(amount));
+        await db.updateBalance(target.id, BigInt(amount), 'Admin: Ajout');
 
         const embed = createEmbed(
             'Admin: Ajout de coins',

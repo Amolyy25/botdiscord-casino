@@ -160,7 +160,7 @@ async function startQuiz(client, db) {
         rewardMsg += `Tu remportes ${formatCoins(100)} !`;
 
         // Base reward
-        await db.updateBalance(userId, 100);
+        await db.updateBalance(userId, 100, 'Quiz Maths');
 
         // Rare Bonus (2%)
         if (Math.random() < 0.02) {

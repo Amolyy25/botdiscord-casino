@@ -22,7 +22,7 @@ module.exports = {
         }
 
         // Deduct bet immediately
-        await db.updateBalance(message.author.id, -bet);
+        await db.updateBalance(message.author.id, -bet, 'Coinflip: Mise');
 
         const outcome = Math.random() < 0.5 ? 'pile' : 'face';
         const win = side === outcome;
@@ -33,7 +33,7 @@ module.exports = {
             if (eventsManager.isDoubleGainActive()) profit *= 2n;
 
             // Refund bet + gain
-            await db.updateBalance(message.author.id, bet + profit);
+            await db.updateBalance(message.author.id, bet + profit, 'Coinflip: Gain');
         }
         // If lost, bet is already deducted
 

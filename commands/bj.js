@@ -22,7 +22,7 @@ module.exports = {
         }
 
         // Deduct bet immediately to prevent exploits
-        await db.updateBalance(message.author.id, -bet);
+        await db.updateBalance(message.author.id, -bet, 'Blackjack: Mise');
 
         const deck = createDeck();
         const playerHand = [drawCard(deck), drawCard(deck)];
@@ -159,7 +159,7 @@ module.exports = {
                     finalGain = winAmount;
 
                     // Refund bet + win amount
-                    await db.updateBalance(message.author.id, bet + winAmount);
+                    await db.updateBalance(message.author.id, bet + winAmount, 'Blackjack: Gain');
                 } else if (playerVal < dealerVal) {
                     result = 'Perdu';
                     finalGain = -bet;
@@ -167,7 +167,7 @@ module.exports = {
                 } else {
                     result = 'Égalité (Push)';
                     // Refund bet
-                    await db.updateBalance(message.author.id, bet);
+                    await db.updateBalance(message.author.id, bet, 'Blackjack: Égalité');
                 }
 
                 await i.update({ embeds: [renderEmbed(result, finalGain)], components: [] });

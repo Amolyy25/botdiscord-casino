@@ -36,7 +36,7 @@ module.exports = {
         }
 
         // Débit immédiat pour éviter les "free rolls" en cas de crash du bot
-        await db.updateBalance(message.author.id, -bet);
+        await db.updateBalance(message.author.id, -bet, 'Crash: Mise');
         activeGames.add(message.author.id);
 
         // --- CALCUL DU CRASH POINT ---
@@ -171,7 +171,7 @@ module.exports = {
             const finalMultiplier = safeMult.toFixed(2);
 
             // Crédit atomique : mise + gain (éventuellement doublé)
-            await db.updateBalance(message.author.id, bet + finalGain);
+            await db.updateBalance(message.author.id, bet + finalGain, 'Crash: Cashout');
 
             // Mise à jour UI — prioritaire pour la réactivité
             await i.update({ 

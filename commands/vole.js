@@ -67,13 +67,13 @@ module.exports = {
                 const userBal = BigInt(user.balance);
                 
                 if (userBal >= fine) {
-                    await db.updateBalance(message.author.id, -fine);
+                    await db.updateBalance(message.author.id, -fine, 'Vol: Amende');
                     return message.channel.send({ 
                         embeds: [createEmbed('Vol avorté 👮', `Vous avez échoué au test de sécurité ! Vous payez une amende de ${formatCoins(fine)}.`, COLORS.ERROR)]
                     });
                 } else {
                     // If they can't pay, set to 0 (or just take what they have)
-                    await db.updateBalance(message.author.id, -userBal);
+                    await db.updateBalance(message.author.id, -userBal, 'Vol: Confiscation');
                     return message.channel.send({ 
                         embeds: [createEmbed('Vol avorté 👮', `Vous avez échoué au test de sécurité ! Vous n'avez pas de quoi payer l'amende, mais vous repartez les mains vides.`, COLORS.ERROR)]
                     });
@@ -189,8 +189,8 @@ module.exports = {
                 const finalSteal = stealAmount > BigInt(latestTarget.balance) ? BigInt(latestTarget.balance) : stealAmount;
                 
                 if (finalSteal > 0n) {
-                    await db.updateBalance(target.id, -finalSteal);
-                    await db.updateBalance(message.author.id, finalSteal);
+                    await db.updateBalance(target.id, -finalSteal, 'Vol: Victime');
+                    await db.updateBalance(message.author.id, finalSteal, 'Vol: Butin');
 
                     mainMsg.edit({ 
                         content: null,

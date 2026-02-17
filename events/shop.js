@@ -265,7 +265,7 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
     }
 
     // Déduire les coins
-    await db.updateBalance(userId, -finalPrice);
+    await db.updateBalance(userId, -finalPrice, 'Shop: Achat');
 
     // Enregistrer l'achat (on log le prix réel payé)
     await db.addShopPurchase(userId, item.id, targetId, Number(finalPrice));
@@ -309,7 +309,7 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
         );
 
         if (isStaff) {
-          await db.updateBalance(userId, item.price);
+          await db.updateBalance(userId, item.price, 'Shop: Remboursement');
           return sendError(
             interaction,
             `🛡️ **Action impossible !**\n\n` +
@@ -324,7 +324,7 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
         const joinedAt = targetMember.joinedTimestamp;
         
         if (Date.now() - joinedAt < TWO_DAYS) {
-             await db.updateBalance(userId, item.price);
+             await db.updateBalance(userId, item.price, 'Shop: Remboursement');
              return sendError(
                 interaction,
                 `❌ **Cible protégée !**\n\n` +
@@ -350,12 +350,12 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
         const member = await guild.members.fetch(roleTargetId).catch(() => null);
 
         if (!member) {
-          await db.updateBalance(userId, item.price);
+          await db.updateBalance(userId, item.price, 'Shop: Remboursement');
           return sendError(interaction, "Le membre cible est introuvable. Vous avez ete rembourse.");
         }
 
         if (member.roles.cache.has(item.roleId)) {
-          await db.updateBalance(userId, item.price);
+          await db.updateBalance(userId, item.price, 'Shop: Remboursement');
           const msg = item.needsTarget
             ? `<@${roleTargetId}> possede deja ce role. Vous avez ete rembourse.`
             : "Vous possedez deja ce role. Vous avez ete rembourse.";
@@ -364,7 +364,7 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
 
         await member.roles.add(item.roleId).catch(async (err) => {
           console.error("Erreur ajout role shop:", err);
-          await db.updateBalance(userId, item.price);
+          await db.updateBalance(userId, item.price, 'Shop: Remboursement');
           throw new Error("Impossible d'ajouter le role. Verifiez les permissions du bot.");
         });
 
@@ -385,12 +385,12 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
         const member = await guild.members.fetch(targetId).catch(() => null);
 
         if (!member) {
-          await db.updateBalance(userId, item.price);
+          await db.updateBalance(userId, item.price, 'Shop: Remboursement');
           return sendError(interaction, "Le membre cible est introuvable. Vous avez ete rembourse.");
         }
 
         if (member.roles.cache.has(item.roleId)) {
-          await db.updateBalance(userId, item.price);
+          await db.updateBalance(userId, item.price, 'Shop: Remboursement');
           return sendError(interaction, `<@${targetId}> est deja soumis. Vous avez ete rembourse.`);
         }
 
@@ -416,7 +416,7 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
           for (const roleId of savedRoleIds) {
             await member.roles.add(roleId).catch(() => {});
           }
-          await db.updateBalance(userId, item.price);
+          await db.updateBalance(userId, item.price, 'Shop: Remboursement');
           throw new Error("Impossible d'ajouter le role soumis. Roles restaures, rembourse.");
         });
 
@@ -459,7 +459,7 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
             targetMember.roles.cache.has(roleId),
           );
           if (activeImmunity) {
-            await db.updateBalance(userId, item.price);
+            await db.updateBalance(userId, item.price, 'Shop: Remboursement');
             return sendError(
               interaction,
               `<@${targetId}> possede une immunite contre les vols. Vous avez ete rembourse.`,
@@ -472,7 +472,7 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
         const targetBalance = BigInt(targetData.balance);
 
         if (targetBalance < 50n) {
-          await db.updateBalance(userId, item.price);
+          await db.updateBalance(userId, item.price, 'Shop: Remboursement');
           return sendError(
             interaction,
             `<@${targetId}> est trop pauvre pour etre vole. Vous avez ete rembourse.`,
@@ -487,8 +487,8 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
         const finalSteal = stealAmount < 50n ? 50n : stealAmount;
 
         // Transférer les coins
-        await db.updateBalance(targetId, -finalSteal);
-        await db.updateBalance(userId, finalSteal);
+        await db.updateBalance(targetId, -finalSteal, 'Shop: Vol d\'item (Victime)');
+        await db.updateBalance(userId, finalSteal, 'Shop: Vol d\'item (Voleur)');
 
         effectDescription = `Vous avez vole ${formatCoins(finalSteal)} a <@${targetId}>.`;
         break;
@@ -499,17 +499,17 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
         const member = await guild.members.fetch(targetId).catch(() => null);
 
         if (!member) {
-          await db.updateBalance(userId, item.price);
+          await db.updateBalance(userId, item.price, 'Shop: Remboursement');
           return sendError(interaction, "Le membre cible est introuvable. Vous avez ete rembourse.");
         }
 
         if (!member.moderatable) {
-          await db.updateBalance(userId, item.price);
+          await db.updateBalance(userId, item.price, 'Shop: Remboursement');
           return sendError(interaction, "Impossible de mute ce membre. Vous avez ete rembourse.");
         }
 
         if (member.isCommunicationDisabled()) {
-          await db.updateBalance(userId, item.price);
+          await db.updateBalance(userId, item.price, 'Shop: Remboursement');
           return sendError(interaction, `<@${targetId}> est deja mute. Vous avez ete rembourse.`);
         }
 
@@ -517,7 +517,7 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
 
         await member.timeout(item.duration, reason).catch(async (err) => {
           console.error("Erreur timeout shop:", err);
-          await db.updateBalance(userId, item.price);
+          await db.updateBalance(userId, item.price, 'Shop: Remboursement');
           throw new Error("Impossible de mute ce membre. Verifiez les permissions du bot.");
         });
 
@@ -544,7 +544,7 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
         const member = await guild.members.fetch(targetId).catch(() => null);
 
         if (!member) {
-          await db.updateBalance(userId, item.price);
+          await db.updateBalance(userId, item.price, 'Shop: Remboursement');
           return sendError(interaction, "Le membre cible est introuvable. Vous avez ete rembourse.");
         }
 
@@ -553,7 +553,7 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
 
         await member.setNickname(newNickname).catch(async (err) => {
           console.error("Erreur changement surnom shop:", err);
-          await db.updateBalance(userId, item.price);
+          await db.updateBalance(userId, item.price, 'Shop: Remboursement');
           throw new Error("Impossible de changer le surnom. Verifiez les permissions du bot.");
         });
 
@@ -570,18 +570,18 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
           .catch(() => null);
 
         if (!prMember) {
-          await db.updateBalance(userId, item.price);
+          await db.updateBalance(userId, item.price, 'Shop: Remboursement');
           return sendError(interaction, "Impossible de vous trouver. Vous avez ete rembourse.");
         }
 
         if (prMember.roles.cache.has(item.roleId)) {
-          await db.updateBalance(userId, item.price);
+          await db.updateBalance(userId, item.price, 'Shop: Remboursement');
           return sendError(interaction, "Vous possedez deja ce role. Vous avez ete rembourse.");
         }
 
         await prMember.roles.add(item.roleId).catch(async (err) => {
           console.error("Erreur ajout role permanent shop:", err);
-          await db.updateBalance(userId, item.price);
+          await db.updateBalance(userId, item.price, 'Shop: Remboursement');
           throw new Error("Impossible d'ajouter le role. Verifiez les permissions du bot.");
         });
 
@@ -593,7 +593,7 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
         const selectedRoleId = extraData;
 
         if (!selectedRoleId) {
-          await db.updateBalance(userId, item.price);
+          await db.updateBalance(userId, item.price, 'Shop: Remboursement');
           return sendError(interaction, "Aucun role selectionne. Vous avez ete rembourse.");
         }
 
@@ -602,18 +602,18 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
           .catch(() => null);
 
         if (!rsMember) {
-          await db.updateBalance(userId, item.price);
+          await db.updateBalance(userId, item.price, 'Shop: Remboursement');
           return sendError(interaction, "Impossible de vous trouver. Vous avez ete rembourse.");
         }
 
         if (rsMember.roles.cache.has(selectedRoleId)) {
-          await db.updateBalance(userId, item.price);
+          await db.updateBalance(userId, item.price, 'Shop: Remboursement');
           return sendError(interaction, "Vous possedez deja ce role. Vous avez ete rembourse.");
         }
 
         await rsMember.roles.add(selectedRoleId).catch(async (err) => {
           console.error("Erreur ajout role select shop:", err);
-          await db.updateBalance(userId, item.price);
+          await db.updateBalance(userId, item.price, 'Shop: Remboursement');
           throw new Error("Impossible d'ajouter le role. Verifiez les permissions du bot.");
         });
 
@@ -689,7 +689,7 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
       case "shop_effect": {
         const hasEffect = await db.hasActiveShopEffect(userId, item.value);
         if (hasEffect) {
-          await db.updateBalance(userId, item.price);
+          await db.updateBalance(userId, item.price, 'Shop: Remboursement');
           return sendError(
             interaction,
             `Vous avez deja l'effet **${item.label}** actif. Vous avez ete rembourse.`,
@@ -708,7 +708,7 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
       }
 
       default: {
-        await db.updateBalance(userId, item.price);
+        await db.updateBalance(userId, item.price, 'Shop: Remboursement');
         return sendError(
           interaction,
           `Type d'article inconnu : ${item.type}. Vous avez ete rembourse.`,
@@ -1021,7 +1021,7 @@ module.exports = {
                   return sendError(interaction, "Vous ne possedez pas cet objet (ou le role a deja ete retire)."), true;
               }
 
-              await db.updateBalance(userId, refundPrice);
+              await db.updateBalance(userId, refundPrice, 'Shop: Revente');
 
               await sendLog(
                 interaction.guild,

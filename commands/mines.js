@@ -144,7 +144,7 @@ module.exports = {
             }
         }
 
-        await db.updateBalance(userId, -bet);
+        await db.updateBalance(userId, -bet, 'Mines: Mise');
 
         // Place mines randomly in positions 0-14 (15 playable cells)
         const minePositions = new Set();
@@ -192,7 +192,7 @@ module.exports = {
                 let profit = winAmount - st.bet;
                 if (eventsManager.isDoubleGainActive()) profit *= 2n;
 
-                await db.updateBalance(userId, st.bet + profit);
+                await db.updateBalance(userId, st.bet + profit, 'Mines: Cashout');
 
                 await i.update({
                     embeds: [buildEmbed(st, 'cashout')],
@@ -244,7 +244,7 @@ module.exports = {
                 let profit = winAmount - st.bet;
                 if (eventsManager.isDoubleGainActive()) profit *= 2n;
 
-                await db.updateBalance(userId, st.bet + profit);
+                await db.updateBalance(userId, st.bet + profit, 'Mines: Cashout');
                 await i.update({
                     embeds: [buildEmbed(st, 'cashout')],
                     components: buildGrid(st, true)

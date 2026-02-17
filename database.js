@@ -129,6 +129,16 @@ const initDb = async () => {
       completed BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMP DEFAULT NOW()
     );
+
+    CREATE TABLE IF NOT EXISTS balance_history (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      amount BIGINT NOT NULL,
+      reason TEXT DEFAULT 'Autre',
+      balance_after BIGINT,
+      created_at BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_balhis_user ON balance_history(user_id);
   `);
 };
 
@@ -145,7 +155,7 @@ module.exports = {
     }
     return res.rows[0];
   },
-  updateBalance: async (id, amount) => {
+  updateBalance: async (id, amount, reason = 'Autre') => {
     const res = await pool.query(
       `INSERT INTO users (id, balance, tirages) 
        VALUES ($1, 100 + $2, 2) 
@@ -154,7 +164,14 @@ module.exports = {
        RETURNING balance`,
       [id, BigInt(amount)]
     );
-    return res.rows[0].balance;
+    const balanceAfter = res.rows[0].balance;
+    // Auto-log to balance_history
+    await pool.query(
+      `INSERT INTO balance_history (user_id, amount, reason, balance_after, created_at)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [id, BigInt(amount), reason, balanceAfter, Date.now()]
+    ).catch(err => console.error('[BalHis] Erreur log:', err.message));
+    return balanceAfter;
   },
   setBalance: async (id, balance) => {
     const res = await pool.query(
@@ -579,5 +596,17 @@ module.exports = {
       'SELECT * FROM scheduled_tasks WHERE completed = FALSE ORDER BY execute_at ASC'
     );
     return res.rows;
+  },
+
+  getBalanceHistory: async (userId, limit = 15, offset = 0) => {
+    const res = await pool.query(
+      `SELECT * FROM balance_history WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
+      [userId, limit, offset]
+    );
+    const countRes = await pool.query(
+      'SELECT COUNT(*) as total FROM balance_history WHERE user_id = $1',
+      [userId]
+    );
+    return { rows: res.rows, total: parseInt(countRes.rows[0].total) };
   }
 };

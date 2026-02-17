@@ -188,7 +188,7 @@ async function distributeReward(giveaway, winnerId, guild) {
 
   switch (type) {
     case 'COINS': {
-      const newBal = await _db.updateBalance(winnerId, BigInt(value));
+      const newBal = await _db.updateBalance(winnerId, BigInt(value), 'Giveaway: Gain');
       return `+${value} coins (nouveau solde: ${newBal})`;
     }
 
@@ -641,7 +641,7 @@ module.exports = {
       try {
         switch (gw.prize_type) {
           case 'COINS':
-            await db.updateBalance(winnerId, BigInt(gw.prize_value));
+            await db.updateBalance(winnerId, BigInt(gw.prize_value), 'Giveaway: Gain');
             results.push(`<@${winnerId}> → +${gw.prize_value} coins ✅`);
             break;
           case 'TIRAGES':

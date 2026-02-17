@@ -35,8 +35,8 @@ module.exports = {
             });
         }
 
-        await db.updateBalance(message.author.id, -amount);
-        await db.updateBalance(target.id, amount);
+        await db.updateBalance(message.author.id, -amount, 'Gift: Envoi');
+        await db.updateBalance(target.id, amount, 'Gift: Reçu');
 
         const embed = createEmbed(
             'Transfert réussi 🎁',

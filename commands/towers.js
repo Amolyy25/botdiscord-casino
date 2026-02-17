@@ -191,7 +191,7 @@ module.exports = {
             });
         }
 
-        await db.updateBalance(userId, -bet);
+        await db.updateBalance(userId, -bet, 'Towers: Mise');
 
         const state = {
             bet,
@@ -231,7 +231,7 @@ module.exports = {
                 let profit = winAmount - st.bet;
                 if (eventsManager.isDoubleGainActive()) profit *= 2n;
 
-                await db.updateBalance(userId, st.bet + profit);
+                await db.updateBalance(userId, st.bet + profit, 'Towers: Cashout');
 
                 await i.update({
                     embeds: [buildEmbed(st, 'cashout')],
@@ -288,7 +288,7 @@ module.exports = {
                 let profit = winAmount - st.bet;
                 if (eventsManager.isDoubleGainActive()) profit *= 2n;
 
-                await db.updateBalance(userId, st.bet + profit);
+                await db.updateBalance(userId, st.bet + profit, 'Towers: Cashout');
 
                 await i.update({
                     embeds: [buildEmbed(st, 'cleared')],

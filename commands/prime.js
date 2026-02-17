@@ -55,7 +55,7 @@ module.exports = {
 
         try {
             // Deduct balance
-            await db.updateBalance(authorId, -reward);
+            await db.updateBalance(authorId, -reward, 'Prime: Paiement');
 
             // Create Bounty in DB
             const bounty = await db.createBounty(title, description, reward, authorId);
@@ -66,7 +66,7 @@ module.exports = {
 
             if (!boardChannel) {
                 // Refund and error
-                await db.updateBalance(authorId, reward); 
+                await db.updateBalance(authorId, reward, 'Prime: Remboursement'); 
                 // We should probably delete the bounty or mark as error, but for now just error out.
                 return message.reply('❌ Salon du tableau introuvable. Configuration requise (;setupprime).');
             }

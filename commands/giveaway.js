@@ -269,7 +269,7 @@ async function handleReroll(message, args, db) {
       // so we replicate the logic here
       switch (gw.prize_type) {
         case 'COINS':
-          await db.updateBalance(winnerId, BigInt(gw.prize_value));
+          await db.updateBalance(winnerId, BigInt(gw.prize_value), 'Giveaway: Reroll');
           results.push(`<@${winnerId}> → +${gw.prize_value} coins ✅`);
           break;
         case 'TIRAGES':

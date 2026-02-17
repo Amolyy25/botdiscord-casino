@@ -24,7 +24,7 @@ module.exports = {
         }
 
         // Deduct bet immediately
-        await db.updateBalance(message.author.id, -bet);
+        await db.updateBalance(message.author.id, -bet, 'Roulette: Mise');
 
         const outcome = Math.floor(Math.random() * 37);
         let resultColor;
@@ -45,7 +45,7 @@ module.exports = {
             }
 
             // Refund bet + gain
-            await db.updateBalance(message.author.id, bet + gain);
+            await db.updateBalance(message.author.id, bet + gain, 'Roulette: Gain');
         } else {
             gain = -bet;
             // Bet already deducted
