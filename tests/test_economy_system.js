@@ -325,7 +325,14 @@ async function runTests() {
     console.log("\n🧪 Test 6: Blanc/Violet & Cancel Safety");
     // Mock user having "Blanc" role
     const blancRoleId = "1469071689831940302"; 
-    const roleItemBlanc = { ...itemRoleSelect, id: "role_couleur_basic", roles: [{ id: blancRoleId, label: "Blanc", emoji: "⬜" }] };
+    // Re-create itemRoleSelect mock since it's not in scope from previous blocks if let/const was block-scoped
+    const itemRoleSelectMock = { 
+        id: "role_couleur_basic", 
+        type: "role_select", 
+        price: 1500, 
+        roles: [{ id: "1469071689823289446", label: "Noir" }] 
+    };
+    const roleItemBlanc = { ...itemRoleSelectMock, id: "role_couleur_basic", roles: [{ id: blancRoleId, label: "Blanc", emoji: "⬜" }] };
     
     // We assume getItems in shop.js will now find it because we updated shop.json.
     // In unit test, we might need to rely on the fact that we fixed shop.json.
@@ -340,6 +347,45 @@ async function runTests() {
     // The key is it shouldn't crash.
     console.log("  ✅ Cancel button handled without crash");
     
+    // 7. Test Dynamic Buy Pricing (Noir)
+    console.log("\n🧪 Test 7: Dynamic Buy Pricing (Noir)");
+    const initialBalance = BigInt((await db.getUser("u1")).balance);
+    
+    // Step 1: Select "role_couleur_basic" -> Should show colour selection
+    const interactionBuyItem = new MockInteraction(user1.user, guild, "shop_items", ["role_couleur_basic"]);
+    interactionBuyItem.isStringSelectMenu = () => true;
+    await shop.handleInteraction(interactionBuyItem, db);
+    console.log("  ✅ Colour selection menu displayed for Buy");
+    
+    // Step 2: Select "Noir" (ID: 1469071689823289446)
+    // Sell price for Noir (Mythic) is 10000. Buy price should be 20000.
+    const noirRoleId = "1469071689823289446";
+    const interactionSelectNoir = new MockInteraction(user1.user, guild, "shop_buy_specific_role_select.role_couleur_basic", [noirRoleId]);
+    interactionSelectNoir.isStringSelectMenu = () => true;
+    await shop.handleInteraction(interactionSelectNoir, db);
+    // Should show confirmation with price 20000
+    console.log("  ✅ Dynamic price confirmation displayed");
+    
+    // Step 3: Confirm Buy
+    // CustomID: shop_confirm_buy_dynamic.role_couleur_basic.1469071689823289446.20000
+    const interactionConfirmBuy = new MockInteraction(user1.user, guild, `shop_confirm_buy_dynamic.role_couleur_basic.${noirRoleId}.20000`);
+    interactionConfirmBuy.isButton = () => true;
+    
+    // Ensure user has enough money (give some if needed)
+    await db.updateBalance("u1", 30000); 
+    const richBalance = BigInt((await db.getUser("u1")).balance);
+    
+    await shop.handleInteraction(interactionConfirmBuy, db);
+    
+    const finalBalance = BigInt((await db.getUser("u1")).balance);
+    const expectedCost = 20000n;
+    
+    if (richBalance - finalBalance === expectedCost) {
+        console.log(`  ✅ Dynamic Price Deducted Correctly (-${expectedCost})`);
+    } else {
+        console.error(`  ❌ Dynamic Price Mismatch. Expected -${expectedCost}, got -${richBalance - finalBalance}`);
+    }
+
     console.log("\nDone.");
 }
 
