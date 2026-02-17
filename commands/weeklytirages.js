@@ -31,10 +31,10 @@ module.exports = {
 
         if (hasPremium) {
             tiragesEarned = 2;
-            roleName = 'Premium';
+            roleName = 'Booster';
         } else if (hasBooster) {
             tiragesEarned = 1;
-            roleName = 'Booster';
+            roleName = 'Soutien';
         } else {
             return message.reply({ 
                 embeds: [createEmbed('Erreur', `Vous devez avoir un rôle **Booster** ou **Premium** pour récupérer des tirages hebdomadaires.`, COLORS.ERROR)]

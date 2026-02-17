@@ -10,6 +10,7 @@ const {
   TextInputStyle,
 } = require("discord.js");
 const { createEmbed, COLORS, formatCoins, sendLog } = require("../utils");
+const { ROLE_POOL } = require("../roleConfig");
 const shopData = require("../shop.json");
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -775,8 +776,6 @@ module.exports = {
           const itemId = value.replace("sell_", "");
           const item = getItem(itemId);
           
-          if (!item) return sendError(interaction, "Cet objet n'existe plus."), true;
-
           // ── Gestion spéciale pour ROLE_SELECT (Choix de la couleur à vendre) ──
           if (item.type === "role_select" && item.roles) {
               const member = interaction.member;
@@ -816,6 +815,7 @@ module.exports = {
           }
 
           // ── Cas Standard (Permanent Role ou autre sans choix) ──
+          // Prix par dÃ©faut: 50%
           const refundPrice = Math.floor(item.price * 0.5);
 
           const embed = new EmbedBuilder()
@@ -849,35 +849,59 @@ module.exports = {
 
       // ── Sélection de variante à vendre (shop_sell_role_select) ──
       if (interaction.isStringSelectMenu() && customId === "shop_sell_role_select") {
-          const value = interaction.values[0]; // Format: sellrole_itemId_roleId
+          const value = interaction.values[0]; 
+          // Format: sellrole_itemId_roleId
           const parts = value.split("_");
-          const itemId = parts[1];
-          const roleId = parts[2];
-          const item = getItem(itemId);
+          // parts[0] is 'sellrole'
+          // The LAST part is always the roleId (snowflake)
+          
+          const roleId = parts.pop(); // Removes last part (roleId)
+          parts.shift(); // Removes first part ('sellrole')
+          const itemId = parts.join("_"); // Reconstruct itemId
 
-          if (!item) return sendError(interaction, "Objet introuvable."), true;
+          const item = getItem(itemId);
+          if (!item) return sendError(interaction, "Objet introuvable (ID invalide)."), true;
           
           // Trouver le label du rôle spécifique
           const roleOption = item.roles.find(r => r.id === roleId);
           const roleLabel = roleOption ? roleOption.label : "Inconnu";
 
-          const refundPrice = Math.floor(item.price * 0.5);
+          // ── BLOCK BOOSTS ──
+          if (roleLabel.includes("Boost") || roleLabel.includes("XP")) {
+              return sendError(interaction, "Les Boosts d'XP ne peuvent pas être revendus."), true;
+          }
+
+          // ── CALCUL DU PRIX ADAPTATIF ──
+          const roleConfig = ROLE_POOL.find(r => r.id === roleId);
+          let refundPrice = 0;
+          
+          if (roleConfig) {
+             const p = roleConfig.probability;
+             // Exponential Curve
+             if (p >= 0.15) refundPrice = 350;        // Commun (Bleus) -> 350
+             else if (p >= 0.07) refundPrice = 800;   // Peu Commun (Verts, Jaune, Orange) -> 800
+             else if (p >= 0.03) refundPrice = 2000;  // Rare (Rouges) -> 2000
+             else if (p >= 0.01) refundPrice = 3500;  // Très Rare (Cyan) -> 3500
+             else if (p >= 0.005) refundPrice = 6000; // Epique (Violet) -> 6000
+             else if (p >= 0.001) refundPrice = 10000;// Mythique (Noir) -> 10000
+             else refundPrice = 30000;                // Légendaire (Blanc, Immunités) -> 30000
+          } else {
+             refundPrice = 350; // Fallback
+          }
 
           const embed = new EmbedBuilder()
-            .setTitle(`Revente : ${item.label} (${roleLabel})`)
+            .setTitle(`Revente : ${roleLabel}`)
             .setDescription(
                 `Etes-vous sur de vouloir revendre **${roleLabel}** ?\n\n` +
-                `**Prix d'achat :** ${formatCoins(item.price)}\n` +
-                `**Prix de revente :** ${formatCoins(refundPrice)} (50%)\n\n` +
+                `**Prix de revente :** ${formatCoins(refundPrice)}\n\n` +
                 `⚠️ Le rôle **${roleLabel}** sera retiré.`
             )
             .setColor(COLORS.GOLD)
             .setTimestamp();
           
-          // On passe le roleId dans le customId du bouton
           const buttons = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setCustomId(`shop_confirm_sell.${itemId}.${roleId}`)
+             new ButtonBuilder()
+              .setCustomId(`shop_confirm_sell.${itemId}.${roleId}.${refundPrice}`)
               .setLabel("Confirmer la Vente")
               .setStyle(ButtonStyle.Success),
             new ButtonBuilder()
@@ -898,6 +922,7 @@ module.exports = {
           const parts = customId.split(".");
           const itemId = parts[1];
           const specificRoleId = parts[2]; // Optional: Specific role ID to sell
+          const passedPrice = parts[3] ? parseInt(parts[3]) : null;
 
           const item = getItem(itemId);
           const userId = interaction.user.id;
@@ -905,7 +930,30 @@ module.exports = {
 
           if (!item) return sendError(interaction, "Objet introuvable."), true;
 
-          const refundPrice = Math.floor(item.price * 0.5);
+          // Default 50%
+          let refundPrice = Math.floor(item.price * 0.5);
+          
+          // Override if specific Role & passed price (or recalc logic)
+          if (passedPrice) {
+               refundPrice = passedPrice;
+          } else if (specificRoleId) {
+              // Recalc logic if button didn't have price (fallback)
+              const roleConfig = ROLE_POOL.find(r => r.id === specificRoleId);
+              if (roleConfig) {
+                  // NOTE: Logic must match the one above!
+                  const p = roleConfig.probability;
+                  if (p >= 0.15) refundPrice = 350;
+                  else if (p >= 0.07) refundPrice = 800;
+                  else if (p >= 0.03) refundPrice = 2000;
+                  else if (p >= 0.01) refundPrice = 3500;
+                  else if (p >= 0.005) refundPrice = 6000;
+                  else if (p >= 0.001) refundPrice = 10000;
+                  else refundPrice = 30000;
+              } else {
+                  refundPrice = 350;
+              }
+          }
+
           let roleRemoved = false;
           let roleLabel = item.label;
 
@@ -950,7 +998,7 @@ module.exports = {
               await sendLog(
                 interaction.guild,
                 "Revente Boutique",
-                `**Joueur :** <@${userId}>\n**Objet :** ${roleLabel}\n**Gain :** ${formatCoins(refundPrice)}`,
+                `**Joueur :** <@${userId}>\n**Objet :** ${roleLabel}\n**Gain :** ${formatCoins(refundPrice)}\n**Rareté :** ${specificRoleId ? "Aléatoire (Prix Adaptatif)" : "Fixe"}`,
                 COLORS.GOLD
               );
 
