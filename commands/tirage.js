@@ -140,23 +140,41 @@ module.exports = {
 
     // Build final result message
     let resultText = "";
-    if (summary.coins > 0n) resultText += `🪙 **Coins :** ${formatCoins(summary.coins)}\n`;
-    if (summary.extraTirages > 0) resultText += `🎫 **Tirages bonus :** +${summary.extraTirages}\n`;
-    
+    const items = [];
+
+    if (summary.coins > 0n) {
+        items.push(`🪙 **Coins :** +${formatCoins(summary.coins)}`);
+    }
+    if (summary.extraTirages > 0) {
+        items.push(`🎫 **Tirages bonus :** +${summary.extraTirages}`);
+    }
+
+    resultText = items.join("\n") + (items.length > 0 ? "\n\n" : "");
+
     if (summary.roles.length > 0) {
-        resultText += `\n**Rôles obtenus :**\n`;
+        resultText += `**Rôles obtenus :**\n`;
         summary.roles.forEach(r => {
-            resultText += `• <@&${r.id}> ${r.alreadyOwned ? "*(déjà possédé)*" : ""}\n`;
+            const prob = (r.probability * 100).toFixed(r.probability < 0.001 ? 3 : 2);
+            resultText += `• <@&${r.id}> \`(${prob}%)\` ${r.alreadyOwned ? "*(déjà possédé)*" : ""}\n`;
         });
     }
 
-    if (!resultText) resultText = "Vous n'avez rien gagné de nouveau cette fois-ci !";
+    if (count > 1 && (summary.coins > 0n || summary.extraTirages > 0)) {
+        resultText += `\n*Détails des gains probabilités :*\n`;
+        results.forEach((res, index) => {
+            if (res.type !== 'role') {
+                const prob = (res.probability * 100).toFixed(res.probability < 0.001 ? 3 : 2);
+                resultText += `> Tirage ${index + 1}: **${res.name}** \`(${prob}%)\`\n`;
+            }
+        });
+    }
+
+    if (!resultText) resultText = "Vous n'avez rien gagné de neuf cette fois-ci ! Better luck next time ! 🍀";
 
     const finalUser = await db.getUser(message.author.id);
     const resultEmbed = createEmbed(
-        count > 1 ? `🎰 Résultats du tirage ${args[0]}` : `🎰 Résultat du tirage`,
-        `${resultText}\n\n` +
-        `Tirages restants : **${finalUser.tirages}** 🎫`,
+        count > 1 ? `🎰 Résultats des ${count} Tirages` : `🎰 Résultat du Tirage`,
+        `${resultText}\n\n**Total Tirages Restants :** \`${finalUser.tirages}\` 🎫`,
         results.length === 1 ? results[0].color : COLORS.PRIMARY
     );
 
