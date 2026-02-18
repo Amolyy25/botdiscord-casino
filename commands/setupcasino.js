@@ -124,45 +124,41 @@ module.exports = {
       // Create the main embed
       const mainEmbed = createEmbed(
         "🎰 Bienvenue au Casino !",
-        `**Prêt à tenter votre chance ?**\n\n` +
-          `Le Casino vous offre une expérience de jeu unique avec des **jeux passionnants**, des **tirages de rôles** et bien plus encore !\n\n` +
+        `**Le Casino vous offre une expérience de jeu unique !**\n\n` +
+          `**COMMENT JOUER ?**\n` +
+          `Utilisez les boutons ci-dessous pour obtenir l'accès ou consulter les récompenses des tirages. Une fois l'accès obtenu, vous pourrez jouer dans le salon <#${casinoChatChannel.id}>.\n\n` +
           `**JEUX DISPONIBLES**\n\n` +
-          `**Blackjack** - Battez le croupier**\n` +
-          `**Roulette** - Rouge, Noir ou Vert**\n` +
-          `**Coinflip** - Pile ou Face**\n` +
-          `**Crash** - Encaissez avant le crash**\n\n` +
-          `**ÉCONOMIE**\n\n` +
-          `**Gagnez des coins en jouant**\n` +
-          `**Offrez des coins à vos amis**\n` +
-          `**Volez d'autres joueurs (cooldown 2h)**\n` +
-          `**Récompense quotidienne de 200 coins**`,
+          `• **Blackjack** : Battez le croupier pour doubler votre mise.\n` +
+          `• **Roulette** : Pariez sur une couleur ou un numéro.\n` +
+          `• **Coinflip** : Pile ou Face, 50% de chance de gagner.\n` +
+          `• **Crash** : Encaissez avant que le multiplicateur ne s'arrête.\n` +
+          `• **MINES** : Une grille, des diamands et des mines\n` +
+          `• **TOWER** : Trouvez la bonne porte parmi les trois\n` +
+          `** TIRAGES DE RÔLES**\n` +
+          `Tentez de gagner des rôles de couleur exclusifs, des coins ou des tirages bonus ! Cliquez sur le bouton **TIRAGES** pour voir la liste complète des lots.\n\n` +
+          `**ÉCONOMIE**\n` +
+          `• Gagnez des coins en jouant aux jeux.\n` +
+          `• Utilisez \`;daily\` chaque jour pour **500 coins**.\n` +
+          `• Utilisez \`;collect\` chaque 30M pour **150 coins**.\n` +
+          `• Utilisez \`;profil\` pour voir votre solde et vos tirages.`,
         COLORS.GOLD,
       );
 
-      const tiragesEmbed = createEmbed(
-        "🎫 Système de Tirages",
-        `**Obtenez des rôles de couleur exclusifs !**\n\n` +
-          `Chaque joueur commence avec **2 tirages gratuits**.\n\n` +
-          `**Comment obtenir plus de tirages ?**\n` +
-          `**Giveaways et événements**\n` +
-          `**Rôle Soutien : +1 tirage/semaine**\n` +
-          `**Rôle Booster : +2 tirages/semaine**\n\n` +
-          `**Rôles disponibles et leurs probabilités :**\n\n${rolesDisplay}`,
-        COLORS.VIOLET,
-      );
-
-      const button = new ActionRowBuilder().addComponents(
+      const buttons = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId("access_casino")
           .setLabel("🎰 Accéder au Casino")
-          .setStyle(ButtonStyle.Success)
-          .setEmoji("🎲"),
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId("show_rewards")
+          .setLabel("🎫 TIRAGES")
+          .setStyle(ButtonStyle.Primary)
       );
 
       // Send the embeds to the casino channel
       await casinoChannel.send({
-        embeds: [mainEmbed, tiragesEmbed],
-        components: [button],
+        embeds: [mainEmbed],
+        components: [buttons],
       });
 
       // Send welcome message to casino-chat only if it was just created

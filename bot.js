@@ -202,6 +202,8 @@ client.on("interactionCreate", async (interaction) => {
 
       await member.roles.add(casinoRole);
 
+      await member.roles.add(casinoRole);
+
       const embed = createEmbed(
         "🎰 Accès accordé !",
         `Bienvenue au casino ! Vous pouvez maintenant accéder au salon de jeu.\n\n` +
@@ -220,6 +222,46 @@ client.on("interactionCreate", async (interaction) => {
         })
         .catch(() => {});
     }
+  }
+
+  if (interaction.customId === "show_rewards") {
+    const { ROLE_POOL } = require("./roleConfig");
+    
+    const categories = {
+        "ULTRA RARE": [],
+        "RARE": [],
+        "MOYEN RARE": [],
+        "COMMUN": []
+    };
+
+    ROLE_POOL.forEach(reward => {
+        let rarity = "COMMUN";
+        if (reward.probability < 0.005) rarity = "ULTRA RARE";
+        else if (reward.probability < 0.02) rarity = "RARE";
+        else if (reward.probability < 0.06) rarity = "MOYEN RARE";
+
+        let text = "";
+        if (reward.type === 'role') text = `<@&${reward.id}>`;
+        else if (reward.type === 'coins') text = `**${reward.amount} Coins**`;
+        else if (reward.type === 'extra_tirages') text = `**+${reward.amount} Tirages**`;
+
+        categories[rarity].push(`${text} (${(reward.probability * 100).toFixed(2)}%)`);
+    });
+
+    let description = "";
+    for (const [rarity, items] of Object.entries(categories)) {
+        if (items.length > 0) {
+            description += `**${rarity}**\n${items.join("\n")}\n\n`;
+        }
+    }
+
+    const embed = createEmbed(
+        "🎫 Liste des Récompenses",
+        description,
+        COLORS.PRIMARY
+    );
+
+    await interaction.reply({ embeds: [embed], flags: 64 });
   }
 
   // Bounty System Interactions
