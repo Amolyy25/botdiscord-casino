@@ -13,10 +13,23 @@ const { createEmbed, COLORS, formatCoins, sendLog } = require("../utils");
 const { ROLE_POOL } = require("../roleConfig");
 const shopData = require("../shop.json");
 
+// ─── Constants for Dynamic Pricing ─────────────────────────
+const MIN_STEAL_PCT = 0.10;
+const MAX_STEAL_PCT = 0.30;
+const MARGIN_PCT = 0.05;
+
 // ─── Helpers ────────────────────────────────────────────────
 
 function getItem(itemId) {
   return shopData.items.find((i) => i.id === itemId);
+}
+
+function calculateImmunityPrice(userBalance, basePrice) {
+  const averageSteal = (MIN_STEAL_PCT + MAX_STEAL_PCT) / 2;
+  const highProbSteal = averageSteal * 1.2;
+  const price = Number(userBalance) * (highProbSteal + MARGIN_PCT);
+  const finalPrice = Math.max(Math.floor(price), Number(basePrice));
+  return BigInt(finalPrice);
 }
 
 function getCategory(categoryId) {
@@ -102,12 +115,17 @@ function buildCategoryItemsEmbed(categoryId) {
     .setColor(category.color)
     .setTimestamp();
 
-  const itemOptions = items.map((item) => ({
-    label: item.label,
-    value: item.id,
-    description: `${item.price} coins${item.duration ? ` ・ ${formatDuration(item.duration)}` : ""}`,
-    emoji: item.emoji,
-  }));
+  const itemOptions = items.map((item) => {
+    let displayPrice = item.price;
+    const isImmunity = IMMUNITY_ROLE_IDS.includes(item.roleId);
+    
+    return {
+      label: item.label,
+      value: item.id,
+      description: `${displayPrice} coins${isImmunity ? ' (min)' : ''}${item.duration ? ` ・ ${formatDuration(item.duration)}` : ""}`,
+      emoji: item.emoji,
+    };
+  });
 
   const itemSelect = new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()
@@ -188,12 +206,24 @@ async function buildReventeItemsEmbed(interaction) {
 }
 
 
-function buildItemDetailEmbed(itemId) {
+function buildItemDetailEmbed(itemId, userBalance = null) {
   const item = getItem(itemId);
   const category = getCategory(item.category);
 
+  let finalPrice = BigInt(item.price);
+  let priceNote = "";
+
+  if (userBalance !== null && IMMUNITY_ROLE_IDS.includes(item.roleId)) {
+    finalPrice = calculateImmunityPrice(userBalance, item.price);
+    if (finalPrice > BigInt(item.price)) {
+      priceNote = " (Indexé sur votre patrimoine)";
+    } else {
+      priceNote = " (Prix minimum)";
+    }
+  }
+
   const fields = [
-    { name: "Prix", value: formatCoins(item.price), inline: true },
+    { name: "Prix", value: `${formatCoins(finalPrice)}${priceNote}`, inline: true },
   ];
 
   if (item.duration) {
@@ -1077,7 +1107,8 @@ module.exports = {
              return true;
         }
 
-        const { embed, components } = buildItemDetailEmbed(itemId);
+        const userData = await db.getUser(interaction.user.id);
+        const { embed, components } = buildItemDetailEmbed(itemId, userData.balance);
 
         await interaction.update({
           embeds: [embed],
@@ -1172,11 +1203,17 @@ module.exports = {
 
         // Si l'article nécessite une cible
         if (item.needsTarget) {
+          const userData = await db.getUser(interaction.user.id);
+          let finalPrice = BigInt(item.price);
+          if (IMMUNITY_ROLE_IDS.includes(item.roleId)) {
+            finalPrice = calculateImmunityPrice(userData.balance, item.price);
+          }
+
           const targetEmbed = new EmbedBuilder()
             .setTitle(`Choisir une cible ・ ${item.label}`)
             .setDescription(
               `Selectionnez le joueur sur qui appliquer l'effet.\n\n` +
-                `Prix : ${formatCoins(item.price)}` +
+                `Prix : ${formatCoins(finalPrice)}` +
                 (item.duration ? `\nDuree : ${formatDuration(item.duration)}` : ""),
             )
             .setColor(COLORS.GOLD)
@@ -1212,11 +1249,17 @@ module.exports = {
             emoji: role.emoji,
           }));
 
+          const userData = await db.getUser(interaction.user.id);
+          let finalPrice = BigInt(item.price);
+          if (IMMUNITY_ROLE_IDS.includes(item.roleId)) {
+            finalPrice = calculateImmunityPrice(userData.balance, item.price);
+          }
+
           const roleSelectEmbed = new EmbedBuilder()
             .setTitle(`Choisissez votre couleur ・ ${item.label}`)
             .setDescription(
               `Selectionnez le role couleur que vous souhaitez.\n\n` +
-                `Prix : ${formatCoins(item.price)}\n` +
+                `Prix : ${formatCoins(finalPrice)}\n` +
                 `Duree : ${formatDuration(item.duration)}\n\n` +
                 `Les coins seront deduits apres votre choix.`,
             )
@@ -1245,7 +1288,12 @@ module.exports = {
         }
 
         // Pas de cible : achat direct
-        await processPurchase(interaction, item, db);
+        const userData = await db.getUser(interaction.user.id);
+        let finalPriceOverride = null;
+        if (IMMUNITY_ROLE_IDS.includes(item.roleId)) {
+          finalPriceOverride = calculateImmunityPrice(userData.balance, item.price);
+        }
+        await processPurchase(interaction, item, db, null, null, finalPriceOverride);
         return true;
       }
 
@@ -1259,7 +1307,12 @@ module.exports = {
           return sendError(interaction, "Article introuvable."), true;
         }
 
-        await processPurchase(interaction, item, db, null, selectedRoleId);
+        const userData = await db.getUser(interaction.user.id);
+        let finalPriceOverride = null;
+        if (IMMUNITY_ROLE_IDS.includes(item.roleId)) {
+          finalPriceOverride = calculateImmunityPrice(userData.balance, item.price);
+        }
+        await processPurchase(interaction, item, db, null, selectedRoleId, finalPriceOverride);
         return true;
       }
 
@@ -1391,7 +1444,12 @@ module.exports = {
             return true;
         }
 
-        await processPurchase(interaction, item, db, targetId);
+        const userData = await db.getUser(interaction.user.id);
+        let finalPriceOverride = null;
+        if (IMMUNITY_ROLE_IDS.includes(item.roleId)) {
+          finalPriceOverride = calculateImmunityPrice(userData.balance, item.price);
+        }
+        await processPurchase(interaction, item, db, targetId, null, finalPriceOverride);
         return true;
       }
 
