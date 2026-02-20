@@ -55,28 +55,11 @@ module.exports = {
             // Bet already deducted
         }
 
-        // Announce big wins (500+ coins)
-        if (win && gain >= 500n) {
-            try {
-                const { WINS_CHANNEL_ID } = require('../roleConfig');
-                const winsChannel = await message.client.channels.fetch(WINS_CHANNEL_ID);
-                if (winsChannel) {
-                    const winEmbed = createEmbed(
-                        '🎉 GROS GAIN À LA ROULETTE !',
-                        `**${message.author.username}** vient de gagner ${formatCoins(gain)} à la Roulette !\n\n` +
-                        `**Couleur:** ${resultColor.toUpperCase()} (${outcome})\n` +
-                        `**Mise:** ${formatCoins(bet)}\n` +
-                        `**Gain:** ${formatCoins(gain)}` +
-                        (choice === 'vert' ? '\n💎 **VERT x35 !**' : ''),
-                        COLORS.GOLD
-                    );
-                    winEmbed.setThumbnail(message.author.displayAvatarURL({ dynamic: true }));
-                    await winsChannel.send({ embeds: [winEmbed] });
-                }
-            } catch (e) {
-                console.error('Failed to send win announcement:', e);
-            }
-        }
+        // Announce big wins
+        const { announceBigWin } = require('../utils');
+        await announceBigWin(message.client, message.author, 'Roulette', bet, gain, 
+            `**Couleur:** ${resultColor.toUpperCase()} (${outcome})\n` +
+            (choice === 'vert' ? '💎 **VERT x35 !**' : ''));
 
         const embedColor = win ? COLORS.SUCCESS : COLORS.ERROR;
         const gloryStatus = eventsManager.getGloryHourStatus();
