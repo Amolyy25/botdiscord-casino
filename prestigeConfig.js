@@ -10,10 +10,12 @@ const PRESTIGE_LEVELS = [
         price: 1000000,
         collectReward: 300,
         gainMultiplier: 0.01, // +1% de gains
+        tirageReward: 5,
         roleId: "1474327592709656709",
         rewards: [
             "Commande ;collect passe à 300 coins",
             "+1% de gains au casino",
+            "+5 Tirages (Ticket)",
             "Rôle exclusif PRESTIGE I"
         ]
     },
@@ -23,10 +25,12 @@ const PRESTIGE_LEVELS = [
         price: 7500000,
         collectReward: 1000,
         gainMultiplier: 0.03, // +3%
+        tirageReward: 8,
         roleId: "1474327677929259058",
         rewards: [
             "Commande ;collect passe à 1 000 coins",
             "+3% de gains au casino",
+            "+8 Tirages (Ticket)",
             "Rôle exclusif PRESTIGE II"
         ]
     },
@@ -36,10 +40,12 @@ const PRESTIGE_LEVELS = [
         price: 25000000,
         collectReward: 5000,
         gainMultiplier: 0.06, // +6%
+        tirageReward: 15,
         roleId: "1474327696493252689",
         rewards: [
             "Commande ;collect passe à 5 000 coins",
             "+6% de gains au casino",
+            "+15 Tirages (Ticket)",
             "Rôle exclusif PRESTIGE III"
         ]
     },
@@ -49,10 +55,12 @@ const PRESTIGE_LEVELS = [
         price: 75000000,
         collectReward: 15000,
         gainMultiplier: 0.09, // +9%
+        tirageReward: 25,
         roleId: "1474327719251542077",
         rewards: [
             "Commande ;collect passe à 15 000 coins",
             "+9% de gains au casino",
+            "+25 Tirages (Ticket)",
             "Rôle exclusif PRESTIGE IV"
         ]
     },
@@ -62,10 +70,12 @@ const PRESTIGE_LEVELS = [
         price: 200000000,
         collectReward: 50000,
         gainMultiplier: 0.12, // +12%
+        tirageReward: 40,
         roleId: "1474327739816345651",
         rewards: [
             "Commande ;collect passe à 50 000 coins",
             "+12% de gains au casino",
+            "+40 Tirages (Ticket)",
             "Rôle exclusif PRESTIGE V"
         ]
     }

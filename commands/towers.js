@@ -164,6 +164,10 @@ function buildEmbed(state, status = 'playing') {
         desc += `\nTemps ecoule. Mise perdue.`;
     }
 
+    const color = (status === 'cashout' || status === 'cleared') ? COLORS.SUCCESS
+               : (status === 'lost' || status === 'timeout') ? COLORS.ERROR
+               : COLORS.PRIMARY;
+
     const embed = createEmbed('Towers -- La Tour', desc, color);
     
     let footerText = `Mise: ${state.bet.toLocaleString('fr-FR')} coins`;

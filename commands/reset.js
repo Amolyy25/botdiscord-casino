@@ -94,6 +94,11 @@ module.exports = {
                     // Exécuter la logique de prestige
                     await db.updatePrestige(message.author.id, nextLevel);
 
+                    // Donner les Tirages bonus
+                    if (nextPrestigeConfig.tirageReward) {
+                        await db.updateTirages(message.author.id, nextPrestigeConfig.tirageReward);
+                    }
+
                     // Donner le rôle
                     try {
                         const member = await message.guild.members.fetch(message.author.id);

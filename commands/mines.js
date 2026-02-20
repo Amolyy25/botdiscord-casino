@@ -103,6 +103,10 @@ function buildEmbed(state, status = 'playing') {
         desc += `\nTemps écoulé. Mise perdue.`;
     }
 
+    const color = status === 'cashout' ? COLORS.SUCCESS
+               : status === 'lost' || status === 'timeout' ? COLORS.ERROR
+               : COLORS.PRIMARY;
+
     const embed = createEmbed('Mines -- Démineur', desc, color);
     
     let footerText = `Mise: ${state.bet.toLocaleString('fr-FR')} coins`;

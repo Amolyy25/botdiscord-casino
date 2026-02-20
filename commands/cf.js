@@ -26,10 +26,10 @@ module.exports = {
 
         const outcome = Math.random() < 0.5 ? 'pile' : 'face';
         const win = side === outcome;
-        const gain = win ? bet : -bet;
+        let profit = 0n;
 
         if (win) {
-            let profit = bet;
+            profit = bet;
             if (eventsManager.isDoubleGainActive()) profit *= 2n;
 
             // Appliquer Bonus de Prestige
