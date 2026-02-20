@@ -44,6 +44,10 @@ module.exports = {
                 gain *= 2n;
             }
 
+            // Appliquer Bonus de Prestige
+            const { applyPrestigeBonus } = require('../prestigeConfig');
+            gain = applyPrestigeBonus(gain, parseInt(user.prestige || 0));
+
             // Refund bet + gain
             await db.updateBalance(message.author.id, bet + gain, 'Roulette: Gain');
         } else {

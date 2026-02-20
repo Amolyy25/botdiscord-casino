@@ -32,6 +32,10 @@ module.exports = {
             let profit = bet;
             if (eventsManager.isDoubleGainActive()) profit *= 2n;
 
+            // Appliquer Bonus de Prestige
+            const { applyPrestigeBonus } = require('../prestigeConfig');
+            profit = applyPrestigeBonus(profit, parseInt(user.prestige || 0));
+
             // Refund bet + gain
             await db.updateBalance(message.author.id, bet + profit, 'Coinflip: Gain');
         }

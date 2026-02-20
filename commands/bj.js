@@ -156,6 +156,11 @@ module.exports = {
                     if (eventsManager.isDoubleGainActive()) winAmount *= 2n;
 
                     result = 'Gagné !' + (eventsManager.isDoubleGainActive() ? ' (Double Gain! ⚡)' : '');
+                    
+                    // Appliquer Bonus de Prestige
+                    const { applyPrestigeBonus } = require('../prestigeConfig');
+                    winAmount = applyPrestigeBonus(winAmount, parseInt(user.prestige || 0));
+                    
                     finalGain = winAmount;
 
                     // Refund bet + win amount

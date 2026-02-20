@@ -97,7 +97,8 @@ module.exports = {
         const embed = createEmbed(
             `Profil de ${displayName}`,
             `**Solde:** ${formatCoins(userData.balance)}\n` +
-            `**Tirages:** 🎫 **${userData.tirages || 0}**\n\n` +
+            `**Tirages:** 🎫 **${userData.tirages || 0}**\n` +
+            `**Prestige:** ✨ **Niveau ${userData.prestige || 0}**\n\n` +
             `**Récompense quotidienne:** ${dailyStatus}\n` +
             `**Vol:** ${voleStatus}\n` +
             (hasBooster || hasPremium ? `**Tirages hebdomadaires:** ${weeklyStatus}\n` : ''),

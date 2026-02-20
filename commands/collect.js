@@ -18,8 +18,11 @@ module.exports = {
             });
         }
 
-        const reward = 150;
-        await db.updateBalance(message.author.id, reward);
+        const { getPrestigeBenefits } = require('../prestigeConfig');
+        const benefits = getPrestigeBenefits(parseInt(user.prestige || 0));
+        const reward = benefits.collectReward;
+        
+        await db.updateBalance(message.author.id, reward, 'Collecte périodique');
         await db.updateCollect(message.author.id, now);
 
         const embed = createEmbed(

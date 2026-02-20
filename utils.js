@@ -30,10 +30,11 @@ function parseBet(input, currentBalance) {
     }
 }
 
-function formatCoins(amount) {
+function formatCoins(amount, includeEmoji = true) {
     // Handle BigInt or string balance from PG
     const val = BigInt(amount);
-    return `**${val.toLocaleString('fr-FR')}** ${CURRENCY}`;
+    const currencySuffix = includeEmoji ? CURRENCY : 'coins';
+    return `**${val.toLocaleString('fr-FR')}** ${currencySuffix}`;
 }
 
 const LOG_CHANNEL_ID = '1471509327419543552';

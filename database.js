@@ -17,7 +17,8 @@ const initDb = async () => {
       last_collect BIGINT DEFAULT 0,
       tirages INTEGER DEFAULT 2,
       last_weekly_tirage BIGINT DEFAULT 0,
-      last_boost BIGINT DEFAULT 0
+      last_boost BIGINT DEFAULT 0,
+      prestige INTEGER DEFAULT 0
     );
 
     -- Migration for existing tables
@@ -25,6 +26,9 @@ const initDb = async () => {
     BEGIN
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='last_collect') THEN
             ALTER TABLE users ADD COLUMN last_collect BIGINT DEFAULT 0;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='prestige') THEN
+            ALTER TABLE users ADD COLUMN prestige INTEGER DEFAULT 0;
         END IF;
     END $$;
     
@@ -608,5 +612,18 @@ module.exports = {
       [userId]
     );
     return { rows: res.rows, total: parseInt(countRes.rows[0].total) };
+  },
+
+  updatePrestige: async (id, newPrestige) => {
+    await pool.query(
+      `UPDATE users SET prestige = $2, balance = 0 WHERE id = $1`,
+      [id, newPrestige]
+    );
+    // Log to balance history as a reset
+    await pool.query(
+      `INSERT INTO balance_history (user_id, amount, reason, balance_after, created_at)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [id, 0n, 'Prestige Reset', 0n, Date.now()]
+    ).catch(err => console.error('[BalHis] Erreur log prestige:', err.message));
   }
 };
