@@ -94,7 +94,11 @@ module.exports = {
             embedColor
         );
         
-        embed.setFooter({ text: `Mise: ${bet.toLocaleString('fr-FR')} coins` });
+        if (win) {
+            embed.setFooter({ text: `Mise: ${bet.toLocaleString('fr-FR')} coins | Profit: +${formatCoins(gain)}` });
+        } else {
+            embed.setFooter({ text: `Mise: ${bet.toLocaleString('fr-FR')} coins` });
+        }
 
         message.reply({ embeds: [embed] });
     }

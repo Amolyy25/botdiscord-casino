@@ -77,7 +77,11 @@ function buildEmbed(state, status = 'playing') {
         potentialGain = state.bet + (profit * 2n);
     }
 
-    const currentProfit = potentialGain - state.bet;
+    // Appliquer Bonus de Prestige au profit potentiel
+    const { applyPrestigeBonus } = require('../prestigeConfig');
+    let currentProfit = potentialGain - state.bet;
+    currentProfit = applyPrestigeBonus(currentProfit, state.prestige || 0);
+
     const eventIndicator = gloryStatus.active ? ' (x2) ⚡️' : '';
 
     let desc = '';
@@ -99,11 +103,15 @@ function buildEmbed(state, status = 'playing') {
         desc += `\nTemps écoulé. Mise perdue.`;
     }
 
-    const color = status === 'cashout' ? COLORS.SUCCESS
-               : status === 'lost' || status === 'timeout' ? COLORS.ERROR
-               : COLORS.PRIMARY;
+    const embed = createEmbed('Mines -- Démineur', desc, color);
+    
+    let footerText = `Mise: ${state.bet.toLocaleString('fr-FR')} coins`;
+    if (status === 'cashout') {
+        footerText += ` | Profit: +${formatCoins(currentProfit)}`;
+    }
+    embed.setFooter({ text: footerText });
 
-    return createEmbed('Mines -- Démineur', desc, color);
+    return embed;
 }
 
 module.exports = {
@@ -159,6 +167,7 @@ module.exports = {
             revealed: new Set(),
             safeCount: 0,
             multiplier: 1.00,
+            prestige: parseInt(user.prestige || 0),
             lastClick: 0,
             gameOver: false
         };
@@ -191,6 +200,10 @@ module.exports = {
                 const winAmount = BigInt(Math.floor(Number(st.bet) * st.multiplier));
                 let profit = winAmount - st.bet;
                 if (eventsManager.isDoubleGainActive()) profit *= 2n;
+
+                // Appliquer Bonus de Prestige
+                const { applyPrestigeBonus } = require('../prestigeConfig');
+                profit = applyPrestigeBonus(profit, parseInt(user.prestige || 0));
 
                 await db.updateBalance(userId, st.bet + profit, 'Mines: Cashout');
 
@@ -243,6 +256,10 @@ module.exports = {
                 const winAmount = BigInt(Math.floor(Number(st.bet) * st.multiplier));
                 let profit = winAmount - st.bet;
                 if (eventsManager.isDoubleGainActive()) profit *= 2n;
+
+                // Appliquer Bonus de Prestige
+                const { applyPrestigeBonus } = require('../prestigeConfig');
+                profit = applyPrestigeBonus(profit, parseInt(user.prestige || 0));
 
                 await db.updateBalance(userId, st.bet + profit, 'Mines: Cashout');
                 await i.update({

@@ -64,7 +64,12 @@ module.exports = {
         }
 
         if (wonReward.type === 'coins') {
-            const amount = BigInt(wonReward.amount);
+            let amount = BigInt(wonReward.amount);
+            
+            // Appliquer Bonus de Prestige (Bonus casino s'applique aussi aux coins gagnés par chance)
+            const { applyPrestigeBonus } = require('../prestigeConfig');
+            amount = applyPrestigeBonus(amount, parseInt(user.prestige || 0));
+
             summary.coins += amount;
             await db.updateBalance(message.author.id, amount);
             

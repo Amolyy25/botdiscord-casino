@@ -78,11 +78,19 @@ module.exports = {
                         : status === 'crashed' ? COLORS.ERROR 
                         : COLORS.SUCCESS;
 
-            return createEmbed(
+            const embed = createEmbed(
                 status === 'playing' ? 'Crash 📈' : (status === 'crashed' ? 'CRASHED! 💥' : 'Cashed Out! 💰'),
                 desc,
                 color
             );
+
+            let footerText = `Mise: ${bet.toLocaleString('fr-FR')} coins`;
+            if (status === 'cashed') {
+                footerText += ` | Profit: +${formatCoins(profit)}`;
+            }
+            embed.setFooter({ text: footerText });
+
+            return embed;
         };
 
         // --- CALCUL DU MULTIPLICATEUR BASÉ SUR LE TEMPS RÉEL ---
@@ -167,6 +175,10 @@ module.exports = {
             if (eventsManager.isDoubleGainActive()) {
                 finalGain *= 2n;
             }
+
+            // Appliquer Bonus de Prestige
+            const { applyPrestigeBonus } = require('../prestigeConfig');
+            finalGain = applyPrestigeBonus(finalGain, parseInt(user.prestige || 0));
 
             const finalMultiplier = safeMult.toFixed(2);
 

@@ -4,7 +4,7 @@ const { PRESTIGE_LEVELS } = require('../prestigeConfig');
 
 module.exports = {
     name: 'reset',
-    aliases: ['prestige'],
+    aliases: [],
     description: 'Réinitialise votre solde pour augmenter votre niveau de Prestige',
     async execute(message, args, db) {
         try {
@@ -32,8 +32,8 @@ module.exports = {
                 return message.reply({
                     embeds: [createEmbed(
                         'Fonds Insuffisants',
-                        `Vous avez besoin de **${formatCoins(price, false)}** pour passer au ${nextPrestigeConfig.name}.\n\n` +
-                        `Votre solde actuel : **${formatCoins(user.balance, false)}**`,
+                        `Vous avez besoin de ** ${formatCoins(price, false)} ** pour passer au ** ${nextPrestigeConfig.name} **.\n\n` +
+                        `Votre solde actuel : ** ${formatCoins(user.balance, false)} **`,
                         COLORS.ERROR
                     )]
                 });

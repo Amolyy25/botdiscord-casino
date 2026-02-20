@@ -105,6 +105,11 @@ function buildEmbed(state, status = 'playing') {
         currentGain = state.bet + (profit * 2n);
     }
 
+    // Appliquer Bonus de Prestige au profit actuel/potentiel
+    const { applyPrestigeBonus } = require('../prestigeConfig');
+    let currentProfit = currentGain - state.bet;
+    currentProfit = applyPrestigeBonus(currentProfit, state.prestige || 0);
+
     let desc = '';
     if (gloryStatus.active && status !== 'lost' && status !== 'timeout') {
         desc += `**${gloryStatus.text}**\n\n`;
@@ -123,7 +128,6 @@ function buildEmbed(state, status = 'playing') {
         desc += `\nEtage actuel: **${state.currentFloor}** / ${MAX_FLOOR}\n`;
         desc += `Multiplicateur suivant: **x${nextMult.toFixed(2)}**\n`;
         if (completedFloors.length > 0) {
-            const currentProfit = currentGain - state.bet;
             desc += `Profit actuel: ${formatCoins(currentProfit)}${eventIndicator} (x${mult.toFixed(2)})\n`;
         }
         desc += `\nChoisissez une porte !`;
@@ -133,34 +137,53 @@ function buildEmbed(state, status = 'playing') {
     } else if (status === 'cashout') {
         const cashMult = MULTIPLIERS[completedFloors.length - 1];
         let cashGain = BigInt(Math.floor(Number(state.bet) * cashMult));
-        if (gloryStatus.active) {
-            const profit = cashGain - state.bet;
-            cashGain = state.bet + (profit * 2n);
-        }
-        const finalProfit = cashGain - state.bet;
+        let profit = cashGain - state.bet;
+        if (gloryStatus.active) profit *= 2n;
+
+        // Appliquer Bonus de Prestige
+        const { applyPrestigeBonus } = require('../prestigeConfig');
+        profit = applyPrestigeBonus(profit, state.prestige || 0);
+
         desc += `\nEtages completes: **${completedFloors.length}** / ${MAX_FLOOR}\n`;
         desc += `Multiplicateur: **x${cashMult.toFixed(2)}**\n`;
-        desc += `Profit: ${formatCoins(finalProfit)}${eventIndicator}\n\nVous avez recupere vos gains !`;
+        desc += `Profit: ${formatCoins(profit)}${eventIndicator}\n\nVous avez recupere vos gains !`;
     } else if (status === 'cleared') {
         const cashMult = MULTIPLIERS[MAX_FLOOR - 1];
         let cashGain = BigInt(Math.floor(Number(state.bet) * cashMult));
-        if (gloryStatus.active) {
-            const profit = cashGain - state.bet;
-            cashGain = state.bet + (profit * 2n);
-        }
-        const finalProfit = cashGain - state.bet;
+        let profit = cashGain - state.bet;
+        if (gloryStatus.active) profit *= 2n;
+
+        // Appliquer Bonus de Prestige
+        const { applyPrestigeBonus } = require('../prestigeConfig');
+        profit = applyPrestigeBonus(profit, state.prestige || 0);
+
         desc += `\nTous les etages completes !\n`;
         desc += `Multiplicateur: **x${cashMult.toFixed(2)}**\n`;
-        desc += `Profit: ${formatCoins(finalProfit)}${eventIndicator}\n\nFelicitations, tour complete !`;
+        desc += `Profit: ${formatCoins(profit)}${eventIndicator}\n\nFelicitations, tour complete !`;
     } else if (status === 'timeout') {
         desc += `\nTemps ecoule. Mise perdue.`;
     }
 
-    const color = (status === 'cashout' || status === 'cleared') ? COLORS.SUCCESS
-               : (status === 'lost' || status === 'timeout') ? COLORS.ERROR
-               : COLORS.PRIMARY;
+    const embed = createEmbed('Towers -- La Tour', desc, color);
+    
+    let footerText = `Mise: ${state.bet.toLocaleString('fr-FR')} coins`;
+    if (status !== 'lost' && status !== 'timeout' && status !== 'playing') {
+        // En cas de cashout ou completion
+        const cashMult = MULTIPLIERS[completedFloors.length - 1];
+        let cashGain = BigInt(Math.floor(Number(state.bet) * cashMult));
+        let finalProfit = cashGain - state.bet;
+        if (gloryStatus.active) finalProfit *= 2n;
+        const { applyPrestigeBonus } = require('../prestigeConfig');
+        finalProfit = applyPrestigeBonus(finalProfit, state.prestige || 0);
+        
+        footerText += ` | Profit: +${formatCoins(finalProfit)}`;
+    } else if (status === 'playing' && completedFloors.length > 0) {
+        footerText += ` | Profit actuel: +${formatCoins(currentProfit)}`;
+    }
+    
+    embed.setFooter({ text: footerText });
 
-    return createEmbed('Towers -- La Tour', desc, color);
+    return embed;
 }
 
 module.exports = {
@@ -194,9 +217,11 @@ module.exports = {
         await db.updateBalance(userId, -bet, 'Towers: Mise');
 
         const state = {
+            userId,
             bet,
             currentFloor: 1,
             floors: [],       // { chosen, losingDoor, won }
+            prestige: parseInt(user.prestige || 0),
             lastClick: 0,
             gameOver: false
         };
@@ -230,6 +255,10 @@ module.exports = {
                 const winAmount = BigInt(Math.floor(Number(st.bet) * cashMult));
                 let profit = winAmount - st.bet;
                 if (eventsManager.isDoubleGainActive()) profit *= 2n;
+
+                // Appliquer Bonus de Prestige
+                const { applyPrestigeBonus } = require('../prestigeConfig');
+                profit = applyPrestigeBonus(profit, parseInt(user.prestige || 0));
 
                 await db.updateBalance(userId, st.bet + profit, 'Towers: Cashout');
 
@@ -287,6 +316,10 @@ module.exports = {
                 const winAmount = BigInt(Math.floor(Number(st.bet) * cashMult));
                 let profit = winAmount - st.bet;
                 if (eventsManager.isDoubleGainActive()) profit *= 2n;
+
+                // Appliquer Bonus de Prestige
+                const { applyPrestigeBonus } = require('../prestigeConfig');
+                profit = applyPrestigeBonus(profit, parseInt(user.prestige || 0));
 
                 await db.updateBalance(userId, st.bet + profit, 'Towers: Cashout');
 

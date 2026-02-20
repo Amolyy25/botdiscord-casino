@@ -47,9 +47,6 @@ module.exports = {
                 const { WINS_CHANNEL_ID } = require('../roleConfig');
                 const winsChannel = await message.client.channels.fetch(WINS_CHANNEL_ID);
                 if (winsChannel) {
-                    let profit = bet;
-                    if (eventsManager.isDoubleGainActive()) profit *= 2n;
-
                     const winEmbed = createEmbed(
                         '🎉 GROS GAIN AU COINFLIP !',
                         `**${message.author.username}** vient de gagner ${formatCoins(profit)} au Coinflip !\n\n` +
@@ -70,7 +67,7 @@ module.exports = {
         const gloryStatus = eventsManager.getGloryHourStatus();
         const eventIndicator = (gloryStatus.active && win) ? ' (x2) ⚡️' : '';
         let description = `La pièce est tombée sur **${outcome.toUpperCase()}** !\n\n` +
-            (win ? `Félicitations ! Vous gagnez ${formatCoins(bet)}${eventIndicator}.` : `Dommage, vous avez perdu ${formatCoins(bet)}.`);
+            (win ? `Félicitations ! Vous gagnez ${formatCoins(profit)}${eventIndicator}.` : `Dommage, vous avez perdu ${formatCoins(bet)}.`);
         
         if (gloryStatus.active && win) {
             description = `**${gloryStatus.text}**\n\n` + description;
@@ -82,7 +79,11 @@ module.exports = {
             embedColor
         );
         
-        embed.setFooter({ text: `Mise: ${bet.toLocaleString('fr-FR')} coins` });
+        if (win) {
+            embed.setFooter({ text: `Mise: ${bet.toLocaleString('fr-FR')} coins | Profit: +${formatCoins(profit)}` });
+        } else {
+            embed.setFooter({ text: `Mise: ${bet.toLocaleString('fr-FR')} coins` });
+        }
 
         message.reply({ embeds: [embed] });
     }

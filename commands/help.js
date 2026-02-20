@@ -13,6 +13,7 @@ module.exports = {
             `\`${prefix}daily\` - Récupérer 500 coins quotidiennement`,
             `\`${prefix}collect\` - Récupérer 150 coins toutes les 30 min`,
             `\`${prefix}gift @user/ID [montant]\` - Donner des coins`,
+            `\`${prefix}prestige\` - Voir les paliers et récompenses de Prestige`,
             `\`${prefix}reset\` - Augmenter votre niveau de Prestige (Reset solde)`,
             `\`${prefix}vole @user/ID\` - Tenter de voler un utilisateur`,
             `\`${prefix}boost\` - Récupérer votre boost quotidien (Soutien/Booster)`,
