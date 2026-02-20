@@ -41,27 +41,9 @@ module.exports = {
         }
         // If lost, bet is already deducted
 
-        // Announce big wins (500+ coins)
-        if (win && bet >= 500n) {
-            try {
-                const { WINS_CHANNEL_ID } = require('../roleConfig');
-                const winsChannel = await message.client.channels.fetch(WINS_CHANNEL_ID);
-                if (winsChannel) {
-                    const winEmbed = createEmbed(
-                        '🎉 GROS GAIN AU COINFLIP !',
-                        `**${message.author.username}** vient de gagner ${formatCoins(profit)} au Coinflip !\n\n` +
-                        `**Résultat:** ${outcome.toUpperCase()}\n` +
-                        `**Mise:** ${formatCoins(bet)}\n` +
-                        `**Gain:** ${formatCoins(profit)}`,
-                        COLORS.GOLD
-                    );
-                    winEmbed.setThumbnail(message.author.displayAvatarURL({ dynamic: true }));
-                    await winsChannel.send({ embeds: [winEmbed] });
-                }
-            } catch (e) {
-                console.error('Failed to send win announcement:', e);
-            }
-        }
+        // Announce big wins
+        const { announceBigWin } = require('../utils');
+        await announceBigWin(message.client, message.author, 'Coinflip', bet, profit, `**Résultat:** ${outcome.toUpperCase()}`);
 
         const embedColor = win ? COLORS.SUCCESS : COLORS.ERROR;
         const gloryStatus = eventsManager.getGloryHourStatus();

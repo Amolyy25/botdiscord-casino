@@ -271,7 +271,9 @@ module.exports = {
                     components: buildComponents(st)
                 }).catch(() => {});
 
-                announceBigWin(message, st, profit, cashMult);
+                // Announce big wins
+                const { announceBigWin } = require('../utils');
+                await announceBigWin(message.client, message.author, 'Towers', st.bet, profit, `**Multiplicateur:** x${cashMult.toFixed(2)}\n**Étages:** ${st.floors.length} / ${MAX_FLOOR}`);
                 activeGames.delete(userId);
                 return;
             }
@@ -332,7 +334,10 @@ module.exports = {
                     components: buildComponents(st)
                 }).catch(() => {});
 
-                announceBigWin(message, st, profit, cashMult);
+                // Announce big wins
+                const { announceBigWin } = require('../utils');
+                await announceBigWin(message.client, message.author, 'Towers', st.bet, profit, `**Multiplicateur:** x${cashMult.toFixed(2)}\n**Étages:** ${st.floors.length} / ${MAX_FLOOR}`);
+
                 activeGames.delete(userId);
                 return;
             }
@@ -357,25 +362,3 @@ module.exports = {
         });
     }
 };
-
-async function announceBigWin(message, state, profit, multiplier) {
-    if (profit < 500n) return;
-    try {
-        const { WINS_CHANNEL_ID } = require('../roleConfig');
-        const ch = await message.client.channels.fetch(WINS_CHANNEL_ID);
-        if (!ch) return;
-        const embed = createEmbed(
-            'GROS GAIN A TOWERS !',
-            `**${message.author.username}** vient de gagner ${formatCoins(profit)} a Towers !\n\n` +
-            `**Mise:** ${formatCoins(state.bet)}\n` +
-            `**Multiplicateur:** x${multiplier.toFixed(2)}\n` +
-            `**Etages:** ${state.floors.length} / ${MAX_FLOOR}\n` +
-            `**Profit:** ${formatCoins(profit)}`,
-            COLORS.GOLD
-        );
-        embed.setThumbnail(message.author.displayAvatarURL({ dynamic: true }));
-        await ch.send({ embeds: [embed] });
-    } catch (e) {
-        console.error('Failed to send towers win announcement:', e);
-    }
-}

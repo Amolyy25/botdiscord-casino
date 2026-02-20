@@ -178,26 +178,10 @@ module.exports = {
                 await i.update({ embeds: [renderEmbed(result, finalGain)], components: [] });
                 collector.stop();
 
-                // Announce big wins (500+ coins) if won
-                if ((dealerVal > 21 || playerVal > dealerVal) && bet >= 500n) {
-                    try {
-                        const { WINS_CHANNEL_ID } = require('../roleConfig');
-                        const winsChannel = await message.client.channels.fetch(WINS_CHANNEL_ID);
-                        if (winsChannel) {
-                            const { createEmbed, COLORS, formatCoins } = require('../utils');
-                            const winEmbed = createEmbed(
-                                '🎉 GROS GAIN AU BLACKJACK !',
-                                `**${message.author.username}** vient de gagner ${formatCoins(finalGain)} au Blackjack !\n\n` +
-                                `**Mise:** ${formatCoins(bet)}\n` +
-                                `**Gain:** ${formatCoins(finalGain)}`,
-                                COLORS.GOLD
-                            );
-                            winEmbed.setThumbnail(message.author.displayAvatarURL({ dynamic: true }));
-                            await winsChannel.send({ embeds: [winEmbed] });
-                        }
-                    } catch (e) {
-                        console.error('Failed to send win announcement:', e);
-                    }
+                // Announce big wins
+                if (dealerVal > 21 || playerVal > dealerVal) {
+                    const { announceBigWin } = require('../utils');
+                    await announceBigWin(message.client, message.author, 'Blackjack', bet, finalGain, `**Main:** ${playerVal} vs ${dealerVal}\n**Résultat:** ${result}`);
                 }
             }
         });

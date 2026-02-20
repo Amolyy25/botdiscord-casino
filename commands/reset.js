@@ -123,6 +123,25 @@ module.exports = {
                         components: []
                     });
 
+                    // 7. Annonce dans le salon des victoires
+                    try {
+                        const { WINS_CHANNEL_ID } = require('../roleConfig');
+                        const winsChannel = await message.client.channels.fetch(WINS_CHANNEL_ID);
+                        if (winsChannel) {
+                            const announceEmbed = createEmbed(
+                                '✨ NOUVELLE ASCENSION !',
+                                `**${message.author.username}** vient de monter au **${nextPrestigeConfig.name}** !\n\n` +
+                                `**Récompenses obtenues :**\n` +
+                                nextPrestigeConfig.rewards.map(r => `• ${r}`).join('\n'),
+                                '#FFFFFF' // Blanc
+                            );
+                            announceEmbed.setThumbnail(message.author.displayAvatarURL({ dynamic: true }));
+                            await winsChannel.send({ embeds: [announceEmbed] });
+                        }
+                    } catch (announceErr) {
+                        console.error('Erreur lors de l\'annonce du prestige:', announceErr);
+                    }
+
                 } else {
                     await confirmation.update({
                         embeds: [createEmbed(

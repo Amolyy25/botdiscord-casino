@@ -1,46 +1,51 @@
 const { createEmbed, COLORS } = require('../utils');
 
+const cooldowns = new Map();
+
 module.exports = {
     name: 'help',
     description: 'Affiche la liste des commandes',
     async execute(message, args, db) {
+        // Cooldown anti-spam (5 secondes)
+        const now = Date.now();
+        const userId = message.author.id;
+        if (cooldowns.has(userId)) {
+            const expirationTime = cooldowns.get(userId) + 5000;
+            if (now < expirationTime) return;
+        }
+        cooldowns.set(userId, now);
+
         const prefix = process.env.PREFIX || ';';
         const commands = [
-            `**Général**`,
+            `**👤 Général**`,
             `\`${prefix}bal\` - Voir votre solde`,
-            `\`${prefix}profil [@user/ID]\` - Voir le profil d'un joueur`,
-            `\`${prefix}leaderboard [nombre]\` - Top des joueurs (max 25)`,
-            `\`${prefix}daily\` - Récupérer 500 coins quotidiennement`,
-            `\`${prefix}collect\` - Récupérer 150 coins toutes les 30 min`,
-            `\`${prefix}gift @user/ID [montant]\` - Donner des coins`,
-            `\`${prefix}prestige\` - Voir les paliers et récompenses de Prestige`,
-            `\`${prefix}reset\` - Augmenter votre niveau de Prestige (Reset solde)`,
-            `\`${prefix}vole @user/ID\` - Tenter de voler un utilisateur`,
-            `\`${prefix}boost\` - Récupérer votre boost quotidien (Soutien/Booster)`,
+            `\`${prefix}profil\` - Voir votre profil`,
+            `\`${prefix}leaderboard\` - Top des joueurs`,
+            `\`${prefix}daily\` - Récompense quotidienne`,
+            `\`${prefix}collect\` - Récupérer des coins (30min)`,
+            `\`${prefix}gift\` - Donner des coins`,
+            `\`${prefix}vole\` - Tenter un vol`,
+            `✨ \`${prefix}prestige\` - Infos sur le Prestige`,
+            `⏫ \`${prefix}reset\` - Monter en Prestige (Reset)`,
             ``,
-            `**Tirages 🎫**`,
-            `\`${prefix}tirage\` - Effectuer un tirage pour obtenir un rôle`,
-            `\`${prefix}weeklytirages\` - Récupérer vos tirages hebdomadaires (Booster/Premium)`,
+            `**🎫 Tirages**`,
+            `\`${prefix}tirage\` - Tenter votre chance`,
+            `\`${prefix}weeklytirages\` - Récupérer vos tickets`,
             ``,
-            `**Jeux**`,
-            `\`${prefix}bj [mise/all]\` - Blackjack`,
-            `\`${prefix}roulette [mise/all] [rouge/noir/vert]\` - Roulette`,
-            `\`${prefix}cf [mise/all] [pile/face]\` - Coinflip`,
-            `\`${prefix}crash [mise/all]\` - Crash`,
-            `\`${prefix}mines [mise/all] [mines]\` - Mines (mn)`,
-            `\`${prefix}towers [mise/all]\` - Towers (tw)`,
+            `**🎮 Jeux de Casino**`,
+            `🃏 \`${prefix}bj\` - Blackjack`,
+            `🎡 \`${prefix}roulette\` - Roulette`,
+            `🪙 \`${prefix}cf\` - Coinflip`,
+            `📈 \`${prefix}crash\` - Crash`,
+            `💣 \`${prefix}mines\` - Mines (mn)`,
+            `🗼 \`${prefix}towers\` - Towers (tw)`,
             ``,
-            `**Admin**`,
-            `\`${prefix}setupcasino\` - Configurer le système de casino`,
-            `\`${prefix}bal @user/ID\` - Voir le solde d'un joueur`,
-            `\`${prefix}addmoney @user/ID [montant]\` - Ajouter des coins`,
-            `\`${prefix}removemoney @user/ID [montant]\` - Retirer des coins`,
-            `\`${prefix}setmoney @user/ID [montant]\` - Définir le solde`,
-            `\`${prefix}givetirages @user/ID [nombre]\` - Donner des tirages`
+            `**🛠️ Admin**`,
+            `\`${prefix}setupcasino\` | \`${prefix}addmoney\` | \`${prefix}givetirages\``
         ];
 
         const embed = createEmbed(
-            'Aide Casino 🪙',
+            '📚 Aide - Casino & Prestige',
             commands.join('\n')
         );
 

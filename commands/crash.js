@@ -191,28 +191,9 @@ module.exports = {
                 components: []
             }).catch(() => null);
 
-            // Annonce des gros gains (500+ coins de profit)
-            if (finalGain >= 500n) {
-                try {
-                    const { WINS_CHANNEL_ID } = require('../roleConfig');
-                    const winsChannel = await message.client.channels.fetch(WINS_CHANNEL_ID);
-                    if (winsChannel) {
-                        const winEmbed = createEmbed(
-                            '🎉 GROS GAIN AU CRASH !',
-                            `**${message.author.username}** vient de gagner ${formatCoins(finalGain)} au Crash !\n\n` +
-                            `**Multiplicateur:** ${finalMultiplier}x\n` +
-                            `**Mise:** ${formatCoins(bet)}\n` +
-                            `**Gain total:** ${formatCoins(bet + finalGain)}\n` +
-                            `**Profit:** ${formatCoins(finalGain)}`,
-                            COLORS.GOLD
-                        );
-                        winEmbed.setThumbnail(message.author.displayAvatarURL({ dynamic: true }));
-                        await winsChannel.send({ embeds: [winEmbed] });
-                    }
-                } catch (e) {
-                    console.error('Failed to send win announcement:', e);
-                }
-            }
+            // Announce big wins
+            const { announceBigWin } = require('../utils');
+            await announceBigWin(message.client, message.author, 'Crash', bet, finalGain, `**Multiplicateur:** x${safeMult.toFixed(2)}`);
         });
     }
 };

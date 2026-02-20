@@ -216,7 +216,10 @@ module.exports = {
                     components: buildGrid(st, true)
                 }).catch(() => {});
 
-                announceBigWin(message, st, profit);
+                // Announce big wins
+                const { announceBigWin } = require('../utils');
+                await announceBigWin(message.client, message.author, 'Mines', st.bet, profit, `**Multiplicateur:** x${st.multiplier.toFixed(2)}\n**Mines:** ${st.numMines}`);
+                
                 activeGames.delete(userId);
                 return;
             }
@@ -271,7 +274,10 @@ module.exports = {
                     components: buildGrid(st, true)
                 }).catch(() => {});
 
-                announceBigWin(message, st, profit);
+                // Announce big wins
+                const { announceBigWin } = require('../utils');
+                await announceBigWin(message.client, message.author, 'Mines', st.bet, profit, `**Multiplicateur:** x${st.multiplier.toFixed(2)}\n**Mines:** ${st.numMines}`);
+
                 activeGames.delete(userId);
                 return;
             }
@@ -295,25 +301,3 @@ module.exports = {
         });
     }
 };
-
-async function announceBigWin(message, state, profit) {
-    if (profit < 500n) return;
-    try {
-        const { WINS_CHANNEL_ID } = require('../roleConfig');
-        const ch = await message.client.channels.fetch(WINS_CHANNEL_ID);
-        if (!ch) return;
-        const embed = createEmbed(
-            'GROS GAIN AUX MINES !',
-            `**${message.author.username}** vient de gagner ${formatCoins(profit)} aux Mines !\n\n` +
-            `**Mise:** ${formatCoins(state.bet)}\n` +
-            `**Multiplicateur:** x${state.multiplier.toFixed(2)}\n` +
-            `**Mines:** ${state.numMines}\n` +
-            `**Profit:** ${formatCoins(profit)}`,
-            COLORS.GOLD
-        );
-        embed.setThumbnail(message.author.displayAvatarURL({ dynamic: true }));
-        await ch.send({ embeds: [embed] });
-    } catch (e) {
-        console.error('Failed to send mines win announcement:', e);
-    }
-}

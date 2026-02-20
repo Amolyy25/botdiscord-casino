@@ -57,4 +57,47 @@ async function sendLog(guild, title, description, color, fields = []) {
     }
 }
 
-module.exports = { COLORS, CURRENCY, createEmbed, parseBet, formatCoins, sendLog };
+async function announceBigWin(client, user, gameName, bet, profit, extraDetails = "") {
+    if (profit < 500n) return;
+
+    let title = '🎉 PETIT MAGOT !';
+    let color = COLORS.SUCCESS;
+
+    if (profit >= 1000000n) {
+        title = '⭐ LE MYTHE DU CASINO ⭐';
+        color = '#ffffff'; // Blanc pour le mythe
+    } else if (profit >= 100000n) {
+        title = '🔥 JACKPOT LÉGENDAIRE !';
+        color = '#ff0000'; // Rouge vif
+    } else if (profit >= 20000n) {
+        title = '💎 JACKPOT ÉPIQUE !';
+        color = COLORS.VIOLET;
+    } else if (profit >= 5000n) {
+        title = '💰 GROS JACKPOT !';
+        color = COLORS.GOLD;
+    } else if (profit >= 1000n) {
+        title = '✨ BEAU GAIN !';
+        color = '#3498db'; // Bleu
+    }
+
+    try {
+        const { WINS_CHANNEL_ID } = require('./roleConfig');
+        const channel = await client.channels.fetch(WINS_CHANNEL_ID).catch(() => null);
+        if (!channel) return;
+
+        const embed = createEmbed(
+            title,
+            `**${user.username}** vient de gagner à : **${gameName}**\n\n` +
+            `🔹 **Mise:** ${formatCoins(bet)}\n` +
+            `🔹 **Gain:** ${formatCoins(profit)}\n` +
+            (extraDetails ? `\n${extraDetails}` : ''),
+            color
+        );
+        embed.setThumbnail(user.displayAvatarURL({ dynamic: true }));
+        await channel.send({ embeds: [embed] });
+    } catch (err) {
+        console.error("[Win Announce] Erreur:", err.message);
+    }
+}
+
+module.exports = { COLORS, CURRENCY, createEmbed, parseBet, formatCoins, sendLog, announceBigWin };
