@@ -9,7 +9,7 @@ module.exports = {
 
         for (const p of PRESTIGE_LEVELS) {
             description += `**${p.name}**\n`;
-            description += `Prix : **${formatCoins(p.price, false)}**\n`;
+            description += `Prix : ${formatCoins(p.price, false)}\n`;
             description += `Rôle : <@&${p.roleId}>\n`;
             description += `Avantages :\n`;
             description += p.rewards.map(r => `• ${r}`).join('\n') + "\n\n";
