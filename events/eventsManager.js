@@ -11,7 +11,7 @@ let doubleGainActive = false;
 let doubleGainEndTime = 0;
 
 // L'Heure de Gloire s'active 1 fois par jour, à une heure aléatoire entre 19h et 23h
-const GLORY_HOUR_DURATION = 30 * 60 * 1000; // 30 minutes
+const GLORY_HOUR_DURATION = 20 * 60 * 1000; // 30 minutes
 const VOLE_GENIE_CHANCE = 0.03; // 3%
 const CASINO_CHANNEL_ID = "1469713523549540536";
 const ROLE_ID = "1469713522194780404"; // Casino Role
@@ -189,7 +189,7 @@ module.exports = {
     if (channel) {
       const embed = createEmbed(
         "⚡ L'HEURE DE GLOIRE A SONNÉ !",
-        `🎰 **Tous les gains du casino sont DOUBLÉS pendant 30 minutes !** 🎰\n\n` +
+        `🎰 **Tous les gains du casino sont DOUBLÉS pendant 20 minutes !** 🎰\n\n` +
           `Profitez-en maintenant ! <@&${ROLE_ID}>\n` +
           `Fin de l'événement : <t:${Math.floor(doubleGainEndTime / 1000)}:R>`,
         COLORS.GOLD,
