@@ -681,8 +681,22 @@ const slashCommand = new SlashCommandBuilder()
           .setDescription('Montant (Coins/Tirages), ID du rôle, ou ignorer pour MYSTERY_BOX')
           .setRequired(false))
       .addStringOption(opt =>
-        opt.setName('mystery_default_reward')
-          .setDescription('Récompense garantie pour Mystery Box. Format: TYPE:VALEUR:LABEL (ex: COINS:5000:5000 coins)')
+        opt.setName('mb_type')
+          .setDescription('Pour MYSTERY_BOX : Type de la récompense garantie')
+          .setRequired(false)
+          .addChoices(
+            { name: '🪙 Coins', value: 'COINS' },
+            { name: '🎫 Tirages', value: 'TIRAGES' },
+            { name: '🎭 Rôle Permanent', value: 'ROLE' },
+            { name: '⏳ Rôle Temporaire', value: 'TEMP_ROLE' },
+          ))
+      .addStringOption(opt =>
+        opt.setName('mb_value')
+          .setDescription('Pour MYSTERY_BOX : Valeur de la récompense garantie (montant ou ID)')
+          .setRequired(false))
+      .addStringOption(opt =>
+        opt.setName('mb_label')
+          .setDescription('Pour MYSTERY_BOX : Label affiché (ex: 5000 coins). Optionnel.')
           .setRequired(false))
       .addStringOption(opt =>
         opt.setName('role_duration')
@@ -973,31 +987,31 @@ module.exports = {
       }
     }
 
-    // ── MYSTERY_BOX : lire mystery_default_reward ──
+    // ── MYSTERY_BOX : gérer les options mb_type, mb_value, mb_label ──
     let finalValue = value;
     if (type === 'MYSTERY_BOX') {
-      const mbReward = interaction.options.getString('mystery_default_reward');
-      if (!mbReward) {
+      const mbType = interaction.options.getString('mb_type');
+      const mbValue = interaction.options.getString('mb_value');
+      let mbLabel = interaction.options.getString('mb_label');
+
+      if (!mbType || !mbValue) {
         return interaction.reply({
-          content: '❌ Pour une Mystery Box, remplis le champ `mystery_default_reward`.\nFormat : `TYPE:VALEUR:LABEL` (ex: `COINS:5000:5000 coins`)',
+          content: '❌ Pour une Mystery Box, remplis les champs `mb_type` et `mb_value` (récompense garantie).',
           flags: 64,
         });
       }
-      const parts = mbReward.split(':');
-      if (parts.length < 3) {
-        return interaction.reply({
-          content: '❌ Format invalide. Utilise : `TYPE:VALEUR:LABEL` (ex: `COINS:5000:5000 coins`)',
-          flags: 64,
-        });
+
+      // Générer un label par défaut si vide
+      if (!mbLabel) {
+        if (mbType === 'COINS') mbLabel = `${mbValue} coins`;
+        else if (mbType === 'TIRAGES') mbLabel = `${mbValue} tirages`;
+        else if (mbType === 'ROLE' || mbType === 'TEMP_ROLE') {
+          const role = interaction.guild.roles.cache.get(mbValue);
+          mbLabel = role ? `Rôle ${role.name}` : `Rôle ${mbValue}`;
+        }
       }
-      parts[0] = parts[0].toUpperCase();
-      if (!['COINS', 'TIRAGES', 'ROLE', 'TEMP_ROLE'].includes(parts[0])) {
-        return interaction.reply({
-          content: `❌ Type de récompense par défaut invalide : \`${parts[0]}\`. Choix : COINS, TIRAGES, ROLE, TEMP_ROLE`,
-          flags: 64,
-        });
-      }
-      finalValue = parts.join(':');
+
+      finalValue = `${mbType.toUpperCase()}:${mbValue}:${mbLabel}`;
     }
 
     const endsAt = Date.now() + duration;
