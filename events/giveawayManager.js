@@ -5,7 +5,6 @@ const {
   RARITY_COLORS,
   RARITY_EMOJIS,
   RARITY_LABELS,
-  MYSTERY_BOX_ANNOUNCE_CHANNEL_ID,
 } = require('../mysteryBoxConfig');
 
 // ═══════════════════════════════════════════════
@@ -422,21 +421,20 @@ async function openMysteryBoxAnimated(interaction, box) {
 
   await interaction.editReply({ embeds: [resultEmbed], components: [] });
 
-  // Annonce publique dans le salon dédié
+  // Annonce publique dans le channel du giveaway (même salon que l'interaction)
   try {
-    const announceChannel = await _client.channels.fetch(MYSTERY_BOX_ANNOUNCE_CHANNEL_ID).catch(() => null);
-    if (announceChannel && announceChannel.id !== interaction.channelId) {
-      const announceEmbed = new EmbedBuilder()
-        .setTitle(`${rarityEmoji} Mystery Box ouverte !`)
-        .setDescription(
-          `🚨 **<@${box.user_id}>** vient d'ouvrir une Mystery Box et a trouvé :\n\n` +
-          `> **${item.name}** — *${rarityLabel}*`
-        )
-        .setColor(rarityColor)
-        .setTimestamp();
-      await announceChannel.send({ embeds: [announceEmbed] });
-    }
-  } catch (e) { /* salon non disponible, on ignore */ }
+    const announceEmbed = new EmbedBuilder()
+      .setTitle(`${rarityEmoji} Mystery Box ouverte !`)
+      .setDescription(
+        `🚨 **<@${box.user_id}>** vient d'ouvrir une Mystery Box et a trouvé :\n\n` +
+        `> **${item.name}** — *${rarityLabel}*`
+      )
+      .setColor(rarityColor)
+      .setTimestamp();
+    // Le message est déjà dans le bon channel (interaction.channel = channel du giveaway)
+    // On envoie un nouveau message visible de tous dans ce même channel
+    await interaction.channel.send({ embeds: [announceEmbed] });
+  } catch (e) { /* ignore */ }
 
   // Log admin
   if (guild) {
