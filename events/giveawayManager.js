@@ -660,20 +660,12 @@ const slashCommand = new SlashCommandBuilder()
           .setDescription('Type de récompense')
           .setRequired(true)
           .addChoices(
-            { name: '🪙 Coins', value: 'COINS' },
-            { name: '🎫 Tirages', value: 'TIRAGES' },
-            { name: '🎭 Rôle Permanent', value: 'ROLE' },
-            { name: '⏳ Rôle Temporaire', value: 'TEMP_ROLE' },
-            { name: '🎁 Mystery Box', value: 'MYSTERY_BOX' },
-          ))
-      .addStringOption(opt =>
-        opt.setName('value')
-          .setDescription('Montant (Coins/Tirages), ID du rôle, ou ignorer pour MYSTERY_BOX')
-          .setRequired(false))
-      .addStringOption(opt =>
-        opt.setName('mystery_default_reward')
-          .setDescription('Récompense garantie pour Mystery Box. Format: TYPE:VALEUR:LABEL (ex: COINS:5000:5000 coins)')
-          .setRequired(false))
+        { name: '🪙 Coins', value: 'COINS' },
+        { name: '🎫 Tirages', value: 'TIRAGES' },
+        { name: '🎭 Rôle Permanent', value: 'ROLE' },
+        { name: '⏳ Rôle Temporaire', value: 'TEMP_ROLE' },
+        { name: '🎁 Mystery Box', value: 'MYSTERY_BOX' },
+      ))
       .addStringOption(opt =>
         opt.setName('duration')
           .setDescription('Durée du giveaway (ex: 10m, 1h, 2d)')
@@ -684,6 +676,14 @@ const slashCommand = new SlashCommandBuilder()
           .setRequired(true)
           .setMinValue(1)
           .setMaxValue(20))
+      .addStringOption(opt =>
+        opt.setName('value')
+          .setDescription('Montant (Coins/Tirages), ID du rôle, ou ignorer pour MYSTERY_BOX')
+          .setRequired(false))
+      .addStringOption(opt =>
+        opt.setName('mystery_default_reward')
+          .setDescription('Récompense garantie pour Mystery Box. Format: TYPE:VALEUR:LABEL (ex: COINS:5000:5000 coins)')
+          .setRequired(false))
       .addStringOption(opt =>
         opt.setName('role_duration')
           .setDescription('Durée du rôle temporaire (ex: 1h, 2d) — requis pour TEMP_ROLE')

@@ -207,7 +207,7 @@ const MYSTERY_BOX_ITEMS = [
     id: 'mb_coins_200',
     name: '1 000 Coins',
     rarity: 'COMMUN',
-    probability: 0.1699,   // ~16.99% — padding pour atteindre 100%
+    probability: 0.0699,   // ~6.99% — padding pour atteindre 100%
     type: 'coins',
     value: 1000,
     description: '🪙 **1 000 coins**. La boîte était presque vide, mais bon...',
