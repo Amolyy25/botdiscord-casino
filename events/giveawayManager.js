@@ -1,5 +1,12 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { COLORS, createEmbed, formatCoins, sendLog } = require('../utils');
+const {
+  drawMysteryItem,
+  RARITY_COLORS,
+  RARITY_EMOJIS,
+  RARITY_LABELS,
+  MYSTERY_BOX_ANNOUNCE_CHANNEL_ID,
+} = require('../mysteryBoxConfig');
 
 // ═══════════════════════════════════════════════
 // Helpers
@@ -10,6 +17,7 @@ const PRIZE_LABELS = {
   TIRAGES: '🎫 Tirages',
   ROLE: '🎭 Rôle Permanent',
   TEMP_ROLE: '⏳ Rôle Temporaire',
+  MYSTERY_BOX: '🎁 Mystery Box',
 };
 
 function parseDuration(str) {
@@ -45,36 +53,80 @@ function prizeDescription(giveaway) {
       const dur = giveaway.temp_role_duration ? formatDuration(parseInt(giveaway.temp_role_duration)) : '?';
       return `Rôle <@&${value}> (${dur})`;
     }
+    case 'MYSTERY_BOX': {
+      // value = "TYPE:VALEUR:LABEL"
+      const label = value.split(':')[2] || value;
+      return `🎁 **Mystery Box** *(ou ${label} garanti)*`;
+    }
     default: return value;
   }
 }
 
+/**
+ * Parse la valeur d'un giveaway MYSTERY_BOX.
+ * Format stocké : "TYPE:VALEUR:LABEL"
+ */
+function parseMysteryBoxValue(rawValue) {
+  const parts = rawValue.split(':');
+  return {
+    defaultType:  parts[0] || 'COINS',
+    defaultValue: parts[1] || '0',
+    defaultLabel: parts.slice(2).join(':') || parts[1] || rawValue,
+  };
+}
+
 function buildGiveawayEmbed(giveaway, participantCount, ended = false, winners = []) {
   const embed = new EmbedBuilder().setTimestamp();
+  const isMB = giveaway.prize_type === 'MYSTERY_BOX';
 
   if (ended) {
-    embed.setTitle('🎉 Giveaway Terminé !');
-    embed.setColor(COLORS.GOLD);
+    embed.setTitle(isMB ? '🎁 Giveaway Mystery Box Terminé !' : '🎉 Giveaway Terminé !');
+    embed.setColor(isMB ? '#9B59B6' : COLORS.GOLD);
     const winnerMentions = winners.length > 0
       ? winners.map(w => `<@${w}>`).join(', ')
       : '*Aucun participant*';
-    embed.setDescription(
-      `**Récompense :** ${prizeDescription(giveaway)}\n` +
-      `**Gagnant(s) :** ${winnerMentions}\n\n` +
-      `Lancé par <@${giveaway.host_id}>`
-    );
+    if (isMB) {
+      const { defaultLabel } = parseMysteryBoxValue(giveaway.prize_value);
+      embed.setDescription(
+        `**Récompense garantie :** ${defaultLabel}\n` +
+        `**Alternative :** 🎁 Mystery Box (lot surprise !)\ \n` +
+        `**Gagnant(s) :** ${winnerMentions}\n\n` +
+        `Lancé par <@${giveaway.host_id}>`
+      );
+    } else {
+      embed.setDescription(
+        `**Récompense :** ${prizeDescription(giveaway)}\n` +
+        `**Gagnant(s) :** ${winnerMentions}\n\n` +
+        `Lancé par <@${giveaway.host_id}>`
+      );
+    }
   } else {
-    embed.setTitle('🎉 GIVEAWAY 🎉');
-    embed.setColor('#5865F2'); // Discord blurple
     const endsAt = Math.floor(parseInt(giveaway.ends_at) / 1000);
-    embed.setDescription(
-      `**Récompense :** ${prizeDescription(giveaway)}\n` +
-      `**Type :** ${PRIZE_LABELS[giveaway.prize_type] || giveaway.prize_type}\n` +
-      `**Fin :** <t:${endsAt}:R> (<t:${endsAt}:f>)\n` +
-      `**Gagnant(s) :** ${giveaway.winner_count}\n` +
-      `**Participants :** ${participantCount}\n\n` +
-      `Lancé par <@${giveaway.host_id}>`
-    );
+    if (isMB) {
+      embed.setTitle('🎁 GIVEAWAY — MYSTERY BOX 🎁');
+      embed.setColor('#9B59B6');
+      const { defaultLabel } = parseMysteryBoxValue(giveaway.prize_value);
+      embed.setDescription(
+        `> ✅ **Récompense garantie :** ${defaultLabel}\n` +
+        `> 🎁 **Mystery Box :** un lot MYSTÈRE... peut-être légendaire !\n\n` +
+        `**Fin :** <t:${endsAt}:R> (<t:${endsAt}:f>)\n` +
+        `**Gagnant(s) :** ${giveaway.winner_count}\n` +
+        `**Participants :** ${participantCount}\n\n` +
+        `*Le gagnant choisira : récompense garantie **ou** Mystery Box !*\n` +
+        `Lancé par <@${giveaway.host_id}>`
+      );
+    } else {
+      embed.setTitle('🎉 GIVEAWAY 🎉');
+      embed.setColor('#5865F2');
+      embed.setDescription(
+        `**Récompense :** ${prizeDescription(giveaway)}\n` +
+        `**Type :** ${PRIZE_LABELS[giveaway.prize_type] || giveaway.prize_type}\n` +
+        `**Fin :** <t:${endsAt}:R> (<t:${endsAt}:f>)\n` +
+        `**Gagnant(s) :** ${giveaway.winner_count}\n` +
+        `**Participants :** ${participantCount}\n\n` +
+        `Lancé par <@${giveaway.host_id}>`
+      );
+    }
   }
 
   embed.setFooter({ text: `Giveaway #${giveaway.id}` });
@@ -115,20 +167,7 @@ async function endGiveaway(giveaway) {
   try {
     const participants = await _db.getGiveawayParticipants(giveaway.id);
     const winners = pickWinners(participants, giveaway.winner_count);
-
-    // Distribute rewards to each winner
     const guild = _client.guilds.cache.get(giveaway.guild_id);
-    const rewardResults = [];
-
-    for (const winnerId of winners) {
-      try {
-        const result = await distributeReward(giveaway, winnerId, guild);
-        rewardResults.push({ winnerId, success: true, detail: result });
-      } catch (err) {
-        console.error(`[Giveaway] Erreur distribution pour ${winnerId}:`, err.message);
-        rewardResults.push({ winnerId, success: false, detail: err.message });
-      }
-    }
 
     // Mark as ended in DB
     await _db.endGiveaway(giveaway.id);
@@ -146,6 +185,24 @@ async function endGiveaway(giveaway) {
       }
     } catch (err) {
       console.error(`[Giveaway] Erreur update embed #${giveaway.id}:`, err.message);
+    }
+
+    // ── MYSTERY BOX special flow ──
+    if (giveaway.prize_type === 'MYSTERY_BOX') {
+      await endGiveawayMysteryBox(giveaway, winners, guild);
+      return;
+    }
+
+    // ── Normal reward distribution ──
+    const rewardResults = [];
+    for (const winnerId of winners) {
+      try {
+        const result = await distributeReward(giveaway, winnerId, guild);
+        rewardResults.push({ winnerId, success: true, detail: result });
+      } catch (err) {
+        console.error(`[Giveaway] Erreur distribution pour ${winnerId}:`, err.message);
+        rewardResults.push({ winnerId, success: false, detail: err.message });
+      }
     }
 
     // Send winner announcement
@@ -167,7 +224,7 @@ async function endGiveaway(giveaway) {
 
     // Log
     if (guild) {
-      await sendLog(guild, '🎉 Giveaway Terminé', 
+      await sendLog(guild, '🎉 Giveaway Terminé',
         `**Giveaway #${giveaway.id}** terminé.\n` +
         `Récompense : ${prizeDescription(giveaway)}\n` +
         `Gagnants : ${winners.length > 0 ? winners.map(w => `<@${w}>`).join(', ') : 'Aucun'}\n` +
@@ -180,6 +237,272 @@ async function endGiveaway(giveaway) {
   } catch (err) {
     console.error(`[Giveaway] Erreur critique fin giveaway #${giveaway.id}:`, err);
   }
+}
+
+// ═══════════════════════════════════════════════
+// Mystery Box — Fin de giveaway
+// ═══════════════════════════════════════════════
+
+async function endGiveawayMysteryBox(giveaway, winners, guild) {
+  try {
+    const channel = await _client.channels.fetch(giveaway.channel_id).catch(() => null);
+    if (!channel) return;
+
+    if (winners.length === 0) {
+      await channel.send({
+        embeds: [createEmbed('🎁 Giveaway Mystery Box Terminé', `Aucun participant.`, '#9B59B6')],
+      });
+      return;
+    }
+
+    const { defaultType, defaultValue, defaultLabel } = parseMysteryBoxValue(giveaway.prize_value);
+    const winnerMentions = winners.map(w => `<@${w}>`).join(', ');
+
+    // For each winner, create a box entry and send choice message in channel
+    for (const winnerId of winners) {
+      const box = await _db.giveMysteryBox(
+        winnerId,
+        giveaway.guild_id,
+        giveaway.id,
+        defaultType,
+        defaultValue,
+        defaultLabel
+      );
+
+      const choiceEmbed = new EmbedBuilder()
+        .setTitle('🎁 Tu as gagné le Giveaway Mystery Box !')
+        .setColor('#9B59B6')
+        .setDescription(
+          `Félicitations <@${winnerId}> ! 🥳\n\n` +
+          `Tu as le choix entre deux options :\n\n` +
+          `> ✅ **Récompense garantie :** ${defaultLabel}\n` +
+          `> 🎁 **Mystery Box :** un lot mystère... peut-être **LÉGENDAIRE** !\n\n` +
+          `*Quel risque vas-tu prendre ?*`
+        )
+        .setFooter({ text: `Giveaway #${giveaway.id} · Box #${box.id}` })
+        .setTimestamp();
+
+      const choiceRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`mb_choose_default_${box.id}`)
+          .setLabel(`✅ Prendre : ${defaultLabel}`)
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId(`mb_choose_box_${box.id}`)
+          .setLabel('🎁 Ouvrir la Mystery Box')
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      await channel.send({
+        content: `🎉 <@${winnerId}>`,
+        embeds: [choiceEmbed],
+        components: [choiceRow],
+      });
+    }
+
+    // Log
+    if (guild) {
+      await sendLog(guild, '🎁 Giveaway Mystery Box Terminé',
+        `**Giveaway #${giveaway.id}** terminé.\n` +
+        `Gagnants (en attente de choix) : ${winnerMentions}\n` +
+        `Récompense garantie : ${defaultLabel}`,
+        '#9B59B6'
+      );
+    }
+    console.log(`[MysteryBox] Giveaway #${giveaway.id} terminé — ${winners.length} gagnant(s) en attente de choix`);
+  } catch (err) {
+    console.error(`[MysteryBox] Erreur fin giveaway #${giveaway.id}:`, err);
+  }
+}
+
+// ═══════════════════════════════════════════════
+// Mystery Box — Ouverture interactive (animation)
+// ═══════════════════════════════════════════════
+
+/**
+ * Procède à l'ouverture animée d'une Mystery Box.
+ * Édite successivement un message existant (interaction.message ou un message dédié).
+ */
+async function openMysteryBoxAnimated(interaction, box) {
+  // Étapes d'animation
+  const steps = [
+    { color: '#2b2d31', title: '📦 Ouverture de la Mystery Box...', desc: '*La boîte résiste...\n\nPrépare-toi...*' },
+    { color: '#E67E22', title: '📦 La boîte tremble...', desc: '**💥 Quelque chose s\'en échappe !**\n\n*Que va-t-il en sortir ?*' },
+    { color: '#F1C40F', title: '✨ Une lumière s\'en échappe...', desc: '**⚡ Le sort est jeté !**\n\n*Ton destin se révèle...*' },
+  ];
+
+  // Désactiver les boutons du message de choix
+  const disabledRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('mb_disabled_default')
+      .setLabel('✅ Récompense garantie')
+      .setStyle(ButtonStyle.Success)
+      .setDisabled(true),
+    new ButtonBuilder()
+      .setCustomId('mb_disabled_box')
+      .setLabel('🎁 Mystery Box choisie !')
+      .setStyle(ButtonStyle.Danger)
+      .setDisabled(true)
+  );
+
+  // Déférer sans ephémère pour pouvoir éditer le message original
+  await interaction.deferUpdate();
+
+  // Animation step 1
+  const step1 = new EmbedBuilder()
+    .setTitle(steps[0].title)
+    .setDescription(steps[0].desc)
+    .setColor(steps[0].color)
+    .setFooter({ text: `Box #${box.id}` })
+    .setTimestamp();
+  await interaction.editReply({ embeds: [step1], components: [disabledRow] });
+
+  await sleep(1800);
+
+  // Animation step 2
+  const step2 = new EmbedBuilder()
+    .setTitle(steps[1].title)
+    .setDescription(steps[1].desc)
+    .setColor(steps[1].color)
+    .setFooter({ text: `Box #${box.id}` })
+    .setTimestamp();
+  await interaction.editReply({ embeds: [step2], components: [disabledRow] });
+
+  await sleep(1800);
+
+  // Animation step 3
+  const step3 = new EmbedBuilder()
+    .setTitle(steps[2].title)
+    .setDescription(steps[2].desc)
+    .setColor(steps[2].color)
+    .setFooter({ text: `Box #${box.id}` })
+    .setTimestamp();
+  await interaction.editReply({ embeds: [step3], components: [disabledRow] });
+
+  await sleep(2000);
+
+  // Tirage
+  const item = drawMysteryItem();
+
+  // Distribuer la récompense
+  const guild = interaction.guild;
+  let rewardLog = '';
+  try {
+    rewardLog = await distributeMysteryReward(item, box.user_id, guild, box.id);
+  } catch (err) {
+    console.error(`[MysteryBox] Erreur distribution:`, err);
+    rewardLog = `❌ Erreur: ${err.message}`;
+  }
+
+  // Marquer comme ouverte
+  await _db.consumeMysteryBox(box.id);
+
+  // Embed résultat final
+  const rarityColor  = RARITY_COLORS[item.rarity];
+  const rarityEmoji  = RARITY_EMOJIS[item.rarity];
+  const rarityLabel  = RARITY_LABELS[item.rarity];
+  const isNitro      = item.type === 'manual';
+
+  const resultEmbed = new EmbedBuilder()
+    .setTitle(`${rarityEmoji} ${item.rarity === 'LEGENDAIRE' ? '🎊 LÉGENDAIRE !' : item.rarity === 'EPIQUE' ? '💜 ÉPIQUE !' : item.rarity === 'RARE' ? '💙 RARE !' : '⚪ Commun...'}`)
+    .setDescription(
+      `<@${box.user_id}> vient d'ouvrir une **Mystery Box** !\n\n` +
+      `**🎁 Lot obtenu : ${item.name}**\n` +
+      `${item.description}\n\n` +
+      (isNitro ? `> ⚠️ Un administrateur te contactera pour remettre ta récompense.` : '') +
+      `\n*Rareté : **${rarityLabel}***`
+    )
+    .setColor(rarityColor)
+    .setFooter({ text: `Giveaway #${box.giveaway_id} · Box #${box.id}` })
+    .setTimestamp();
+
+  if (item.rarity === 'LEGENDAIRE') {
+    resultEmbed.setThumbnail('https://cdn.discordapp.com/emojis/1135068674779725884.gif?v=1&quality=lossless');
+  }
+
+  await interaction.editReply({ embeds: [resultEmbed], components: [] });
+
+  // Annonce publique dans le salon dédié
+  try {
+    const announceChannel = await _client.channels.fetch(MYSTERY_BOX_ANNOUNCE_CHANNEL_ID).catch(() => null);
+    if (announceChannel && announceChannel.id !== interaction.channelId) {
+      const announceEmbed = new EmbedBuilder()
+        .setTitle(`${rarityEmoji} Mystery Box ouverte !`)
+        .setDescription(
+          `🚨 **<@${box.user_id}>** vient d'ouvrir une Mystery Box et a trouvé :\n\n` +
+          `> **${item.name}** — *${rarityLabel}*`
+        )
+        .setColor(rarityColor)
+        .setTimestamp();
+      await announceChannel.send({ embeds: [announceEmbed] });
+    }
+  } catch (e) { /* salon non disponible, on ignore */ }
+
+  // Log admin
+  if (guild) {
+    await sendLog(guild, `${rarityEmoji} Mystery Box Ouverte`,
+      `<@${box.user_id}> a obtenu : **${item.name}** (${rarityLabel})\n${rewardLog}`,
+      rarityColor
+    ).catch(() => {});
+  }
+
+  console.log(`[MysteryBox] Box #${box.id} ouverte par ${box.user_id} → ${item.name} (${item.rarity})`);
+}
+
+/**
+ * Distribue la récompense d'un item Mystery Box.
+ */
+async function distributeMysteryReward(item, userId, guild, boxId) {
+  switch (item.type) {
+    case 'coins': {
+      const newBal = await _db.updateBalance(userId, BigInt(item.value), `Mystery Box: ${item.name}`);
+      return `+${item.value} coins (nouveau solde: ${newBal})`;
+    }
+    case 'tirages': {
+      const total = await _db.updateTirages(userId, item.value);
+      return `+${item.value} tirages (total: ${total})`;
+    }
+    case 'role': {
+      if (!guild) throw new Error('Guild introuvable');
+      const member = await guild.members.fetch(userId).catch(() => null);
+      if (!member) throw new Error('Membre introuvable');
+      const role = guild.roles.cache.get(item.value);
+      if (!role) throw new Error(`Rôle ${item.value} introuvable`);
+      await member.roles.add(role);
+      return `Rôle ${role.name} ajouté`;
+    }
+    case 'temp_role': {
+      if (!guild) throw new Error('Guild introuvable');
+      const member = await guild.members.fetch(userId).catch(() => null);
+      if (!member) throw new Error('Membre introuvable');
+      const role = guild.roles.cache.get(item.value);
+      if (!role) throw new Error(`Rôle ${item.value} introuvable`);
+      await member.roles.add(role);
+      const duration = item.duration || 86_400_000;
+      await _db.addScheduledTask({
+        taskType: 'REMOVE_ROLE',
+        guildId: guild.id,
+        userId: userId,
+        roleId: item.value,
+        executeAt: Date.now() + duration,
+      });
+      return `Rôle temp ${role.name} ajouté (${formatDuration(duration)})`;
+    }
+    case 'manual':
+      // Nitro ou autre récompense manuelle — log et notif admin
+      return `Récompense manuelle: ${item.name} — admin devra la distribuer`;
+    case 'troll':
+      return `Lot troll: ${item.name}`;
+    default:
+      return 'Type inconnu';
+  }
+}
+
+/**
+ * Helper sleep
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 async function distributeReward(giveaway, winnerId, guild) {
@@ -343,11 +666,16 @@ const slashCommand = new SlashCommandBuilder()
             { name: '🎫 Tirages', value: 'TIRAGES' },
             { name: '🎭 Rôle Permanent', value: 'ROLE' },
             { name: '⏳ Rôle Temporaire', value: 'TEMP_ROLE' },
+            { name: '🎁 Mystery Box', value: 'MYSTERY_BOX' },
           ))
       .addStringOption(opt =>
         opt.setName('value')
-          .setDescription('Montant (Coins/Tirages) ou ID du rôle')
-          .setRequired(true))
+          .setDescription('Montant (Coins/Tirages), ID du rôle, ou ignorer pour MYSTERY_BOX')
+          .setRequired(false))
+      .addStringOption(opt =>
+        opt.setName('mystery_default_reward')
+          .setDescription('Récompense garantie pour Mystery Box. Format: TYPE:VALEUR:LABEL (ex: COINS:5000:5000 coins)')
+          .setRequired(false))
       .addStringOption(opt =>
         opt.setName('duration')
           .setDescription('Durée du giveaway (ex: 10m, 1h, 2d)')
@@ -437,6 +765,88 @@ module.exports = {
   async handleInteraction(interaction, db) {
     if (!interaction.isButton()) return false;
     const id = interaction.customId;
+
+    // ── Mystery Box: Take default reward ──
+    if (id.startsWith('mb_choose_default_')) {
+      const boxId = parseInt(id.replace('mb_choose_default_', ''));
+      if (isNaN(boxId)) return false;
+      try {
+        const box = await db.getMysteryBox(boxId);
+        if (!box) {
+          await interaction.reply({ content: '❌ Box introuvable.', flags: 64 });
+          return true;
+        }
+        if (box.user_id !== interaction.user.id) {
+          await interaction.reply({ content: '❌ Cette box ne t\'appartient pas.', flags: 64 });
+          return true;
+        }
+        if (box.status !== 'pending_choice') {
+          await interaction.reply({ content: '❌ Tu as déjà fait ton choix pour cette box.', flags: 64 });
+          return true;
+        }
+
+        // Distribute default reward
+        await db.updateMysteryBoxStatus(boxId, 'default_taken');
+        const guild = interaction.guild;
+        let result = '';
+        try {
+          // Reuse giveaway distributeReward logic
+          const fakeGw = { prize_type: box.default_prize_type, prize_value: box.default_prize_value, temp_role_duration: null, guild_id: box.guild_id };
+          result = await distributeReward(fakeGw, box.user_id, guild);
+        } catch (err) {
+          result = `❌ ${err.message}`;
+        }
+
+        const embed = new EmbedBuilder()
+          .setTitle('✅ Récompense récupérée !')
+          .setDescription(`<@${box.user_id}>, tu as choisi la récompense garantie !\n\n**🏆 ${box.default_prize_label}** → ${result}`)
+          .setColor('#43b581')
+          .setFooter({ text: `Box #${boxId}` })
+          .setTimestamp();
+
+        await interaction.update({ embeds: [embed], components: [] });
+
+        await sendLog(interaction.guild, '✅ Mystery Box — Récompense par défaut',
+          `<@${box.user_id}> a pris la récompense garantie : **${box.default_prize_label}**\n${result}`,
+          '#43b581'
+        ).catch(() => {});
+      } catch (err) {
+        console.error('[MysteryBox] Erreur choix default:', err);
+        await interaction.reply({ content: '❌ Une erreur est survenue.', flags: 64 }).catch(() => {});
+      }
+      return true;
+    }
+
+    // ── Mystery Box: Open the box (animated) ──
+    if (id.startsWith('mb_choose_box_')) {
+      const boxId = parseInt(id.replace('mb_choose_box_', ''));
+      if (isNaN(boxId)) return false;
+      try {
+        const box = await db.getMysteryBox(boxId);
+        if (!box) {
+          await interaction.reply({ content: '❌ Box introuvable.', flags: 64 });
+          return true;
+        }
+        if (box.user_id !== interaction.user.id) {
+          await interaction.reply({ content: '❌ Cette box ne t\'appartient pas.', flags: 64 });
+          return true;
+        }
+        if (box.status !== 'pending_choice') {
+          await interaction.reply({ content: '❌ Tu as déjà fait ton choix pour cette box.', flags: 64 });
+          return true;
+        }
+
+        // Mark box as chosen before animation to prevent double-click
+        await db.updateMysteryBoxStatus(boxId, 'box_chosen');
+
+        // Run animated opening
+        await openMysteryBoxAnimated(interaction, box);
+      } catch (err) {
+        console.error('[MysteryBox] Erreur ouverture box:', err);
+        await interaction.reply({ content: '❌ Une erreur est survenue lors de l\'ouverture.', flags: 64 }).catch(() => {});
+      }
+      return true;
+    }
 
     // ── Join button ──
     if (id.startsWith('giveaway_join_')) {
@@ -540,7 +950,7 @@ module.exports = {
     const winnerCount = interaction.options.getInteger('winners');
     const roleDurationStr = interaction.options.getString('role_duration');
 
-    if ((type === 'COINS' || type === 'TIRAGES') && (isNaN(parseInt(value)) || parseInt(value) <= 0)) {
+    if ((type === 'COINS' || type === 'TIRAGES') && (!value || isNaN(parseInt(value)) || parseInt(value) <= 0)) {
       return interaction.reply({ content: '❌ La valeur doit être un nombre positif.', flags: 64 });
     }
 
@@ -565,6 +975,33 @@ module.exports = {
       }
     }
 
+    // ── MYSTERY_BOX : lire mystery_default_reward ──
+    let finalValue = value;
+    if (type === 'MYSTERY_BOX') {
+      const mbReward = interaction.options.getString('mystery_default_reward');
+      if (!mbReward) {
+        return interaction.reply({
+          content: '❌ Pour une Mystery Box, remplis le champ `mystery_default_reward`.\nFormat : `TYPE:VALEUR:LABEL` (ex: `COINS:5000:5000 coins`)',
+          flags: 64,
+        });
+      }
+      const parts = mbReward.split(':');
+      if (parts.length < 3) {
+        return interaction.reply({
+          content: '❌ Format invalide. Utilise : `TYPE:VALEUR:LABEL` (ex: `COINS:5000:5000 coins`)',
+          flags: 64,
+        });
+      }
+      parts[0] = parts[0].toUpperCase();
+      if (!['COINS', 'TIRAGES', 'ROLE', 'TEMP_ROLE'].includes(parts[0])) {
+        return interaction.reply({
+          content: `❌ Type de récompense par défaut invalide : \`${parts[0]}\`. Choix : COINS, TIRAGES, ROLE, TEMP_ROLE`,
+          flags: 64,
+        });
+      }
+      finalValue = parts.join(':');
+    }
+
     const endsAt = Date.now() + duration;
     const giveaway = await db.createGiveaway({
       guildId: interaction.guild.id,
@@ -572,7 +1009,7 @@ module.exports = {
       messageId: null,
       hostId: interaction.user.id,
       prizeType: type,
-      prizeValue: value,
+      prizeValue: finalValue,
       winnerCount,
       endsAt,
       tempRoleDuration,

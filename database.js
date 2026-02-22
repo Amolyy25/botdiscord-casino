@@ -143,6 +143,20 @@ const initDb = async () => {
       created_at BIGINT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_balhis_user ON balance_history(user_id);
+
+    CREATE TABLE IF NOT EXISTS mystery_box_inventory (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      guild_id TEXT NOT NULL,
+      giveaway_id INTEGER,
+      default_prize_type TEXT,
+      default_prize_value TEXT,
+      default_prize_label TEXT,
+      status TEXT DEFAULT 'pending_choice',
+      opened BOOLEAN DEFAULT FALSE,
+      created_at BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_mb_user ON mystery_box_inventory(user_id);
   `);
 };
 
@@ -612,6 +626,79 @@ module.exports = {
       [userId]
     );
     return { rows: res.rows, total: parseInt(countRes.rows[0].total) };
+  },
+
+  // ═══════════════════════════════════════════════
+  // Mystery Box Inventory System
+  // ═══════════════════════════════════════════════
+
+  /**
+   * Ajoute une Mystery Box à l'inventaire du membre (non ouverte).
+   */
+  giveMysteryBox: async (userId, guildId, giveawayId, defaultPrizeType, defaultPrizeValue, defaultPrizeLabel) => {
+    const res = await pool.query(
+      `INSERT INTO mystery_box_inventory
+         (user_id, guild_id, giveaway_id, default_prize_type, default_prize_value, default_prize_label, status, opened, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'pending_choice', FALSE, $7) RETURNING *`,
+      [userId, guildId, giveawayId, defaultPrizeType, defaultPrizeValue, defaultPrizeLabel, Date.now()]
+    );
+    return res.rows[0];
+  },
+
+  /**
+   * Récupère la première Mystery Box "choisie" (status = 'box_chosen') non ouverte.
+   */
+  getUserPendingBox: async (userId) => {
+    const res = await pool.query(
+      `SELECT * FROM mystery_box_inventory
+       WHERE user_id = $1 AND status = 'box_chosen' AND opened = FALSE
+       ORDER BY created_at ASC LIMIT 1`,
+      [userId]
+    );
+    return res.rows[0] || null;
+  },
+
+  /**
+   * Nombre de boxes en attente d'ouverture.
+   */
+  getUserBoxCount: async (userId) => {
+    const res = await pool.query(
+      `SELECT COUNT(*) as count FROM mystery_box_inventory
+       WHERE user_id = $1 AND status = 'box_chosen' AND opened = FALSE`,
+      [userId]
+    );
+    return parseInt(res.rows[0].count);
+  },
+
+  /**
+   * Marque une box comme ouverte.
+   */
+  consumeMysteryBox: async (boxId) => {
+    await pool.query(
+      `UPDATE mystery_box_inventory SET opened = TRUE, status = 'opened' WHERE id = $1`,
+      [boxId]
+    );
+  },
+
+  /**
+   * Met à jour le statut d'une box (ex: pending_choice → box_chosen | default_taken)
+   */
+  updateMysteryBoxStatus: async (boxId, status) => {
+    await pool.query(
+      `UPDATE mystery_box_inventory SET status = $1 WHERE id = $2`,
+      [status, boxId]
+    );
+  },
+
+  /**
+   * Récupère une box par son ID.
+   */
+  getMysteryBox: async (boxId) => {
+    const res = await pool.query(
+      `SELECT * FROM mystery_box_inventory WHERE id = $1`,
+      [boxId]
+    );
+    return res.rows[0] || null;
   },
 
   updatePrestige: async (id, newPrestige) => {

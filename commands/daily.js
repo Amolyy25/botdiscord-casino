@@ -18,7 +18,7 @@ module.exports = {
             });
         }
 
-        const reward = 1000;
+        const reward = 1200;
         await db.updateBalance(message.author.id, reward, 'Daily');
         await db.updateDaily(message.author.id, now);
 
