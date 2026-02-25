@@ -12,11 +12,11 @@ const {
 // ═══════════════════════════════════════════════
 
 const PRIZE_LABELS = {
-  COINS: '🪙 Coins',
-  TIRAGES: '🎫 Tirages',
-  ROLE: '🎭 Rôle Permanent',
-  TEMP_ROLE: '⏳ Rôle Temporaire',
-  MYSTERY_BOX: '🎁 Mystery Box',
+  COINS: 'Coins',
+  TIRAGES: 'Tirages',
+  ROLE: 'Rôle Permanent',
+  TEMP_ROLE: 'Rôle Temporaire',
+  MYSTERY_BOX: 'Mystery Box',
 };
 
 function parseDuration(str) {
@@ -45,8 +45,8 @@ function prizeDescription(giveaway) {
   const type = giveaway.prize_type;
   const value = giveaway.prize_value;
   switch (type) {
-    case 'COINS': return `**${BigInt(value).toLocaleString('fr-FR')}** coins 🪙`;
-    case 'TIRAGES': return `**${value}** tirage(s) 🎫`;
+    case 'COINS': return `**${BigInt(value).toLocaleString('fr-FR')}** coins`;
+    case 'TIRAGES': return `**${value}** tirage(s)`;
     case 'ROLE': return `Rôle <@&${value}>`;
     case 'TEMP_ROLE': {
       const dur = giveaway.temp_role_duration ? formatDuration(parseInt(giveaway.temp_role_duration)) : '?';
@@ -55,7 +55,7 @@ function prizeDescription(giveaway) {
     case 'MYSTERY_BOX': {
       // value = "TYPE:VALEUR:LABEL"
       const label = value.split(':')[2] || value;
-      return `🎁 **Mystery Box** *(ou ${label} garanti)*`;
+      return `**Mystery Box** *(ou ${label} garanti)*`;
     }
     default: return value;
   }
@@ -75,60 +75,60 @@ function parseMysteryBoxValue(rawValue) {
 }
 
 function buildGiveawayEmbed(giveaway, participantCount, ended = false, winners = []) {
-  const embed = new EmbedBuilder().setTimestamp();
+  const embed = new EmbedBuilder();
   const isMB = giveaway.prize_type === 'MYSTERY_BOX';
 
+  // SOBER WHITE DESIGN
+  embed.setColor('#FFFFFF');
+
   if (ended) {
-    embed.setTitle(isMB ? '🎁 Giveaway Mystery Box Terminé !' : '🎉 Giveaway Terminé !');
-    embed.setColor(isMB ? '#9B59B6' : COLORS.GOLD);
+    embed.setTitle(isMB ? 'Giveaway Mystery Box Terminé' : 'Giveaway Terminé');
     const winnerMentions = winners.length > 0
       ? winners.map(w => `<@${w}>`).join(', ')
       : '*Aucun participant*';
+    
     if (isMB) {
       const { defaultLabel } = parseMysteryBoxValue(giveaway.prize_value);
       embed.setDescription(
-        `**Récompense garantie :** ${defaultLabel}\n` +
-        `**Alternative :** 🎁 Mystery Box (lot surprise !)\ \n` +
-        `**Gagnant(s) :** ${winnerMentions}\n\n` +
-        `Lancé par <@${giveaway.host_id}>`
+        `→ **Récompense :** ${defaultLabel}\n` +
+        `→ **Alternative :** Mystery Box\n` +
+        `→ **Gagnant(s) :** ${winnerMentions}\n\n` +
+        `*Lancé par <@${giveaway.host_id}>*`
       );
     } else {
       embed.setDescription(
-        `**Récompense :** ${prizeDescription(giveaway)}\n` +
-        `**Gagnant(s) :** ${winnerMentions}\n\n` +
-        `Lancé par <@${giveaway.host_id}>`
+        `→ **Récompense :** ${prizeDescription(giveaway)}\n` +
+        `→ **Gagnant(s) :** ${winnerMentions}\n\n` +
+        `*Lancé par <@${giveaway.host_id}>*`
       );
     }
   } else {
     const endsAt = Math.floor(parseInt(giveaway.ends_at) / 1000);
     if (isMB) {
-      embed.setTitle('🎁 GIVEAWAY — MYSTERY BOX 🎁');
-      embed.setColor('#9B59B6');
+      embed.setTitle('GIVEAWAY — MYSTERY BOX');
       const { defaultLabel } = parseMysteryBoxValue(giveaway.prize_value);
       embed.setDescription(
-        `> ✅ **Récompense garantie :** ${defaultLabel}\n` +
-        `> 🎁 **Mystery Box :** un lot MYSTÈRE... peut-être légendaire !\n\n` +
-        `**Fin :** <t:${endsAt}:R> (<t:${endsAt}:f>)\n` +
-        `**Gagnant(s) :** ${giveaway.winner_count}\n` +
+        `→ **Récompense garantie :** ${defaultLabel}\n` +
+        `→ **Mystery Box :** Lot mystère possible\n\n` +
+        `**Fin :** <t:${endsAt}:R>\n` +
+        `**Gagnants :** ${giveaway.winner_count}\n` +
         `**Participants :** ${participantCount}\n\n` +
-        `*Le gagnant choisira : récompense garantie **ou** Mystery Box !*\n` +
-        `Lancé par <@${giveaway.host_id}>`
+        `*Lancé par <@${giveaway.host_id}>*`
       );
     } else {
-      embed.setTitle('🎉 GIVEAWAY 🎉');
-      embed.setColor('#5865F2');
+      embed.setTitle('GIVEAWAY');
       embed.setDescription(
-        `**Récompense :** ${prizeDescription(giveaway)}\n` +
-        `**Type :** ${PRIZE_LABELS[giveaway.prize_type] || giveaway.prize_type}\n` +
-        `**Fin :** <t:${endsAt}:R> (<t:${endsAt}:f>)\n` +
-        `**Gagnant(s) :** ${giveaway.winner_count}\n` +
+        `→ **Récompense :** ${prizeDescription(giveaway)}\n` +
+        `→ **Type :** ${PRIZE_LABELS[giveaway.prize_type] || giveaway.prize_type}\n\n` +
+        `**Fin :** <t:${endsAt}:R>\n` +
+        `**Gagnants :** ${giveaway.winner_count}\n` +
         `**Participants :** ${participantCount}\n\n` +
-        `Lancé par <@${giveaway.host_id}>`
+        `*Lancé par <@${giveaway.host_id}>*`
       );
     }
   }
 
-  embed.setFooter({ text: `Giveaway #${giveaway.id}` });
+  embed.setFooter({ text: `ID: #${giveaway.id}` });
   return embed;
 }
 
@@ -137,13 +137,11 @@ function buildGiveawayButtons(giveawayId, ended = false) {
     new ButtonBuilder()
       .setCustomId(`giveaway_join_${giveawayId}`)
       .setLabel('Participer')
-      .setEmoji('🎉')
       .setStyle(ButtonStyle.Primary)
       .setDisabled(ended),
     new ButtonBuilder()
       .setCustomId(`giveaway_view_${giveawayId}`)
-      .setLabel('Voir les participants')
-      .setEmoji('👀')
+      .setLabel('Participants')
       .setStyle(ButtonStyle.Secondary)
   );
   return row;
@@ -210,11 +208,11 @@ async function endGiveaway(giveaway) {
       if (channel && winners.length > 0) {
         const winnerMentions = winners.map(w => `<@${w}>`).join(', ');
         await channel.send({
-          content: `🎉 Félicitations ${winnerMentions} ! Vous avez gagné **${prizeDescription(giveaway)}** !`,
+          content: `Félicitations ${winnerMentions} ! Vous avez gagné **${prizeDescription(giveaway)}** !`,
         });
       } else if (channel && winners.length === 0) {
         await channel.send({
-          embeds: [createEmbed('🎉 Giveaway Terminé', `Aucun participant pour le giveaway #${giveaway.id}.`, COLORS.GOLD)],
+          embeds: [createEmbed('Giveaway Terminé', `Aucun participant pour le giveaway #${giveaway.id}.`, '#FFFFFF')],
         });
       }
     } catch (err) {
@@ -223,12 +221,12 @@ async function endGiveaway(giveaway) {
 
     // Log
     if (guild) {
-      await sendLog(guild, '🎉 Giveaway Terminé',
+      await sendLog(guild, 'Giveaway Terminé',
         `**Giveaway #${giveaway.id}** terminé.\n` +
         `Récompense : ${prizeDescription(giveaway)}\n` +
         `Gagnants : ${winners.length > 0 ? winners.map(w => `<@${w}>`).join(', ') : 'Aucun'}\n` +
         `Participants : ${participants.length}`,
-        COLORS.GOLD
+        '#FFFFFF'
       );
     }
 
@@ -249,7 +247,7 @@ async function endGiveawayMysteryBox(giveaway, winners, guild) {
 
     if (winners.length === 0) {
       await channel.send({
-        embeds: [createEmbed('🎁 Giveaway Mystery Box Terminé', `Aucun participant.`, '#9B59B6')],
+        embeds: [createEmbed('Giveaway Mystery Box Terminé', `Aucun participant.`, '#FFFFFF')],
       });
       return;
     }
@@ -269,31 +267,30 @@ async function endGiveawayMysteryBox(giveaway, winners, guild) {
       );
 
       const choiceEmbed = new EmbedBuilder()
-        .setTitle('🎁 Tu as gagné le Giveaway Mystery Box !')
-        .setColor('#9B59B6')
+        .setTitle('Gain Giveaway Mystery Box')
+        .setColor('#FFFFFF')
         .setDescription(
-          `Félicitations <@${winnerId}> ! 🥳\n\n` +
+          `Félicitations <@${winnerId}> !\n\n` +
           `Tu as le choix entre deux options :\n\n` +
-          `> ✅ **Récompense garantie :** ${defaultLabel}\n` +
-          `> 🎁 **Mystery Box :** un lot mystère... peut-être **LÉGENDAIRE** !\n\n` +
+          `→ **Récompense garantie :** ${defaultLabel}\n` +
+          `→ **Mystery Box :** Lot mystère possible\n\n` +
           `*Quel risque vas-tu prendre ?*`
         )
-        .setFooter({ text: `Giveaway #${giveaway.id} · Box #${box.id}` })
-        .setTimestamp();
+        .setFooter({ text: `ID: #${giveaway.id} · Box: #${box.id}` });
 
       const choiceRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId(`mb_choose_default_${box.id}`)
-          .setLabel(`✅ Prendre : ${defaultLabel}`)
+          .setLabel(`Prendre : ${defaultLabel}`)
           .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
           .setCustomId(`mb_choose_box_${box.id}`)
-          .setLabel('🎁 Ouvrir la Mystery Box')
+          .setLabel('Ouvrir la Mystery Box')
           .setStyle(ButtonStyle.Danger)
       );
 
       await channel.send({
-        content: `🎉 <@${winnerId}>`,
+        content: `<@${winnerId}>`,
         embeds: [choiceEmbed],
         components: [choiceRow],
       });
@@ -301,11 +298,11 @@ async function endGiveawayMysteryBox(giveaway, winners, guild) {
 
     // Log
     if (guild) {
-      await sendLog(guild, '🎁 Giveaway Mystery Box Terminé',
+      await sendLog(guild, 'Giveaway Mystery Box Terminé',
         `**Giveaway #${giveaway.id}** terminé.\n` +
         `Gagnants (en attente de choix) : ${winnerMentions}\n` +
         `Récompense garantie : ${defaultLabel}`,
-        '#9B59B6'
+        '#FFFFFF'
       );
     }
     console.log(`[MysteryBox] Giveaway #${giveaway.id} terminé — ${winners.length} gagnant(s) en attente de choix`);
@@ -325,21 +322,21 @@ async function endGiveawayMysteryBox(giveaway, winners, guild) {
 async function openMysteryBoxAnimated(interaction, box) {
   // Étapes d'animation
   const steps = [
-    { color: '#2b2d31', title: '📦 Ouverture de la Mystery Box...', desc: '*La boîte résiste...\n\nPrépare-toi...*' },
-    { color: '#E67E22', title: '📦 La boîte tremble...', desc: '**💥 Quelque chose s\'en échappe !**\n\n*Que va-t-il en sortir ?*' },
-    { color: '#F1C40F', title: '✨ Une lumière s\'en échappe...', desc: '**⚡ Le sort est jeté !**\n\n*Ton destin se révèle...*' },
+    { color: '#FFFFFF', title: 'Ouverture de la Mystery Box...', desc: '*La boîte résiste...\n\nPrépare-toi...*' },
+    { color: '#FFFFFF', title: 'La boîte tremble...', desc: '**Quelque chose s\'en échappe !**\n\n*Que va-t-il en sortir ?*' },
+    { color: '#FFFFFF', title: 'Une lumière s\'en échappe...', desc: '**Le sort est jeté !**\n\n*Ton destin se révèle...*' },
   ];
 
   // Désactiver les boutons du message de choix
   const disabledRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('mb_disabled_default')
-      .setLabel('✅ Récompense garantie')
+      .setLabel('Récompense garantie')
       .setStyle(ButtonStyle.Success)
       .setDisabled(true),
     new ButtonBuilder()
       .setCustomId('mb_disabled_box')
-      .setLabel('🎁 Mystery Box choisie !')
+      .setLabel('Mystery Box choisie !')
       .setStyle(ButtonStyle.Danger)
       .setDisabled(true)
   );
@@ -390,7 +387,7 @@ async function openMysteryBoxAnimated(interaction, box) {
     rewardLog = await distributeMysteryReward(item, box.user_id, guild, box.id);
   } catch (err) {
     console.error(`[MysteryBox] Erreur distribution:`, err);
-    rewardLog = `❌ Erreur: ${err.message}`;
+    rewardLog = `Erreur: ${err.message}`;
   }
 
   // Marquer comme ouverte
@@ -403,17 +400,16 @@ async function openMysteryBoxAnimated(interaction, box) {
   const isNitro      = item.type === 'manual';
 
   const resultEmbed = new EmbedBuilder()
-    .setTitle(`${rarityEmoji} ${item.rarity === 'LEGENDAIRE' ? '🎊 LÉGENDAIRE !' : item.rarity === 'EPIQUE' ? '💜 ÉPIQUE !' : item.rarity === 'RARE' ? '💙 RARE !' : '⚪ Commun...'}`)
+    .setTitle(item.rarity === 'LEGENDAIRE' ? 'LÉGENDAIRE !' : item.rarity === 'EPIQUE' ? 'ÉPIQUE !' : item.rarity === 'RARE' ? 'RARE !' : 'Lot Commun')
     .setDescription(
-      `<@${box.user_id}> vient d'ouvrir une **Mystery Box** !\n\n` +
-      `**🎁 Lot obtenu : ${item.name}**\n` +
+      `<@${box.user_id}> vient d'ouvrir une Mystery Box !\n\n` +
+      `→ **Lot obtenu : ${item.name}**\n` +
       `${item.description}\n\n` +
-      (isNitro ? `> ⚠️ Un administrateur te contactera pour remettre ta récompense.` : '') +
+      (isNitro ? `> *Un administrateur te contactera pour remettre ta récompense.*` : '') +
       `\n*Rareté : **${rarityLabel}***`
     )
-    .setColor(rarityColor)
-    .setFooter({ text: `Giveaway #${box.giveaway_id} · Box #${box.id}` })
-    .setTimestamp();
+    .setColor('#FFFFFF')
+    .setFooter({ text: `ID: #${box.giveaway_id} · Box: #${box.id}` });
 
   if (item.rarity === 'LEGENDAIRE') {
     resultEmbed.setThumbnail('https://cdn.discordapp.com/emojis/1135068674779725884.gif?v=1&quality=lossless');
@@ -424,13 +420,12 @@ async function openMysteryBoxAnimated(interaction, box) {
   // Annonce publique dans le channel du giveaway (même salon que l'interaction)
   try {
     const announceEmbed = new EmbedBuilder()
-      .setTitle(`${rarityEmoji} Mystery Box ouverte !`)
+      .setTitle('Mystery Box ouverte !')
       .setDescription(
-        `🚨 **<@${box.user_id}>** vient d'ouvrir une Mystery Box et a trouvé :\n\n` +
-        `> **${item.name}** — *${rarityLabel}*`
+        `**<@${box.user_id}>** vient d'ouvrir une Mystery Box :\n\n` +
+        `→ **${item.name}** — *${rarityLabel}*`
       )
-      .setColor(rarityColor)
-      .setTimestamp();
+      .setColor('#FFFFFF');
     // Le message est déjà dans le bon channel (interaction.channel = channel du giveaway)
     // On envoie un nouveau message visible de tous dans ce même channel
     await interaction.channel.send({ embeds: [announceEmbed] });

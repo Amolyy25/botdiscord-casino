@@ -16,10 +16,10 @@ const RARITY_COLORS = {
  * Emojis selon la rareté
  */
 const RARITY_EMOJIS = {
-  LEGENDAIRE: '⭐',
-  EPIQUE:     '💜',
-  RARE:       '💙',
-  COMMUN:     '⚪',
+  LEGENDAIRE: '',
+  EPIQUE:     '',
+  RARE:       '',
+  COMMUN:     '',
 };
 
 /**
@@ -54,7 +54,7 @@ const RARITY_LABELS = {
 const MYSTERY_BOX_ITEMS = [
 
   // ──────────────────────────────
-  // ⭐ LÉGENDAIRE (~3.01%)
+  // LÉGENDAIRE (~3.01%)
   // ──────────────────────────────
   {
     id: 'mb_nitro',
@@ -63,7 +63,7 @@ const MYSTERY_BOX_ITEMS = [
     probability: 0.0001,   // 0.01% — distribué manuellement par un admin
     type: 'manual',
     value: 'NITRO',
-    description: '🎮 Un mois de Discord Nitro ! Un admin te contactera pour te remettre ta récompense.',
+    description: 'Un mois de Discord Nitro ! Un admin te contactera pour te remettre ta récompense.',
   },
   {
     id: 'mb_coins_50k',
@@ -72,7 +72,7 @@ const MYSTERY_BOX_ITEMS = [
     probability: 0.005,    // 0.5%
     type: 'coins',
     value: 150000,
-    description: '🪙 Un trésor de **150 000 coins** déposé directement dans ton coffre !',
+    description: 'Un trésor de **150 000 coins** déposé directement dans ton coffre !',
   },
   {
     id: 'mb_coins_25k',
@@ -81,7 +81,7 @@ const MYSTERY_BOX_ITEMS = [
     probability: 0.01,     // 1%
     type: 'coins',
     value: 85000,
-    description: '🪙 **85 000 coins** ! Le jackpot est pour toi.',
+    description: '**85 000 coins** ! Le jackpot est pour toi.',
   },
   {
     id: 'mb_tirages_15',
@@ -90,11 +90,11 @@ const MYSTERY_BOX_ITEMS = [
     probability: 0.015,    // 1.5%
     type: 'tirages',
     value: 50,
-    description: '🎫 **50 tirages** offerts ! Joue ta chance au maximum.',
+    description: '**50 tirages** offerts ! Joue ta chance au maximum.',
   },
 
   // ──────────────────────────────
-  // 💜 ÉPIQUE (~10%)
+  // ÉPIQUE (~10%)
   // ──────────────────────────────
   {
     id: 'mb_coins_10k',
@@ -103,7 +103,7 @@ const MYSTERY_BOX_ITEMS = [
     probability: 0.03,     // 3%
     type: 'coins',
     value: 50000,
-    description: '🪙 **50 000 coins** ! Une belle somme pour alimenter tes paris.',
+    description: '**50 000 coins** ! Une belle somme pour alimenter tes paris.',
   },
   {
     id: 'mb_coins_7k',
@@ -112,7 +112,7 @@ const MYSTERY_BOX_ITEMS = [
     probability: 0.04,     // 4%
     type: 'coins',
     value: 35000,
-    description: '🪙 **35 000 coins** ajoutés à ton solde.',
+    description: '**35 000 coins** ajoutés à ton solde.',
   },
   {
     id: 'mb_tirages_10',
@@ -121,11 +121,11 @@ const MYSTERY_BOX_ITEMS = [
     probability: 0.03,     // 3%
     type: 'tirages',
     value: 20,
-    description: '🎫 **20 tirages** offerts ! Teste ta chance.',
+    description: '**20 tirages** offerts ! Teste ta chance.',
   },
 
   // ──────────────────────────────
-  // 💙 RARE (~25%)
+  // RARE (~25%)
   // ──────────────────────────────
   {
     id: 'mb_coins_5k',
@@ -134,7 +134,7 @@ const MYSTERY_BOX_ITEMS = [
     probability: 0.08,     // 8%
     type: 'coins',
     value: 20000,
-    description: '🪙 **20 000 coins** ! Pas mal du tout.',
+    description: '**20 000 coins** ! Pas mal du tout.',
   },
   {
     id: 'mb_coins_3k',
@@ -143,7 +143,7 @@ const MYSTERY_BOX_ITEMS = [
     probability: 0.10,     // 10%
     type: 'coins',
     value: 10000,
-    description: '🪙 **10 000 coins** de plus dans ta poche.',
+    description: '**10 000 coins** de plus dans ta poche.',
   },
   {
     id: 'mb_tirages_5',
@@ -152,11 +152,11 @@ const MYSTERY_BOX_ITEMS = [
     probability: 0.07,     // 7%
     type: 'tirages',
     value: 10,
-    description: '🎫 **10 tirages** gratuits.',
+    description: '**10 tirages** gratuits.',
   },
 
   // ──────────────────────────────
-  // ⚪ COMMUN (~61.99%)
+  // COMMUN (~61.99%)
   // ──────────────────────────────
   {
     id: 'mb_coins_1k',
@@ -165,7 +165,7 @@ const MYSTERY_BOX_ITEMS = [
     probability: 0.15,     // 15%
     type: 'coins',
     value: 5000,
-    description: '🪙 **5 000 coins**. C\'est toujours ça de pris !',
+    description: '**5 000 coins**. C\'est toujours ça de pris !',
   },
   {
     id: 'mb_coins_500',
@@ -174,7 +174,7 @@ const MYSTERY_BOX_ITEMS = [
     probability: 0.20,     // 20%
     type: 'coins',
     value: 2500,
-    description: '🪙 **2 500 coins** trouvés au fond de la boîte.',
+    description: '**2 500 coins** trouvés au fond de la boîte.',
   },
   {
     id: 'mb_tirages_2',
@@ -183,7 +183,7 @@ const MYSTERY_BOX_ITEMS = [
     probability: 0.10,     // 10%
     type: 'tirages',
     value: 5,
-    description: '🎫 **5 tirages** ! C\'est mieux que rien.',
+    description: '**5 tirages** ! C\'est mieux que rien.',
   },
   {
     id: 'mb_troll_poignee',
@@ -192,7 +192,7 @@ const MYSTERY_BOX_ITEMS = [
     probability: 0.05,     // 5%
     type: 'troll',
     value: null,
-    description: '🤝 Félicitations... tu as reçu **une poignée de main virtuelle**. Spectaculaire.',
+    description: 'Félicitations... tu as reçu **une poignée de main virtuelle**. Spectaculaire.',
   },
   {
     id: 'mb_troll_encouragement',
@@ -210,7 +210,7 @@ const MYSTERY_BOX_ITEMS = [
     probability: 0.0699,   // ~6.99% — padding pour atteindre 100%
     type: 'coins',
     value: 1000,
-    description: '🪙 **1 000 coins**. La boîte était presque vide, mais bon...',
+    description: '**1 000 coins**. La boîte était presque vide, mais bon...',
   },
 ];
 

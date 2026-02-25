@@ -42,22 +42,20 @@ module.exports = {
 
 async function showHelp(message) {
   const embed = createEmbed(
-    '🎉 Giveaway — Aide',
+    'Giveaway — Aide',
     `**Créer un giveaway :**\n` +
     `\`;giveaway create <type> <valeur> <durée> <nb_gagnants> [durée_rôle]\`\n\n` +
     `**Types :** \`COINS\`, \`TIRAGES\`, \`ROLE\`, \`TEMP_ROLE\`, \`MYSTERY_BOX\`\n` +
     `**Durées :** \`10m\`, \`1h\`, \`2d\`, \`30s\`\n\n` +
     `**Exemples :**\n` +
-    `\`;gw create COINS 1000 1h 2\` → 1000 coins, 1h, 2 gagnants\n` +
-    `\`;gw create TEMP_ROLE 123456 30m 1 2d\` → Rôle temp 30min, gardé 2j\n` +
-    `\`;gw create MYSTERY_BOX COINS:5000:5000 coins 1h 1\` → Mystery Box ou 5000 coins\n\n` +
-    `> Pour **MYSTERY_BOX**, la valeur suit le format :\n` +
-    `> \`TYPE:VALEUR:LABEL\` (ex: \`COINS:1000:1000 coins\` ou \`TIRAGES:5:5 tirages\`)\n\n` +
+    `→ \`;gw create COINS 1000 1h 2\`\n` +
+    `→ \`;gw create TEMP_ROLE 123456 30m 1 2d\`\n` +
+    `→ \`;gw create MYSTERY_BOX COINS:5000:5000 coins 1h 1\`\n\n` +
     `**Autres commandes :**\n` +
-    `\`;gw cancel <id>\` — Annuler un giveaway\n` +
-    `\`;gw list\` — Voir les giveaways actifs\n` +
-    `\`;gw reroll <id>\` — Re-tirer un gagnant`,
-    COLORS.PRIMARY
+    `\`;gw cancel <id>\`\n` +
+    `\`;gw list\`\n` +
+    `\`;gw reroll <id>\``,
+    '#FFFFFF'
   );
   return message.reply({ embeds: [embed] });
 }
@@ -73,7 +71,7 @@ async function handleCreate(message, args, db) {
   // Validate type
   if (!VALID_TYPES.includes(type)) {
     return message.reply({
-      embeds: [createEmbed('Erreur', `Type invalide. Choix : \`${VALID_TYPES.join('`, `')}\``, COLORS.ERROR)],
+      embeds: [createEmbed('Erreur', 'Type invalide. Choix : `' + VALID_TYPES.join('`, `') + '`', '#FFFFFF')],
     });
   }
 
@@ -185,12 +183,12 @@ async function handleCreate(message, args, db) {
 
   // Confirmation to host
   const confirmEmbed = createEmbed(
-    '✅ Giveaway créé',
+    'Giveaway créé',
     `**ID :** #${giveaway.id}\n` +
     `**Récompense :** ${giveawayManager.prizeDescription(giveaway)}\n` +
     `**Fin :** <t:${Math.floor(endsAt / 1000)}:R>\n` +
     `**Gagnants :** ${winnerCount}`,
-    COLORS.SUCCESS
+    '#FFFFFF'
   );
   await message.reply({ embeds: [confirmEmbed] });
 }
@@ -223,8 +221,8 @@ async function handleCancel(message, args, db) {
     if (channel && gw.message_id) {
       const msg = await channel.messages.fetch(gw.message_id).catch(() => null);
       if (msg) {
-        const embed = createEmbed('🚫 Giveaway Annulé', `Ce giveaway a été annulé par <@${message.author.id}>.`, COLORS.ERROR);
-        embed.setFooter({ text: `Giveaway #${id}` });
+        const embed = createEmbed('Giveaway Annulé', `Ce giveaway a été annulé par <@${message.author.id}>.`, '#FFFFFF');
+        embed.setFooter({ text: `ID: #${id}` });
         const buttons = giveawayManager.buildGiveawayButtons(id, true);
         await msg.edit({ embeds: [embed], components: [buttons] }).catch(() => {});
       }
@@ -232,7 +230,7 @@ async function handleCancel(message, args, db) {
   } catch (e) {}
 
   await message.reply({
-    embeds: [createEmbed('🚫 Annulé', `Giveaway #${id} a été annulé avec succès.`, COLORS.SUCCESS)],
+    embeds: [createEmbed('Annulé', `Giveaway #${id} a été annulé avec succès.`, '#FFFFFF')],
   });
 }
 
@@ -241,7 +239,7 @@ async function handleList(message, db) {
 
   if (giveaways.length === 0) {
     return message.reply({
-      embeds: [createEmbed('🎉 Giveaways Actifs', 'Aucun giveaway en cours.', COLORS.PRIMARY)],
+      embeds: [createEmbed('Giveaways Actifs', 'Aucun giveaway en cours.', '#FFFFFF')],
     });
   }
 
@@ -251,9 +249,9 @@ async function handleList(message, db) {
   });
 
   const embed = createEmbed(
-    `🎉 Giveaways Actifs (${giveaways.length})`,
+    `Giveaways Actifs (${giveaways.length})`,
     lines.join('\n'),
-    COLORS.PRIMARY
+    '#FFFFFF'
   );
   return message.reply({ embeds: [embed] });
 }
@@ -281,7 +279,7 @@ async function handleReroll(message, args, db) {
   const participants = await db.getGiveawayParticipants(id);
   if (participants.length === 0) {
     return message.reply({
-      embeds: [createEmbed('Erreur', 'Aucun participant pour ce giveaway.', COLORS.ERROR)],
+      embeds: [createEmbed('Erreur', 'Aucun participant pour ce giveaway.', '#FFFFFF')],
     });
   }
 
@@ -301,20 +299,20 @@ async function handleReroll(message, args, db) {
       switch (gw.prize_type) {
         case 'COINS':
           await db.updateBalance(winnerId, BigInt(gw.prize_value), 'Giveaway: Reroll');
-          results.push(`<@${winnerId}> → +${gw.prize_value} coins ✅`);
+          results.push(`<@${winnerId}> → +${gw.prize_value} coins`);
           break;
         case 'TIRAGES':
           await db.updateTirages(winnerId, parseInt(gw.prize_value));
-          results.push(`<@${winnerId}> → +${gw.prize_value} tirages ✅`);
+          results.push(`<@${winnerId}> → +${gw.prize_value} tirages`);
           break;
         case 'ROLE': {
           const member = await guild.members.fetch(winnerId).catch(() => null);
           const role = guild.roles.cache.get(gw.prize_value);
           if (member && role) {
             await member.roles.add(role);
-            results.push(`<@${winnerId}> → Rôle ${role.name} ✅`);
+            results.push(`<@${winnerId}> → Rôle ${role.name}`);
           } else {
-            results.push(`<@${winnerId}> → ❌ Membre/rôle introuvable`);
+            results.push(`<@${winnerId}> → Erreur: Membre/rôle introuvable`);
           }
           break;
         }
@@ -331,23 +329,23 @@ async function handleReroll(message, args, db) {
               roleId: gw.prize_value,
               executeAt: Date.now() + dur,
             });
-            results.push(`<@${winnerId}> → Rôle temp ${role.name} ✅`);
+            results.push(`<@${winnerId}> → Rôle temp ${role.name}`);
           } else {
-            results.push(`<@${winnerId}> → ❌ Membre/rôle introuvable`);
+            results.push(`<@${winnerId}> → Erreur: Membre/rôle introuvable`);
           }
           break;
         }
       }
     } catch (err) {
-      results.push(`<@${winnerId}> → ❌ ${err.message}`);
+      results.push(`<@${winnerId}> → Erreur: ${err.message}`);
     }
   }
 
   const embed = createEmbed(
-    '🔄 Reroll — Giveaway #' + id,
+    'Reroll — Giveaway #' + id,
     `**Nouveau(x) gagnant(s) :** ${winnerMentions}\n\n` +
-    `**Résultats :**\n${results.join('\n')}`,
-    COLORS.GOLD
+    `**Résultats :**\n${results.map(r => `→ ${r}`).join('\n')}`,
+    '#FFFFFF'
   );
   await message.reply({ embeds: [embed] });
 
@@ -356,7 +354,7 @@ async function handleReroll(message, args, db) {
     const channel = await message.client.channels.fetch(gw.channel_id).catch(() => null);
     if (channel && channel.id !== message.channel.id) {
       await channel.send({
-        content: `🔄 **Reroll !** Nouveau(x) gagnant(s) du giveaway #${id} : ${winnerMentions} !`,
+        content: `**Reroll !** Nouveau(x) gagnant(s) du giveaway #${id} : ${winnerMentions} !`,
       });
     }
   } catch (e) {}
