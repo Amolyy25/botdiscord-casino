@@ -30,6 +30,7 @@ const client = new Client({
 });
 
 client.commands = new Collection();
+client.cooldowns = new Collection();
 const prefix = process.env.PREFIX || ";";
 const CASINO_CHAT_CHANNEL_ID = "1469713523549540536";
 
@@ -99,6 +100,16 @@ client.on("messageCreate", async (message) => {
     );
 
   if (!command) return;
+
+  // 1-second cooldown
+  const now = Date.now();
+  const timestamps = client.cooldowns.get(message.author.id) || 0;
+  const cooldownAmount = 1000; // 1 second
+
+  if (now < timestamps + cooldownAmount) {
+    return message.reply(`<@${message.author.id}>, moin vite détends-toi`).catch(() => {});
+  }
+  client.cooldowns.set(message.author.id, now);
 
   // Check channel restriction (skip for DMs)
   if (message.guild) {
