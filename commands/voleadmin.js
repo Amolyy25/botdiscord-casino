@@ -7,7 +7,7 @@ module.exports = {
     async execute(message, args, db) {
         // Permissions check (Admin only)
         if (!message.member.roles.cache.has('1471886110434132137') && !message.member.permissions.has('Administrator')) {
-            return message.reply({ content: '❌ Commande réservée aux administrateurs.', ephemeral: true });
+            return message.reply({ content: '❌ Commande réservée aux administrateurs.', flags: 64 });
         }
 
         let target = message.mentions.users.first();

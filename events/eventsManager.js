@@ -9,6 +9,7 @@ const {
 
 let doubleGainActive = false;
 let doubleGainEndTime = 0;
+let endTimeout = null;
 
 // L'Heure de Gloire s'active 1 fois par jour, à une heure aléatoire entre 19h et 23h
 const GLORY_HOUR_DURATION = 20 * 60 * 1000; // 30 minutes
@@ -166,7 +167,8 @@ module.exports = {
         );
 
         // Schedule end
-        setTimeout(() => {
+        if (endTimeout) clearTimeout(endTimeout);
+        endTimeout = setTimeout(() => {
           module.exports.endGloryHour(client, db);
         }, endTime - now);
       } else {
@@ -176,9 +178,10 @@ module.exports = {
     }
   },
 
-  startGloryHour: async (client, db) => {
+  startGloryHour: async (client, db, durationMs = null) => {
+    const duration = durationMs || GLORY_HOUR_DURATION;
     doubleGainActive = true;
-    doubleGainEndTime = Date.now() + GLORY_HOUR_DURATION;
+    doubleGainEndTime = Date.now() + duration;
 
     await db.setEventStatus("glory_hour", true, doubleGainEndTime);
 
@@ -189,7 +192,7 @@ module.exports = {
     if (channel) {
       const embed = createEmbed(
         "⚡ L'HEURE DE GLOIRE A SONNÉ !",
-        `🎰 **Tous les gains du casino sont DOUBLÉS pendant 20 minutes !** 🎰\n\n` +
+        `🎰 **Tous les gains du casino sont DOUBLÉS pendant ${Math.round(duration / 60000)} minutes !** 🎰\n\n` +
           `Profitez-en maintenant ! <@&${ROLE_ID}>\n` +
           `Fin de l'événement : <t:${Math.floor(doubleGainEndTime / 1000)}:R>`,
         COLORS.GOLD,
@@ -201,9 +204,10 @@ module.exports = {
       await channel.send({ content: `<@&${ROLE_ID}>`, embeds: [embed] });
     }
 
-    setTimeout(() => {
+    if (endTimeout) clearTimeout(endTimeout);
+    endTimeout = setTimeout(() => {
       module.exports.endGloryHour(client, db);
-    }, GLORY_HOUR_DURATION);
+    }, duration);
   },
 
   endGloryHour: async (client, db) => {
@@ -211,6 +215,8 @@ module.exports = {
 
     doubleGainActive = false;
     doubleGainEndTime = 0;
+    if (endTimeout) clearTimeout(endTimeout);
+    endTimeout = null;
     await db.setEventStatus("glory_hour", false, 0);
 
     const channel = await client.channels
