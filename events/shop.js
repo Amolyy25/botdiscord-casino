@@ -18,6 +18,20 @@ const MIN_STEAL_PCT = 0.10;
 const MAX_STEAL_PCT = 0.30;
 const MARGIN_PCT = 0.05;
 
+function getAdaptiveRefundPrice(roleId) {
+  const roleConfig = ROLE_POOL.find((r) => r.id === roleId);
+  if (!roleConfig) return 350;
+
+  const p = roleConfig.probability;
+  if (p >= 0.15) return 350;        // Commun
+  if (p >= 0.07) return 800;        // Peu Commun
+  if (p >= 0.03) return 2000;       // Rare
+  if (p >= 0.01) return 3500;       // Très Rare
+  if (p >= 0.005) return 6000;      // Epique
+  if (p >= 0.001) return 10000;     // Mythique
+  return 30000;                     // Légendaire
+}
+
 // ─── Helpers ────────────────────────────────────────────────
 
 function getItem(itemId) {
@@ -92,6 +106,48 @@ const AGGRESSIVE_ITEM_TYPES = [
 ];
 
 // ─── Build embeds & components (design sobre) ───────────────
+
+function buildMainShopEmbed() {
+  let categoriesDescription = "";
+  for (const cat of shopData.categories) {
+    const itemCount = shopData.items.filter(
+      (i) => i.category === cat.id,
+    ).length;
+    categoriesDescription +=
+      `**${cat.label}** ・ ${itemCount} articles\n` +
+      `${cat.description}\n\n`;
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle("BOUTIQUE")
+    .setDescription(
+      `Bienvenue dans la boutique du casino.\n` +
+        `Depensez vos coins pour obtenir des pouvoirs, boosts et objets exclusifs.\n\n` +
+        categoriesDescription +
+        `Selectionnez une categorie ci-dessous.`,
+    )
+    .setColor(COLORS.PRIMARY)
+    .setFooter({
+      text: "Les achats sont definitifs ・ Verifiez votre solde avec ;bal",
+    })
+    .setTimestamp();
+
+  const categoryOptions = shopData.categories.map((cat) => ({
+    label: cat.label,
+    value: cat.id,
+    description: cat.description,
+    emoji: cat.emoji,
+  }));
+
+  const categorySelect = new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId("shop_category")
+      .setPlaceholder("Choisir une categorie...")
+      .addOptions(categoryOptions),
+  );
+
+  return { embed, components: [categorySelect] };
+}
 
 function buildCategoryItemsEmbed(categoryId) {
 
@@ -202,7 +258,18 @@ async function buildReventeItemsEmbed(interaction) {
       .addOptions(itemOptions),
   );
 
-  return { embed, components: [itemSelect] };
+  const sellAllRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("shop_sell_all_confirm_prompt")
+      .setLabel("Tout Revendre")
+      .setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId("shop_home")
+      .setLabel("Menu Principal")
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  return { embed, components: [itemSelect, sellAllRow] };
 }
 
 
@@ -754,7 +821,19 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
     .setColor(COLORS.SUCCESS)
     .setTimestamp();
 
-  return interaction.editReply({ embeds: [successEmbed], components: [] });
+  const category = getCategory(item.category);
+  const backRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`shop_back.${item.category}`)
+      .setLabel(`Continuer dans ${category?.label || "la categorie"}`)
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId("shop_home")
+      .setLabel("Menu Principal")
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  return interaction.editReply({ embeds: [successEmbed], components: [backRow] });
 }
 
 function sendError(interaction, message) {
@@ -909,22 +988,7 @@ module.exports = {
           }
 
           // ── CALCUL DU PRIX ADAPTATIF ──
-          const roleConfig = ROLE_POOL.find(r => r.id === roleId);
-          let refundPrice = 0;
-          
-          if (roleConfig) {
-             const p = roleConfig.probability;
-             // Exponential Curve
-             if (p >= 0.15) refundPrice = 350;        // Commun (Bleus) -> 350
-             else if (p >= 0.07) refundPrice = 800;   // Peu Commun (Verts, Jaune, Orange) -> 800
-             else if (p >= 0.03) refundPrice = 2000;  // Rare (Rouges) -> 2000
-             else if (p >= 0.01) refundPrice = 3500;  // Très Rare (Cyan) -> 3500
-             else if (p >= 0.005) refundPrice = 6000; // Epique (Violet) -> 6000
-             else if (p >= 0.001) refundPrice = 10000;// Mythique (Noir) -> 10000
-             else refundPrice = 30000;                // Légendaire (Blanc, Immunités) -> 30000
-          } else {
-             refundPrice = 350; // Fallback
-          }
+          const refundPrice = getAdaptiveRefundPrice(roleId);
 
           const embed = new EmbedBuilder()
             .setTitle(`Revente : ${roleLabel}`)
@@ -974,21 +1038,7 @@ module.exports = {
           if (passedPrice) {
                refundPrice = passedPrice;
           } else if (specificRoleId) {
-              // Recalc logic if button didn't have price (fallback)
-              const roleConfig = ROLE_POOL.find(r => r.id === specificRoleId);
-              if (roleConfig) {
-                  // NOTE: Logic must match the one above!
-                  const p = roleConfig.probability;
-                  if (p >= 0.15) refundPrice = 350;
-                  else if (p >= 0.07) refundPrice = 800;
-                  else if (p >= 0.03) refundPrice = 2000;
-                  else if (p >= 0.01) refundPrice = 3500;
-                  else if (p >= 0.005) refundPrice = 6000;
-                  else if (p >= 0.001) refundPrice = 10000;
-                  else refundPrice = 30000;
-              } else {
-                  refundPrice = 350;
-              }
+              refundPrice = getAdaptiveRefundPrice(specificRoleId);
           }
 
           let roleRemoved = false;
@@ -1048,9 +1098,20 @@ module.exports = {
                 .setColor(COLORS.SUCCESS)
                 .setTimestamp();
 
+              const backRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                  .setCustomId("shop_back.revente")
+                  .setLabel("Continuer la revente")
+                  .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                  .setCustomId("shop_home")
+                  .setLabel("Menu Principal")
+                  .setStyle(ButtonStyle.Secondary)
+              );
+
               await interaction.update({
                   embeds: [successEmbed],
-                  components: []
+                  components: [backRow]
               });
 
           } catch (err) {
@@ -1134,17 +1195,7 @@ module.exports = {
           let buyPrice = 1500; // Fallback
           
           if (roleConfig) {
-             const p = roleConfig.probability;
-             let sellPrice = 350;
-             if (p >= 0.15) sellPrice = 350;
-             else if (p >= 0.07) sellPrice = 800;
-             else if (p >= 0.03) sellPrice = 2000;
-             else if (p >= 0.01) sellPrice = 3500;
-             else if (p >= 0.005) sellPrice = 6000;
-             else if (p >= 0.001) sellPrice = 10000;
-             else sellPrice = 30000;
-             
-             buyPrice = sellPrice * 2;
+             buyPrice = getAdaptiveRefundPrice(selectedRoleId) * 2;
           }
 
           const embed = new EmbedBuilder()
@@ -1574,14 +1625,14 @@ module.exports = {
         return true;
       }
 
-      // ── Bouton Annuler ──
+      // ── Bouton Fermer (Clear) ──
       if (interaction.isButton() && customId === "shop_cancel") {
         await interaction.update({
           embeds: [
             new EmbedBuilder()
-              .setTitle("Achat annule")
+              .setTitle("Boutique")
               .setDescription(
-                "L'achat a ete annule. Aucun coin n'a ete deduit.\n\n" +
+                "Interaction terminee.\n\n" +
                   "Vous pouvez relancer la boutique depuis le message principal.",
               )
               .setColor(COLORS.ERROR)
@@ -1589,6 +1640,158 @@ module.exports = {
           ],
           components: [],
         });
+        return true;
+      }
+
+      // ── Bouton Home ──
+      if (interaction.isButton() && customId === "shop_home") {
+        const { embed, components } = buildMainShopEmbed();
+        await interaction.update({
+          embeds: [embed],
+          components,
+        });
+        return true;
+      }
+
+      // ── Prompt Tout Revendre ──
+      if (interaction.isButton() && customId === "shop_sell_all_confirm_prompt") {
+        const member = interaction.member;
+        const eligibleCategories = ["prestige", "commandes_lana"];
+        const allItems = shopData.items.filter((i) =>
+          eligibleCategories.includes(i.category)
+        );
+
+        const itemsToSell = [];
+        let totalGain = 0;
+
+        for (const item of allItems) {
+          if (item.type === "permanent_role" && item.roleId) {
+            if (member.roles.cache.has(item.roleId)) {
+              const price = Math.floor(item.price * 0.5);
+              itemsToSell.push({ label: item.label, price, roleId: item.roleId });
+              totalGain += price;
+            }
+          } else if (item.type === "role_select" && item.roles) {
+            for (const r of item.roles) {
+              if (member.roles.cache.has(r.id)) {
+                // Check if Boost
+                if (r.label.includes("Boost") || r.label.includes("XP")) continue;
+
+                const price = getAdaptiveRefundPrice(r.id);
+                itemsToSell.push({ label: `${item.label} (${r.label})`, price, roleId: r.id });
+                totalGain += price;
+              }
+            }
+          }
+        }
+
+        if (itemsToSell.length === 0) {
+          return sendError(interaction, "Vous n'avez aucun objet a revendre."), true;
+        }
+
+        const listContent = itemsToSell
+          .map((i) => `・ **${i.label}** : ${formatCoins(i.price)}`)
+          .join("\n")
+          .slice(0, 3000); // Truncate if too long
+
+        const embed = new EmbedBuilder()
+          .setTitle("Tout Revendre")
+          .setDescription(
+            `Etes-vous sur de vouloir revendre tous vos objets ?\n\n` +
+              listContent +
+              `\n\n💰 **Gain Total estimé : ${formatCoins(totalGain)}**`
+          )
+          .setColor(ButtonStyle.Danger)
+          .setTimestamp();
+
+        const buttons = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId("shop_sell_all_execute")
+            .setLabel("Confirmer la Vente Totale")
+            .setStyle(ButtonStyle.Danger),
+          new ButtonBuilder()
+            .setCustomId("shop_back.revente")
+            .setLabel("Annuler")
+            .setStyle(ButtonStyle.Secondary)
+        );
+
+        await interaction.update({ embeds: [embed], components: [buttons] });
+        return true;
+      }
+
+      // ── Execution Tout Revendre ──
+      if (interaction.isButton() && customId === "shop_sell_all_execute") {
+        const userId = interaction.user.id;
+        const member = interaction.member;
+        const eligibleCategories = ["prestige", "commandes_lana"];
+        const allItems = shopData.items.filter((i) =>
+          eligibleCategories.includes(i.category)
+        );
+
+        const rolesToRemove = [];
+        let totalGain = 0;
+
+        for (const item of allItems) {
+          if (item.type === "permanent_role" && item.roleId) {
+            if (member.roles.cache.has(item.roleId)) {
+              rolesToRemove.push(item.roleId);
+              totalGain += Math.floor(item.price * 0.5);
+            }
+          } else if (item.type === "role_select" && item.roles) {
+            for (const r of item.roles) {
+              if (member.roles.cache.has(r.id)) {
+                if (r.label.includes("Boost") || r.label.includes("XP")) continue;
+                rolesToRemove.push(r.id);
+                totalGain += getAdaptiveRefundPrice(r.id);
+              }
+            }
+          }
+        }
+
+        if (rolesToRemove.length === 0) {
+          return sendError(interaction, "Plus rien a revendre."), true;
+        }
+
+        try {
+          // Remove roles
+          for (const roleId of rolesToRemove) {
+            await member.roles.remove(roleId).catch((err) => {
+              console.error(`[Shop] Erreur retrait role ${roleId} lors de la vente totale:`, err);
+            });
+          }
+
+          // Update balance
+          const newBalance = await db.updateBalance(userId, BigInt(totalGain), "Shop: Revente Totale");
+
+          await sendLog(
+            interaction.guild,
+            "Revente Totale Boutique",
+            `**Joueur :** <@${userId}>\n**Objets vendus :** ${rolesToRemove.length}\n**Gain Total :** ${formatCoins(totalGain)}`,
+            COLORS.GOLD
+          );
+
+          const successEmbed = new EmbedBuilder()
+            .setTitle("Vente Totale reussie")
+            .setDescription(
+              `Tous vos objets eligibles ont ete vendus pour un total de **${formatCoins(totalGain)}**.\n` +
+                `Votre nouveau solde : ${formatCoins(newBalance)}`
+            )
+            .setColor(COLORS.SUCCESS)
+            .setTimestamp();
+
+          const backRow = new ActionRowBuilder().addComponents(
+             new ButtonBuilder()
+                .setCustomId("shop_home")
+                .setLabel("Menu Principal")
+                .setStyle(ButtonStyle.Secondary)
+          );
+
+          await interaction.update({ embeds: [successEmbed], components: [backRow] });
+        } catch (err) {
+          console.error("Erreur vente totale shop:", err);
+          return sendError(interaction, "Une erreur est survenue lors de la vente totale."), true;
+        }
+
         return true;
       }
 
