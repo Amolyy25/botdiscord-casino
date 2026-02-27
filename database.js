@@ -513,6 +513,14 @@ module.exports = {
     return { count: parseInt(res.rows[0].count), totalSpent: BigInt(res.rows[0].total_spent) };
   },
 
+  getDailyShopPurchaseCount: async (userId, itemId) => {
+    const res = await pool.query(
+      "SELECT COUNT(*) as count FROM shop_purchases WHERE user_id = $1 AND item_id = $2 AND purchased_at >= CURRENT_DATE",
+      [userId, itemId]
+    );
+    return parseInt(res.rows[0].count);
+  },
+
   // ═══════════════════════════════════════════════
   // Giveaway System
   // ═══════════════════════════════════════════════

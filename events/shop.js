@@ -355,6 +355,21 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
 
   const finalPrice = BigInt(priceOverride !== null ? priceOverride : item.price);
 
+  // Limite quotidienne pour les tirages (max 2 par jour)
+  if (item.id === "tirage_1") {
+    try {
+      const dailyCount = await db.getDailyShopPurchaseCount(userId, item.id);
+      if (dailyCount >= 2) {
+        return sendError(
+          interaction,
+          "🚫 **Limite atteinte !**\n\nVous ne pouvez acheter que **2 tirages** par jour dans la boutique."
+        );
+      }
+    } catch (err) {
+      console.error("[Shop] Erreur check daily limit:", err);
+    }
+  }
+
   try {
     const userData = await db.getUser(userId);
     const balance = BigInt(userData.balance);
