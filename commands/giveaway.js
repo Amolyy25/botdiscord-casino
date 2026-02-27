@@ -306,20 +306,20 @@ async function handleReroll(message, args, db) {
       switch (gw.prize_type) {
         case 'COINS':
           await db.updateBalance(winnerId, BigInt(gw.prize_value), 'Giveaway: Reroll');
-          results.push(`<@${winnerId}> → +${gw.prize_value} coins`);
+          results.push(`<@${winnerId}>: +${gw.prize_value} coins`);
           break;
         case 'TIRAGES':
           await db.updateTirages(winnerId, parseInt(gw.prize_value));
-          results.push(`<@${winnerId}> → +${gw.prize_value} tirages`);
+          results.push(`<@${winnerId}>: +${gw.prize_value} tirages`);
           break;
         case 'ROLE': {
           const member = await guild.members.fetch(winnerId).catch(() => null);
           const role = guild.roles.cache.get(gw.prize_value);
           if (member && role) {
             await member.roles.add(role);
-            results.push(`<@${winnerId}> → Rôle ${role.name}`);
+            results.push(`<@${winnerId}>: Rôle ${role.name}`);
           } else {
-            results.push(`<@${winnerId}> → Erreur: Membre/rôle introuvable`);
+            results.push(`<@${winnerId}>: Erreur (Membre/rôle introuvable)`);
           }
           break;
         }
@@ -336,20 +336,25 @@ async function handleReroll(message, args, db) {
               roleId: gw.prize_value,
               executeAt: Date.now() + dur,
             });
-            results.push(`<@${winnerId}> → Rôle temp ${role.name}`);
+            results.push(`<@${winnerId}>: Rôle temp ${role.name}`);
           } else {
-            results.push(`<@${winnerId}> → Erreur: Membre/rôle introuvable`);
+            results.push(`<@${winnerId}>: Erreur (Membre/rôle introuvable)`);
           }
+          break;
+        }
+        case 'NITRO': {
+          results.push(`<@${winnerId}>: Discord Nitro (Manuel)`);
           break;
         }
       }
     } catch (err) {
-      results.push(`<@${winnerId}> → Erreur: ${err.message}`);
+      results.push(`<@${winnerId}>: Erreur (${err.message})`);
     }
   }
 
+  const emoji = '<a:1476213141183660104:1477056275501154304>';
   const embed = createEmbed(
-    'Reroll — Giveaway #' + id,
+    `${emoji} Reroll — Giveaway #${id}`,
     `**Nouveau(x) gagnant(s) :** ${winnerMentions}\n\n` +
     `**Résultats :**\n${results.map(r => r).join('\n')}`,
     '#FFFFFF'

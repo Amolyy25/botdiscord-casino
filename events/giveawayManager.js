@@ -1006,6 +1006,8 @@ module.exports = {
       }
 
       finalValue = `${mbType.toUpperCase()}:${mbValue}:${mbLabel}`;
+    } else if (type === 'NITRO' && !finalValue) {
+      finalValue = 'NITRO_MANUAL';
     }
 
     const endsAt = Date.now() + duration;
@@ -1044,7 +1046,7 @@ module.exports = {
       if (channel && gw.message_id) {
         const msg = await channel.messages.fetch(gw.message_id).catch(() => null);
         if (msg) {
-          const embed = createEmbed('🚫 Giveaway Annulé', `Annulé par <@${interaction.user.id}>.`, COLORS.ERROR);
+          const embed = createEmbed('Giveaway Annulé', `Annulé par <@${interaction.user.id}>.`, '#FFFFFF');
           embed.setFooter({ text: `Giveaway #${id}` });
           await msg.edit({ embeds: [embed], components: [buildGiveawayButtons(id, true)] }).catch(() => {});
         }
@@ -1061,7 +1063,7 @@ module.exports = {
       const endsAt = Math.floor(parseInt(gw.ends_at) / 1000);
       return `**#${gw.id}** — ${prizeDescription(gw)} — Fin <t:${endsAt}:R> — ${gw.winner_count} gagnant(s)`;
     });
-    const embed = createEmbed(`🎉 Giveaways Actifs (${giveaways.length})`, lines.join('\n'), COLORS.PRIMARY);
+    const embed = createEmbed(`Giveaways Actifs (${giveaways.length})`, lines.join('\n'), '#FFFFFF');
     await interaction.reply({ embeds: [embed], flags: 64 });
   },
 
@@ -1085,17 +1087,17 @@ module.exports = {
         switch (gw.prize_type) {
           case 'COINS':
             await db.updateBalance(winnerId, BigInt(gw.prize_value), 'Giveaway: Gain');
-            results.push(`<@${winnerId}> → +${gw.prize_value} coins ✅`);
+            results.push(`<@${winnerId}>: +${gw.prize_value} coins`);
             break;
           case 'TIRAGES':
             await db.updateTirages(winnerId, parseInt(gw.prize_value));
-            results.push(`<@${winnerId}> → +${gw.prize_value} tirages ✅`);
+            results.push(`<@${winnerId}>: +${gw.prize_value} tirages`);
             break;
           case 'ROLE': {
             const member = await guild.members.fetch(winnerId).catch(() => null);
             const role = guild.roles.cache.get(gw.prize_value);
-            if (member && role) { await member.roles.add(role); results.push(`<@${winnerId}> → Rôle ${role.name} ✅`); }
-            else results.push(`<@${winnerId}> → ❌ Membre/rôle introuvable`);
+            if (member && role) { await member.roles.add(role); results.push(`<@${winnerId}>: Rôle ${role.name}`); }
+            else results.push(`<@${winnerId}>: Erreur (Membre/rôle introuvable)`);
             break;
           }
           case 'TEMP_ROLE': {
@@ -1105,8 +1107,12 @@ module.exports = {
               await member.roles.add(role);
               const dur = parseInt(gw.temp_role_duration) || 86_400_000;
               await db.addScheduledTask({ taskType: 'REMOVE_ROLE', guildId: guild.id, userId: winnerId, roleId: gw.prize_value, executeAt: Date.now() + dur });
-              results.push(`<@${winnerId}> → Rôle temp ${role.name} ✅`);
-            } else results.push(`<@${winnerId}> → ❌ Membre/rôle introuvable`);
+              results.push(`<@${winnerId}>: Rôle temp ${role.name}`);
+            } else results.push(`<@${winnerId}>: Erreur (Membre/rôle introuvable)`);
+            break;
+          }
+          case 'NITRO': {
+            results.push(`<@${winnerId}>: Discord Nitro (Manuel)`);
             break;
           }
         }
@@ -1114,7 +1120,8 @@ module.exports = {
     }
 
     const winnerMentions = winners.map(w => `<@${w}>`).join(', ');
-    const embed = createEmbed(`🔄 Reroll — Giveaway #${id}`, `**Gagnant(s) :** ${winnerMentions}\n\n**Résultats :**\n${results.join('\n')}`, COLORS.GOLD);
+    const emoji = '<a:1476213141183660104:1477056275501154304>';
+    const embed = createEmbed(`${emoji} Reroll — Giveaway #${id}`, `**Gagnant(s) :** ${winnerMentions}\n\n**Résultats :**\n${results.join('\n')}`, '#FFFFFF');
     await interaction.editReply({ embeds: [embed] });
 
     try {
