@@ -1006,9 +1006,13 @@ module.exports = {
       }
 
       finalValue = `${mbType.toUpperCase()}:${mbValue}:${mbLabel}`;
-    } else if (type === 'NITRO' && !finalValue) {
+    // Prevent NULL prize_value for NITRO or if somehow missing
+    if (type === 'NITRO' && !finalValue) {
       finalValue = 'NITRO_MANUAL';
     }
+    
+    // Safety fallback for postgres not-null constraint
+    const safePrizeValue = finalValue || '---';
 
     const endsAt = Date.now() + duration;
     const giveaway = await db.createGiveaway({
@@ -1017,7 +1021,7 @@ module.exports = {
       messageId: null,
       hostId: interaction.user.id,
       prizeType: type,
-      prizeValue: finalValue,
+      prizeValue: safePrizeValue,
       winnerCount,
       endsAt,
       tempRoleDuration,
