@@ -1006,6 +1006,8 @@ module.exports = {
       }
 
       finalValue = `${mbType.toUpperCase()}:${mbValue}:${mbLabel}`;
+    }
+
     // Prevent NULL prize_value for NITRO or if somehow missing
     if (type === 'NITRO' && !finalValue) {
       finalValue = 'NITRO_MANUAL';
