@@ -2,7 +2,7 @@ const { PermissionFlagsBits } = require('discord.js');
 const { createEmbed, COLORS, formatCoins } = require('../utils');
 const giveawayManager = require('../events/giveawayManager');
 
-const VALID_TYPES = ['COINS', 'TIRAGES', 'ROLE', 'TEMP_ROLE', 'MYSTERY_BOX'];
+const VALID_TYPES = ['COINS', 'TIRAGES', 'ROLE', 'TEMP_ROLE', 'MYSTERY_BOX', 'NITRO'];
 
 module.exports = {
   name: 'giveaway',
@@ -45,12 +45,12 @@ async function showHelp(message) {
     'Giveaway — Aide',
     `**Créer un giveaway :**\n` +
     `\`;giveaway create <type> <valeur> <durée> <nb_gagnants> [durée_rôle]\`\n\n` +
-    `**Types :** \`COINS\`, \`TIRAGES\`, \`ROLE\`, \`TEMP_ROLE\`, \`MYSTERY_BOX\`\n` +
+    `**Types :** \`COINS\`, \`TIRAGES\`, \`ROLE\`, \`TEMP_ROLE\`, \`MYSTERY_BOX\`, \`NITRO\`\n` +
     `**Durées :** \`10m\`, \`1h\`, \`2d\`, \`30s\`\n\n` +
     `**Exemples :**\n` +
     `→ \`;gw create COINS 1000 1h 2\`\n` +
-    `→ \`;gw create TEMP_ROLE 123456 30m 1 2d\`\n` +
-    `→ \`;gw create MYSTERY_BOX COINS:5000:5000 coins 1h 1\`\n\n` +
+    `→ \`;gw create NITRO 1d 1\`\n` +
+    `→ \`;gw create TEMP_ROLE 123456 30m 1 2d\`\n\n` +
     `**Autres commandes :**\n` +
     `\`;gw cancel <id>\`\n` +
     `\`;gw list\`\n` +
@@ -62,11 +62,19 @@ async function showHelp(message) {
 
 async function handleCreate(message, args, db) {
   // ;giveaway create <type> <value> <duration> <winners> [role_duration]
-  const type = (args[0] || '').toUpperCase();
-  const value = args[1];
-  const durationStr = args[2];
-  const winnersStr = args[3];
-  const roleDurationStr = args[4]; // only for TEMP_ROLE
+  let type = (args[0] || '').toUpperCase();
+  let value = args[1];
+  let durationStr = args[2];
+  let winnersStr = args[3];
+  let roleDurationStr = args[4];
+
+  // Special case for NITRO: since it doesn't need a value, 
+  // if called as `;gw create NITRO 1h 1`, we shift the arguments.
+  if (type === 'NITRO' && (durationStr === undefined || giveawayManager.parseDuration(value))) {
+    winnersStr = durationStr;
+    durationStr = value;
+    value = 'NITRO_MANUAL';
+  }
 
   // Validate type
   if (!VALID_TYPES.includes(type)) {
@@ -183,9 +191,8 @@ async function handleCreate(message, args, db) {
 
   // Confirmation to host
   const confirmEmbed = createEmbed(
-    'Giveaway créé',
-    `**ID :** #${giveaway.id}\n` +
-    `**Récompense :** ${giveawayManager.prizeDescription(giveaway)}\n` +
+    'Giveaway Créé',
+    `**Gain :** ${giveawayManager.prizeDescription(giveaway)}\n` +
     `**Fin :** <t:${Math.floor(endsAt / 1000)}:R>\n` +
     `**Gagnants :** ${winnerCount}`,
     '#FFFFFF'
@@ -344,7 +351,7 @@ async function handleReroll(message, args, db) {
   const embed = createEmbed(
     'Reroll — Giveaway #' + id,
     `**Nouveau(x) gagnant(s) :** ${winnerMentions}\n\n` +
-    `**Résultats :**\n${results.map(r => `→ ${r}`).join('\n')}`,
+    `**Résultats :**\n${results.map(r => r).join('\n')}`,
     '#FFFFFF'
   );
   await message.reply({ embeds: [embed] });

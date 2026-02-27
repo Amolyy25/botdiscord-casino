@@ -17,6 +17,7 @@ const PRIZE_LABELS = {
   ROLE: 'Rôle Permanent',
   TEMP_ROLE: 'Rôle Temporaire',
   MYSTERY_BOX: 'Mystery Box',
+  NITRO: 'Discord Nitro',
 };
 
 function parseDuration(str) {
@@ -57,6 +58,7 @@ function prizeDescription(giveaway) {
       const label = value.split(':')[2] || value;
       return `**Mystery Box** *(ou ${label} garanti)*`;
     }
+    case 'NITRO': return 'Discord Nitro';
     default: return value;
   }
 }
@@ -77,12 +79,13 @@ function parseMysteryBoxValue(rawValue) {
 function buildGiveawayEmbed(giveaway, participantCount, ended = false, winners = []) {
   const embed = new EmbedBuilder();
   const isMB = giveaway.prize_type === 'MYSTERY_BOX';
+  const emoji = '<a:1476213141183660104:1477056275501154304>';
 
   // SOBER WHITE DESIGN
   embed.setColor('#FFFFFF');
 
   if (ended) {
-    embed.setTitle(isMB ? 'Giveaway Mystery Box Terminé' : 'Giveaway Terminé');
+    embed.setTitle(`${emoji} Giveaway ${isMB ? 'Mystery Box ' : ''}Terminé`);
     const winnerMentions = winners.length > 0
       ? winners.map(w => `<@${w}>`).join(', ')
       : '*Aucun participant*';
@@ -90,40 +93,33 @@ function buildGiveawayEmbed(giveaway, participantCount, ended = false, winners =
     if (isMB) {
       const { defaultLabel } = parseMysteryBoxValue(giveaway.prize_value);
       embed.setDescription(
-        `→ **Récompense :** ${defaultLabel}\n` +
-        `→ **Alternative :** Mystery Box\n` +
-        `→ **Gagnant(s) :** ${winnerMentions}\n\n` +
-        `*Lancé par <@${giveaway.host_id}>*`
+        `**Gain :** ${defaultLabel}\n` +
+        `**Alternative :** Mystery Box\n` +
+        `**Gagnants :** ${winnerMentions}`
       );
     } else {
       embed.setDescription(
-        `→ **Récompense :** ${prizeDescription(giveaway)}\n` +
-        `→ **Gagnant(s) :** ${winnerMentions}\n\n` +
-        `*Lancé par <@${giveaway.host_id}>*`
+        `**Gain :** ${prizeDescription(giveaway)}\n` +
+        `**Gagnants :** ${winnerMentions}`
       );
     }
   } else {
     const endsAt = Math.floor(parseInt(giveaway.ends_at) / 1000);
     if (isMB) {
-      embed.setTitle('GIVEAWAY — MYSTERY BOX');
+      embed.setTitle(`${emoji} Giveaway — Mystery Box`);
       const { defaultLabel } = parseMysteryBoxValue(giveaway.prize_value);
       embed.setDescription(
-        `→ **Récompense garantie :** ${defaultLabel}\n` +
-        `→ **Mystery Box :** Lot mystère possible\n\n` +
-        `**Fin :** <t:${endsAt}:R>\n` +
-        `**Gagnants :** ${giveaway.winner_count}\n` +
-        `**Participants :** ${participantCount}\n\n` +
-        `*Lancé par <@${giveaway.host_id}>*`
+        `**Gain :** ${defaultLabel}\n` +
+        `**Alternative :** Mystery Box\n` +
+        `**Temps restant :** <t:${endsAt}:R>\n` +
+        `**Gagnants :** ${giveaway.winner_count}`
       );
     } else {
-      embed.setTitle('GIVEAWAY');
+      embed.setTitle(`${emoji} Giveaway`);
       embed.setDescription(
-        `→ **Récompense :** ${prizeDescription(giveaway)}\n` +
-        `→ **Type :** ${PRIZE_LABELS[giveaway.prize_type] || giveaway.prize_type}\n\n` +
-        `**Fin :** <t:${endsAt}:R>\n` +
-        `**Gagnants :** ${giveaway.winner_count}\n` +
-        `**Participants :** ${participantCount}\n\n` +
-        `*Lancé par <@${giveaway.host_id}>*`
+        `**Gain :** ${prizeDescription(giveaway)}\n` +
+        `**Temps restant :** <t:${endsAt}:R>\n` +
+        `**Gagnants :** ${giveaway.winner_count}`
       );
     }
   }
@@ -272,8 +268,8 @@ async function endGiveawayMysteryBox(giveaway, winners, guild) {
         .setDescription(
           `Félicitations <@${winnerId}> !\n\n` +
           `Tu as le choix entre deux options :\n\n` +
-          `→ **Récompense garantie :** ${defaultLabel}\n` +
-          `→ **Mystery Box :** Lot mystère possible\n\n` +
+          `**Récompense garantie :** ${defaultLabel}\n` +
+          `**Mystery Box :** Lot mystère possible\n\n` +
           `*Quel risque vas-tu prendre ?*`
         )
         .setFooter({ text: `ID: #${giveaway.id} · Box: #${box.id}` });
@@ -403,7 +399,7 @@ async function openMysteryBoxAnimated(interaction, box) {
     .setTitle(item.rarity === 'LEGENDAIRE' ? 'LÉGENDAIRE !' : item.rarity === 'EPIQUE' ? 'ÉPIQUE !' : item.rarity === 'RARE' ? 'RARE !' : 'Lot Commun')
     .setDescription(
       `<@${box.user_id}> vient d'ouvrir une Mystery Box !\n\n` +
-      `→ **Lot obtenu : ${item.name}**\n` +
+      `**Lot obtenu :** ${item.name}\n` +
       `${item.description}\n\n` +
       (isNitro ? `> *Un administrateur te contactera pour remettre ta récompense.*` : '') +
       `\n*Rareté : **${rarityLabel}***`
@@ -423,7 +419,7 @@ async function openMysteryBoxAnimated(interaction, box) {
       .setTitle('Mystery Box ouverte !')
       .setDescription(
         `**<@${box.user_id}>** vient d'ouvrir une Mystery Box :\n\n` +
-        `→ **${item.name}** — *${rarityLabel}*`
+        `**${item.name}** — *${rarityLabel}*`
       )
       .setColor('#FFFFFF');
     // Le message est déjà dans le bon channel (interaction.channel = channel du giveaway)
@@ -548,7 +544,9 @@ async function distributeReward(giveaway, winnerId, guild) {
       });
       return `Rôle temp ${role.name} ajouté (retrait dans ${formatDuration(duration)})`;
     }
-
+    case 'NITRO': {
+      return `Gain : Discord Nitro (Manuel : Un administrateur devra le fournir)`;
+    }
     default:
       throw new Error(`Type de récompense inconnu: ${type}`);
   }
@@ -660,6 +658,7 @@ const slashCommand = new SlashCommandBuilder()
         { name: '🎭 Rôle Permanent', value: 'ROLE' },
         { name: '⏳ Rôle Temporaire', value: 'TEMP_ROLE' },
         { name: '🎁 Mystery Box', value: 'MYSTERY_BOX' },
+        { name: '💎 Discord Nitro', value: 'NITRO' },
       ))
       .addStringOption(opt =>
         opt.setName('duration')
