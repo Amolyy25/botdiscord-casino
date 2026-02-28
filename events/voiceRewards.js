@@ -106,11 +106,14 @@ async function init(client, db) {
     client.on('voiceStateUpdate', (oldState, newState) => {
         if (newState.member.user.bot) return;
         
-        console.log(`[VoiceRewards] Changement d'état vocal détecté pour ${newState.member.user.tag}`);
+        console.log(`[VoiceRewards] Changement d'état vocal détecté pour ${newState.member.user.tag} (Mute: ${newState.selfMute}, Deaf: ${newState.selfDeaf}, Channel: ${newState.channelId})`);
 
         // If the user completely disconnects, newState.channelId is null.
         if (!newState.channelId) {
             console.log(`[VoiceRewards] ${newState.member.user.tag} s'est déconnecté du vocal.`);
+            handleUserVoiceState(newState.member, newState, db);
+        } else {
+            // Re-evaluate the user themselves explicitly right now with their new state
             handleUserVoiceState(newState.member, newState, db);
         }
 
@@ -129,9 +132,16 @@ async function init(client, db) {
 
             for (const member of freshChannel.members.values()) {
                 if (member.user.bot) continue;
-                // Only evaluate users currently in a channel.
-                if (member.voice.channelId) {
-                    handleUserVoiceState(member, member.voice, db);
+                
+                // If member == the user who just updated their state, we use newState. 
+                // Otherwise we use their current member.voice state.
+                const stateToEvaluate = (member.id === newState.id) ? newState : member.voice;
+                
+                if (stateToEvaluate.channelId) {
+                    handleUserVoiceState(member, stateToEvaluate, db);
+                } else if (activeSessions.has(member.id)) {
+                    // Safety catch if they somehow have an active session but aren't in a voice channel
+                    handleUserVoiceState(member, stateToEvaluate, db);
                 }
             }
         }
