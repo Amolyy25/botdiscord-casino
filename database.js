@@ -157,6 +157,12 @@ const initDb = async () => {
       created_at BIGINT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_mb_user ON mystery_box_inventory(user_id);
+
+    CREATE TABLE IF NOT EXISTS voice_rewards (
+      user_id TEXT PRIMARY KEY,
+      start_time BIGINT NOT NULL,
+      current_tier INTEGER DEFAULT 0
+    );
   `);
 };
 
@@ -720,5 +726,34 @@ module.exports = {
        VALUES ($1, $2, $3, $4, $5)`,
       [id, 0n, 'Prestige Reset', 0n, Date.now()]
     ).catch(err => console.error('[BalHis] Erreur log prestige:', err.message));
+  },
+
+  // ═══════════════════════════════════════════════
+  // Voice Activity Rewards System
+  // ═══════════════════════════════════════════════
+
+  saveVoiceSession: async (userId, startTime, currentTier = 0) => {
+    await pool.query(
+      `INSERT INTO voice_rewards (user_id, start_time, current_tier)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (user_id) DO UPDATE SET start_time = $2, current_tier = $3`,
+      [userId, startTime, currentTier]
+    );
+  },
+
+  getAllVoiceSessions: async () => {
+    const res = await pool.query('SELECT * FROM voice_rewards');
+    return res.rows;
+  },
+
+  updateVoiceSessionTier: async (userId, newTier) => {
+    await pool.query(
+      'UPDATE voice_rewards SET current_tier = $1 WHERE user_id = $2',
+      [newTier, userId]
+    );
+  },
+
+  deleteVoiceSession: async (userId) => {
+    await pool.query('DELETE FROM voice_rewards WHERE user_id = $1', [userId]);
   }
 };

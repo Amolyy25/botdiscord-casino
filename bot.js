@@ -18,6 +18,7 @@ const roleExpiration = require("./events/roleExpiration");
 const braquage = require("./events/braquage");
 const shop = require("./events/shop");
 const giveawayManager = require("./events/giveawayManager");
+const voiceRewards = require("./events/voiceRewards");
 
 const client = new Client({
   intents: [
@@ -63,6 +64,9 @@ client.once("clientReady", async () => {
 
     // Init Giveaway System
     await giveawayManager.init(client, db);
+
+    // Init Voice Rewards System
+    await voiceRewards.init(client, db);
 
     // Init Events Manager (L'Heure de Gloire etc.)
     const eventsManager = require("./events/eventsManager");
