@@ -16,12 +16,16 @@ function isUserValid(member, voiceState) {
     if (!voiceState || !voiceState.channelId) return false;
     if (voiceState.selfMute || voiceState.serverMute) return false;
     if (voiceState.selfDeaf || voiceState.serverDeaf) return false;
-    
     // Check channel members count dynamically from the client cache to be safe
     const channel = member.guild.channels.cache.get(voiceState.channelId);
-    if (!channel) return false;
+    if (!channel) {
+        console.log(`[VoiceRewards] Channel ID ${voiceState.channelId} introuvable dans le cache.`);
+        return false;
+    }
 
     const validMembers = channel.members.filter(m => !m.user.bot).size;
+    console.log(`[VoiceRewards] ${channel.name} a ${validMembers} membre(s) non-bot(s) valides.`);
+    
     if (validMembers < 2) return false;
 
     return true;
@@ -40,6 +44,8 @@ async function init(client, db) {
     } catch (err) {
         console.error("[VoiceRewards] Erreur chargement BDD:", err);
     }
+    
+    console.log(`[VoiceRewards] Initialisation terminée. ${activeSessions.size} session(s) chargée(s). Vérification des salons en cours...`);
 
     // 2. Validate current state for everyone
     for (const guild of client.guilds.cache.values()) {
