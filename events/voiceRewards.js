@@ -197,7 +197,7 @@ async function announceReward(client, userId, tierDef, coins, tirages) {
     const channel = await client.channels.fetch(WINS_CHANNEL_ID).catch(() => null);
     if (!channel) return;
 
-    let desc = `<@${userId}> a atteint le palier **${tierDef.name}** en vocal !\n\n`;
+    let desc = `<@${userId}> a atteint le palier **${tierDef.name}** en vocal ! Et à gagner `;
     
     if (tierDef.level === 5) {
         desc = `<@${userId}> vient d'atteindre le statut **Active Speaker** (2 Heures) !\n\n`;
