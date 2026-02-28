@@ -275,6 +275,21 @@ async function checkRewards(client, db) {
         
         console.log(`[VoiceRewards] Check session: UID ${userId} | En cours depuis ${minutes} min | Tier actuel: ${session.currentTier}`);
 
+        // REQUIRED ROLE CHECK: 1469713522194780404
+        let hasRequiredRole = false;
+        for (const guild of client.guilds.cache.values()) {
+            const member = guild.members.cache.get(userId);
+            if (member && member.roles.cache.has("1469713522194780404")) {
+                hasRequiredRole = true;
+                break;
+            }
+        }
+        
+        if (!hasRequiredRole) {
+            console.log(`[VoiceRewards] ❌ ${userId} ignoré : il n'a pas le rôle requis (1469713522194780404).`);
+            continue; // Skip the reward logic entirely for this user
+        }
+
         for (const tierDef of TIERS) {
             if (minutes >= tierDef.mins && tierDef.level > session.currentTier) {
                 // Grant reward
