@@ -24,20 +24,44 @@ function getMemberCurrentValidState(client, userId) {
 }
 
 function isUserValid(member, voiceState) {
-    if (!voiceState || !voiceState.channelId) return false;
-    if (voiceState.selfMute || voiceState.serverMute) return false;
-    if (voiceState.selfDeaf || voiceState.serverDeaf) return false;
-    // Check channel members count dynamically from the client cache to be safe
+    // If the event triggered a complete disconnect, it will have no channel.
+    if (!voiceState || !voiceState.channelId) {
+        console.log(`[VoiceRewards] ${member.user.tag} n'a plus de channelId = invalidé.`);
+        return false;
+    }
+
+    // Force fetching the most recent channel state directly from the guild cache
     const channel = member.guild.channels.cache.get(voiceState.channelId);
     if (!channel) {
         console.log(`[VoiceRewards] Channel ID ${voiceState.channelId} introuvable dans le cache.`);
         return false;
     }
 
-    const validMembers = channel.members.filter(m => !m.user.bot).size;
-    console.log(`[VoiceRewards] ${channel.name} a ${validMembers} membre(s) non-bot(s) valides.`);
+    // Check member's active state
+    if (voiceState.selfMute || voiceState.serverMute) {
+        console.log(`[VoiceRewards] ${member.user.tag} est mute = invalidé.`);
+        return false;
+    }
+    if (voiceState.selfDeaf || voiceState.serverDeaf) {
+         console.log(`[VoiceRewards] ${member.user.tag} est blindé = invalidé.`);
+         return false;
+    }
     
-    if (validMembers < 2) return false;
+    // We count VALID members in this channel, ensuring we don't accidentally count disconnected people
+    // that Discord left stuck in the members cache. We verify they actually are connected and not bots.
+    let validMembersCount = 0;
+    for (const [id, m] of channel.members.entries()) {
+        if (!m.user.bot && m.voice && m.voice.channelId === channel.id) {
+            validMembersCount++;
+        }
+    }
+
+    console.log(`[VoiceRewards] ${channel.name} a ${validMembersCount} membre(s) non-bot(s) physiquement présents.`);
+    
+    if (validMembersCount < 2) {
+        console.log(`[VoiceRewards] Moins de 2 membres pour ${member.user.tag} = invalidé.`);
+        return false;
+    }
 
     return true;
 }
