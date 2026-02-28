@@ -13,12 +13,15 @@ const TIERS = [
 ];
 
 function isUserValid(member, voiceState) {
-    if (!voiceState || !voiceState.channel) return false;
+    if (!voiceState || !voiceState.channelId) return false;
     if (voiceState.selfMute || voiceState.serverMute) return false;
     if (voiceState.selfDeaf || voiceState.serverDeaf) return false;
     
-    // Check channel members count (must be at least 2 non-bot users)
-    const validMembers = voiceState.channel.members.filter(m => !m.user.bot).size;
+    // Check channel members count dynamically from the client cache to be safe
+    const channel = member.guild.channels.cache.get(voiceState.channelId);
+    if (!channel) return false;
+
+    const validMembers = channel.members.filter(m => !m.user.bot).size;
     if (validMembers < 2) return false;
 
     return true;
@@ -114,7 +117,11 @@ async function init(client, db) {
             const channel = newState.guild.channels.cache.get(channelId) || oldState.guild.channels.cache.get(channelId);
             if (!channel) continue;
             
-            for (const member of channel.members.values()) {
+            // Re-fetch the channel fresh to ensure we get the accurate current members size
+            const freshChannel = client.channels.cache.get(channelId);
+            if (!freshChannel) continue;
+
+            for (const member of freshChannel.members.values()) {
                 if (member.user.bot) continue;
                 // Only evaluate users currently in a channel.
                 if (member.voice.channelId) {
