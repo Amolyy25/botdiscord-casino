@@ -12,6 +12,17 @@ const TIERS = [
   { level: 5, mins: 120, minCoins: 75000, maxCoins: 120000, tirages: 5, name: "Active Speaker" }
 ];
 
+// Helper method to look up a member's valid status anywhere in the bot
+function getMemberCurrentValidState(client, userId) {
+    for (const guild of client.guilds.cache.values()) {
+        const member = guild.members.cache.get(userId);
+        if (member && member.voice && member.voice.channelId) {
+            return isUserValid(member, member.voice);
+        }
+    }
+    return false;
+}
+
 function isUserValid(member, voiceState) {
     if (!voiceState || !voiceState.channelId) return false;
     if (voiceState.selfMute || voiceState.serverMute) return false;
@@ -187,8 +198,29 @@ function startResetTimer(userId, db) {
 
 async function checkRewards(client, db) {
     const now = Date.now();
+    
+    // We do a full sweep to guarantee anyone active but not cached is caught,
+    // and anyone who slipped through a bug is invalidated.
+    for (const guild of client.guilds.cache.values()) {
+        for (const channel of guild.channels.cache.values()) {
+            if (!channel.isVoiceBased()) continue;
+            for (const member of channel.members.values()) {
+                if (member.user.bot) continue;
+                handleUserVoiceState(member, member.voice, db);
+            }
+        }
+    }
+
     for (const [userId, session] of activeSessions.entries()) {
         if (pendingResets.has(userId)) continue;
+        
+        // Final safety check: if we somehow bypassed the interval sweep, manually check valid state.
+        if (!getMemberCurrentValidState(client, userId)) {
+            if (!pendingResets.has(userId)) {
+                startResetTimer(userId, db);
+            }
+            continue;
+        }
 
         const minutes = Math.floor((now - session.startTime) / 60000);
         
