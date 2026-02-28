@@ -56,11 +56,14 @@ function isUserValid(member, voiceState) {
     if (member.guild.voiceStates && member.guild.voiceStates.cache) {
         for (const [id, vs] of member.guild.voiceStates.cache.entries()) {
             if (vs.channelId === voiceState.channelId) {
-                // Determine if it's a bot
+                // Determine if it's a bot or if they are muted/deafened
                 let isBot = false;
                 if (vs.member && vs.member.user && vs.member.user.bot) isBot = true;
                 
-                if (!isBot) {
+                const isMuted = vs.selfMute || vs.serverMute;
+                const isDeaf = vs.selfDeaf || vs.serverDeaf;
+                
+                if (!isBot && !isMuted && !isDeaf) {
                     validMembersCount++;
                 }
             }
@@ -69,7 +72,11 @@ function isUserValid(member, voiceState) {
         // Fallback to channel.members if voiceStates is totally unavailable
         for (const [id, m] of channel.members.entries()) {
             if (!m.user.bot && m.voice && m.voice.channelId === channel.id) {
-                validMembersCount++;
+                const isMuted = m.voice.selfMute || m.voice.serverMute;
+                const isDeaf = m.voice.selfDeaf || m.voice.serverDeaf;
+                if (!isMuted && !isDeaf) {
+                    validMembersCount++;
+                }
             }
         }
     }
