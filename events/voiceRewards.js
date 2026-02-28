@@ -49,14 +49,32 @@ function isUserValid(member, voiceState) {
     
     // We count VALID members in this channel, ensuring we don't accidentally count disconnected people
     // that Discord left stuck in the members cache. We verify they actually are connected and not bots.
+    // To combat cache issues, we look at the entire guild's verified voice states for this channel.
     let validMembersCount = 0;
-    for (const [id, m] of channel.members.entries()) {
-        if (!m.user.bot && m.voice && m.voice.channelId === channel.id) {
-            validMembersCount++;
+    
+    // Safety check if voiceStates isn't available
+    if (member.guild.voiceStates && member.guild.voiceStates.cache) {
+        for (const [id, vs] of member.guild.voiceStates.cache.entries()) {
+            if (vs.channelId === voiceState.channelId) {
+                // Determine if it's a bot
+                let isBot = false;
+                if (vs.member && vs.member.user && vs.member.user.bot) isBot = true;
+                
+                if (!isBot) {
+                    validMembersCount++;
+                }
+            }
+        }
+    } else {
+        // Fallback to channel.members if voiceStates is totally unavailable
+        for (const [id, m] of channel.members.entries()) {
+            if (!m.user.bot && m.voice && m.voice.channelId === channel.id) {
+                validMembersCount++;
+            }
         }
     }
 
-    console.log(`[VoiceRewards] ${channel.name} a ${validMembersCount} membre(s) non-bot(s) physiquement présents.`);
+    console.log(`[VoiceRewards] ${channel.name} a ${validMembersCount} membre(s) non-bot(s) physiquement présents (par VoiceStates).`);
     
     if (validMembersCount < 2) {
         console.log(`[VoiceRewards] Moins de 2 membres pour ${member.user.tag} = invalidé.`);
