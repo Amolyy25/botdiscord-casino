@@ -52,13 +52,16 @@ async function init(client, db) {
                         const now = Date.now();
                         activeSessions.set(member.id, { startTime: now, currentTier: 0 });
                         await db.saveVoiceSession(member.id, now, 0).catch(() => {});
+                        console.log(`[VoiceRewards] Session démarrée pour ${member.user.tag} (${member.id})`);
                     }
                     if (pendingResets.has(member.id)) {
                         clearTimeout(pendingResets.get(member.id));
                         pendingResets.delete(member.id);
+                        console.log(`[VoiceRewards] Timer d'annulation révoqué pour ${member.user.tag}`);
                     }
                 } else {
                     if (activeSessions.has(member.id) && !pendingResets.has(member.id)) {
+                        console.log(`[VoiceRewards] ${member.user.tag} n'est plus valide. Démarrage du timer de 30s...`);
                         startResetTimer(member.id, db);
                     }
                 }
@@ -93,6 +96,8 @@ async function init(client, db) {
     // 5. Handle user voice state updates
     client.on('voiceStateUpdate', (oldState, newState) => {
         if (newState.member.user.bot) return;
+        
+        console.log(`[VoiceRewards] Changement d'état vocal détecté pour ${newState.member.user.tag}`);
 
         // Since minimum 2 users are required, joining/leaving/muting affects others in the same channel.
         // Therefore, we re-evaluate ALL users in the affected channels.
@@ -120,19 +125,24 @@ async function init(client, db) {
 function handleUserVoiceState(member, voiceState, db) {
     const userId = member.id;
     const valid = isUserValid(member, voiceState);
+    
+    console.log(`[VoiceRewards] Vérification de ${member.user.tag} : Valide = ${valid}`);
 
     if (valid) {
         if (pendingResets.has(userId)) {
             clearTimeout(pendingResets.get(userId));
             pendingResets.delete(userId);
+            console.log(`[VoiceRewards] Timer d'annulation révoqué pour ${member.user.tag}`);
         }
         if (!activeSessions.has(userId)) {
             const now = Date.now();
             activeSessions.set(userId, { startTime: now, currentTier: 0 });
             db.saveVoiceSession(userId, now, 0).catch(console.error);
+            console.log(`[VoiceRewards] Nouvelle session démarrée pour ${member.user.tag} (${userId})`);
         }
     } else {
         if (activeSessions.has(userId) && !pendingResets.has(userId)) {
+            console.log(`[VoiceRewards] ${member.user.tag} n'est plus valide. Démarrage du timer d'annulation (30s)...`);
             startResetTimer(userId, db);
         }
     }
@@ -140,6 +150,7 @@ function handleUserVoiceState(member, voiceState, db) {
 
 function startResetTimer(userId, db) {
     const timeout = setTimeout(async () => {
+        console.log(`[VoiceRewards] Temps écoulé (30s) : Session supprimée pour ${userId}`);
         activeSessions.delete(userId);
         pendingResets.delete(userId);
         await db.deleteVoiceSession(userId).catch(console.error);
@@ -154,6 +165,8 @@ async function checkRewards(client, db) {
         if (pendingResets.has(userId)) continue;
 
         const minutes = Math.floor((now - session.startTime) / 60000);
+        
+        console.log(`[VoiceRewards] Check session: UID ${userId} | En cours depuis ${minutes} min | Tier actuel: ${session.currentTier}`);
 
         for (const tierDef of TIERS) {
             if (minutes >= tierDef.mins && tierDef.level > session.currentTier) {
@@ -170,6 +183,7 @@ async function checkRewards(client, db) {
                     session.currentTier = tierDef.level;
                     await db.updateVoiceSessionTier(userId, tierDef.level);
                     
+                    console.log(`[VoiceRewards] 🏆 Récompense décernée à ${userId} pour le palier "${tierDef.name}"`);
                     announceReward(client, userId, tierDef, coinsWon, tiragesWon);
                 } catch (err) {
                     console.error(`[VoiceRewards] Erreur récompense pour ${userId}:`, err);
