@@ -99,8 +99,13 @@ async function init(client, db) {
         
         console.log(`[VoiceRewards] Changement d'état vocal détecté pour ${newState.member.user.tag}`);
 
-        // Since minimum 2 users are required, joining/leaving/muting affects others in the same channel.
-        // Therefore, we re-evaluate ALL users in the affected channels.
+        // If the user completely disconnects, newState.channelId is null.
+        if (!newState.channelId) {
+            console.log(`[VoiceRewards] ${newState.member.user.tag} s'est déconnecté du vocal.`);
+            handleUserVoiceState(newState.member, newState, db);
+        }
+
+        // Re-evaluate ALL users in the affected channels because member count changed.
         const channelsToCheck = new Set();
         if (oldState.channelId) channelsToCheck.add(oldState.channelId);
         if (newState.channelId) channelsToCheck.add(newState.channelId);
@@ -111,13 +116,11 @@ async function init(client, db) {
             
             for (const member of channel.members.values()) {
                 if (member.user.bot) continue;
-                handleUserVoiceState(member, member.voice, db);
+                // Only evaluate users currently in a channel.
+                if (member.voice.channelId) {
+                    handleUserVoiceState(member, member.voice, db);
+                }
             }
-        }
-        
-        // Also handle the user themselves just in case they disconnected completely
-        if (!newState.channelId) {
-            handleUserVoiceState(newState.member, newState, db);
         }
     });
 }
