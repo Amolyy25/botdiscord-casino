@@ -1,6 +1,7 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { createEmbed, COLORS, parseBet, formatCoins } = require('../utils');
 const eventsManager = require('../events/eventsManager');
+const achievementsHelper = require('../helpers/achievementsHelper');
 
 module.exports = {
     name: 'bj',
@@ -174,6 +175,25 @@ module.exports = {
                     // Refund bet
                     await db.updateBalance(message.author.id, bet, 'Blackjack: Égalité');
                 }
+
+                // --- Achievements Engine ---
+                const newBal = await db.getUser(message.author.id).then(u => BigInt(u.balance));
+                await achievementsHelper.triggerEvent(message.client, db, message.author.id, 'RISK', {
+                    bet: bet,
+                    outcome: (dealerVal > 21 || playerVal > dealerVal) ? 'win' : 'loss',
+                    winChance: 0.48, // typical blackjack odds approx
+                    potentialWin: bet * 2n,
+                    isJackpot: false,
+                    newBalance: newBal
+                });
+                await achievementsHelper.triggerEvent(message.client, db, message.author.id, 'RESILIENCE', {
+                    bet: bet,
+                    outcome: (dealerVal > 21 || playerVal > dealerVal) ? 'win' : 'loss',
+                    winChance: 0.48,
+                    newBalance: newBal
+                });
+                await achievementsHelper.triggerEvent(message.client, db, message.author.id, 'CAPITAL', {});
+                // ---------------------------
 
                 await i.update({ embeds: [renderEmbed(result, finalGain)], components: [] });
                 collector.stop();

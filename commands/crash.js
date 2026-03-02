@@ -1,6 +1,7 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { createEmbed, COLORS, parseBet, formatCoins } = require('../utils');
 const eventsManager = require('../events/eventsManager');
+const achievementsHelper = require('../helpers/achievementsHelper');
 
 const activeGames = new Set();
 
@@ -132,6 +133,29 @@ module.exports = {
                     embeds: [getEmbed('crashed', crashPoint)],
                     components: []
                 }).catch(() => null);
+
+                // --- Achievements Engine ---
+                db.getUser(message.author.id).then(async u => {
+                    const newBal = BigInt(u.balance);
+                    const chance = 1.0 / crashPoint; // Proba estimée
+                    await achievementsHelper.triggerEvent(message.client, db, message.author.id, 'RISK', {
+                        bet: bet,
+                        outcome: 'loss',
+                        winChance: chance,
+                        potentialWin: 0n,
+                        isJackpot: false,
+                        newBalance: newBal
+                    });
+                    await achievementsHelper.triggerEvent(message.client, db, message.author.id, 'RESILIENCE', {
+                        bet: bet,
+                        outcome: 'loss',
+                        winChance: chance,
+                        newBalance: newBal
+                    });
+                    await achievementsHelper.triggerEvent(message.client, db, message.author.id, 'CAPITAL', {});
+                }).catch(() => null);
+                // ---------------------------
+
                 return;
             }
 
@@ -194,6 +218,26 @@ module.exports = {
             // Announce big wins
             const { announceBigWin } = require('../utils');
             await announceBigWin(message.client, message.author, 'Crash', bet, finalGain, `**Multiplicateur:** x${safeMult.toFixed(2)}`);
+
+            // --- Achievements Engine ---
+            const newBal = await db.getUser(message.author.id).then(u => BigInt(u.balance));
+            const chance = 1.0 / safeMult;
+            await achievementsHelper.triggerEvent(message.client, db, message.author.id, 'RISK', {
+                bet: bet,
+                outcome: 'win',
+                winChance: chance, 
+                potentialWin: bet + finalGain,
+                isJackpot: false,
+                newBalance: newBal
+            });
+            await achievementsHelper.triggerEvent(message.client, db, message.author.id, 'RESILIENCE', {
+                bet: bet,
+                outcome: 'win',
+                winChance: chance,
+                newBalance: newBal
+            });
+            await achievementsHelper.triggerEvent(message.client, db, message.author.id, 'CAPITAL', {});
+            // ---------------------------
         });
     }
 };

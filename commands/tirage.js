@@ -1,5 +1,6 @@
 const { createEmbed, COLORS, formatCoins, sendLog } = require("../utils");
 const { drawRole, ROLE_POOL, WINS_CHANNEL_ID } = require("../roleConfig");
+const achievementsHelper = require('../helpers/achievementsHelper');
 
 module.exports = {
   name: "tirage",
@@ -142,6 +143,18 @@ module.exports = {
             }
         }
     }
+
+    // --- Achievements Engine ---
+    db.getUser(message.author.id).then(async u => {
+        const isMaxTier = results.some(r => r.probability < 0.005); // Ultra rare
+        await achievementsHelper.triggerEvent(message.client, db, message.author.id, 'DRAW', {
+            drawCount: count,
+            winMultiplier: 0, // Tirage has no 'bet', we just base DRAW_05 on probability if needed, though DRAW_05 says >10x mise. Tirages have no mise, skip.
+            isMaxTier: isMaxTier
+        });
+        await achievementsHelper.triggerEvent(message.client, db, message.author.id, 'CAPITAL', {});
+    }).catch(() => null);
+    // ---------------------------
 
     // Build final result message
     let resultText = "";

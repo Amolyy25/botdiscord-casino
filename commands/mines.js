@@ -1,6 +1,7 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { createEmbed, COLORS, parseBet, formatCoins } = require('../utils');
 const eventsManager = require('../events/eventsManager');
+const achievementsHelper = require('../helpers/achievementsHelper');
 
 const activeGames = new Map();
 const ROWS = 3;
@@ -220,6 +221,25 @@ module.exports = {
                 const { announceBigWin } = require('../utils');
                 await announceBigWin(message.client, message.author, 'Mines', st.bet, profit, `**Multiplicateur:** x${st.multiplier.toFixed(2)}\n**Mines:** ${st.numMines}`);
                 
+                // --- Achievements Engine ---
+                const newBal = await db.getUser(userId).then(u => BigInt(u.balance));
+                await achievementsHelper.triggerEvent(message.client, db, userId, 'RISK', {
+                    bet: st.bet,
+                    outcome: 'win',
+                    winChance: 1.0, 
+                    potentialWin: st.bet + profit,
+                    isJackpot: false,
+                    newBalance: newBal
+                });
+                await achievementsHelper.triggerEvent(message.client, db, userId, 'RESILIENCE', {
+                    bet: st.bet,
+                    outcome: 'win',
+                    winChance: 1.0,
+                    newBalance: newBal
+                });
+                await achievementsHelper.triggerEvent(message.client, db, userId, 'CAPITAL', {});
+                // ---------------------------
+
                 activeGames.delete(userId);
                 return;
             }
@@ -247,6 +267,27 @@ module.exports = {
                     embeds: [buildEmbed(st, 'lost')],
                     components: buildGrid(st, true)
                 }).catch(() => {});
+
+                // --- Achievements Engine ---
+                const newBal = await db.getUser(userId).then(u => BigInt(u.balance));
+                const chance = (PLAYABLE_CELLS - st.numMines - st.safeCount) / (PLAYABLE_CELLS - st.safeCount);
+                await achievementsHelper.triggerEvent(message.client, db, userId, 'RISK', {
+                    bet: st.bet,
+                    outcome: 'loss',
+                    winChance: chance,
+                    potentialWin: 0n,
+                    isJackpot: false,
+                    newBalance: newBal
+                });
+                await achievementsHelper.triggerEvent(message.client, db, userId, 'RESILIENCE', {
+                    bet: st.bet,
+                    outcome: 'loss',
+                    winChance: chance,
+                    newBalance: newBal
+                });
+                await achievementsHelper.triggerEvent(message.client, db, userId, 'CAPITAL', {});
+                // ---------------------------
+
                 activeGames.delete(userId);
                 return;
             }
@@ -277,6 +318,25 @@ module.exports = {
                 // Announce big wins
                 const { announceBigWin } = require('../utils');
                 await announceBigWin(message.client, message.author, 'Mines', st.bet, profit, `**Multiplicateur:** x${st.multiplier.toFixed(2)}\n**Mines:** ${st.numMines}`);
+
+                // --- Achievements Engine ---
+                const newBal = await db.getUser(userId).then(u => BigInt(u.balance));
+                await achievementsHelper.triggerEvent(message.client, db, userId, 'RISK', {
+                    bet: st.bet,
+                    outcome: 'win',
+                    winChance: 1.0, 
+                    potentialWin: st.bet + profit,
+                    isJackpot: false,
+                    newBalance: newBal
+                });
+                await achievementsHelper.triggerEvent(message.client, db, userId, 'RESILIENCE', {
+                    bet: st.bet,
+                    outcome: 'win',
+                    winChance: 1.0,
+                    newBalance: newBal
+                });
+                await achievementsHelper.triggerEvent(message.client, db, userId, 'CAPITAL', {});
+                // ---------------------------
 
                 activeGames.delete(userId);
                 return;

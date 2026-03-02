@@ -1,6 +1,7 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { createEmbed, COLORS, parseBet, formatCoins } = require('../utils');
 const eventsManager = require('../events/eventsManager');
+const achievementsHelper = require('../helpers/achievementsHelper');
 
 const activeGames = new Map();
 const MAX_FLOOR = 8;
@@ -274,6 +275,26 @@ module.exports = {
                 // Announce big wins
                 const { announceBigWin } = require('../utils');
                 await announceBigWin(message.client, message.author, 'Towers', st.bet, profit, `**Multiplicateur:** x${cashMult.toFixed(2)}\n**Étages:** ${st.floors.length} / ${MAX_FLOOR}`);
+                
+                // --- Achievements Engine ---
+                const newBal = await db.getUser(userId).then(u => BigInt(u.balance));
+                await achievementsHelper.triggerEvent(message.client, db, userId, 'RISK', {
+                    bet: st.bet,
+                    outcome: 'win',
+                    winChance: 1.0, // safe cashout
+                    potentialWin: st.bet + profit,
+                    isJackpot: false,
+                    newBalance: newBal
+                });
+                await achievementsHelper.triggerEvent(message.client, db, userId, 'RESILIENCE', {
+                    bet: st.bet,
+                    outcome: 'win',
+                    winChance: 1.0,
+                    newBalance: newBal
+                });
+                await achievementsHelper.triggerEvent(message.client, db, userId, 'CAPITAL', {});
+                // ---------------------------
+
                 activeGames.delete(userId);
                 return;
             }
@@ -306,6 +327,25 @@ module.exports = {
                     components: buildComponents(st)
                 }).catch(() => {});
 
+                // --- Achievements Engine ---
+                const newBal = await db.getUser(userId).then(u => BigInt(u.balance));
+                await achievementsHelper.triggerEvent(message.client, db, userId, 'RISK', {
+                    bet: st.bet,
+                    outcome: 'loss',
+                    winChance: 2/3,
+                    potentialWin: 0n,
+                    isJackpot: false,
+                    newBalance: newBal
+                });
+                await achievementsHelper.triggerEvent(message.client, db, userId, 'RESILIENCE', {
+                    bet: st.bet,
+                    outcome: 'loss',
+                    winChance: 2/3,
+                    newBalance: newBal
+                });
+                await achievementsHelper.triggerEvent(message.client, db, userId, 'CAPITAL', {});
+                // ---------------------------
+
                 activeGames.delete(userId);
                 return;
             }
@@ -337,6 +377,25 @@ module.exports = {
                 // Announce big wins
                 const { announceBigWin } = require('../utils');
                 await announceBigWin(message.client, message.author, 'Towers', st.bet, profit, `**Multiplicateur:** x${cashMult.toFixed(2)}\n**Étages:** ${st.floors.length} / ${MAX_FLOOR}`);
+
+                // --- Achievements Engine ---
+                const newBal = await db.getUser(userId).then(u => BigInt(u.balance));
+                await achievementsHelper.triggerEvent(message.client, db, userId, 'RISK', {
+                    bet: st.bet,
+                    outcome: 'win',
+                    winChance: 2/3,
+                    potentialWin: st.bet + profit,
+                    isJackpot: false,
+                    newBalance: newBal
+                });
+                await achievementsHelper.triggerEvent(message.client, db, userId, 'RESILIENCE', {
+                    bet: st.bet,
+                    outcome: 'win',
+                    winChance: 2/3,
+                    newBalance: newBal
+                });
+                await achievementsHelper.triggerEvent(message.client, db, userId, 'CAPITAL', {});
+                // ---------------------------
 
                 activeGames.delete(userId);
                 return;

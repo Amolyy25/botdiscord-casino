@@ -30,6 +30,12 @@ const initDb = async () => {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='prestige') THEN
             ALTER TABLE users ADD COLUMN prestige INTEGER DEFAULT 0;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='achievements') THEN
+            ALTER TABLE users ADD COLUMN achievements JSONB DEFAULT '{}'::jsonb;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='stats_trackers') THEN
+            ALTER TABLE users ADD COLUMN stats_trackers JSONB DEFAULT '{}'::jsonb;
+        END IF;
     END $$;
     
     CREATE TABLE IF NOT EXISTS bounties (
@@ -167,6 +173,7 @@ const initDb = async () => {
 };
 
 module.exports = {
+  pool,
   initDb,
   getUser: async (id) => {
     const res = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
@@ -755,5 +762,25 @@ module.exports = {
 
   deleteVoiceSession: async (userId) => {
     await pool.query('DELETE FROM voice_rewards WHERE user_id = $1', [userId]);
+  },
+
+  // ═══════════════════════════════════════════════
+  // Achievements System
+  // ═══════════════════════════════════════════════
+
+  updateAchievements: async (userId, achievementsData) => {
+    const res = await pool.query(
+      `UPDATE users SET achievements = $2 WHERE id = $1 RETURNING achievements`,
+      [userId, achievementsData]
+    );
+    return res.rows[0]?.achievements;
+  },
+
+  updateStatsTrackers: async (userId, statsData) => {
+    const res = await pool.query(
+      `UPDATE users SET stats_trackers = $2 WHERE id = $1 RETURNING stats_trackers`,
+      [userId, statsData]
+    );
+    return res.rows[0]?.stats_trackers;
   }
 };

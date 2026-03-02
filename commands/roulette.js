@@ -1,5 +1,6 @@
 const { createEmbed, COLORS, parseBet, formatCoins } = require('../utils');
 const eventsManager = require('../events/eventsManager');
+const achievementsHelper = require('../helpers/achievementsHelper');
 
 module.exports = {
     name: 'roulette',
@@ -54,6 +55,28 @@ module.exports = {
             gain = -bet;
             // Bet already deducted
         }
+
+        // --- Achievements Engine ---
+        const newBal = await db.getUser(message.author.id).then(u => BigInt(u.balance));
+        const chance = choice === 'vert' ? (1/37) : (18/37);
+        const potWin = choice === 'vert' ? bet * 36n : bet * 2n;
+
+        await achievementsHelper.triggerEvent(message.client, db, message.author.id, 'RISK', {
+            bet: bet,
+            outcome: win ? 'win' : 'loss',
+            winChance: chance,
+            potentialWin: potWin,
+            isJackpot: false,
+            newBalance: newBal
+        });
+        await achievementsHelper.triggerEvent(message.client, db, message.author.id, 'RESILIENCE', {
+            bet: bet,
+            outcome: win ? 'win' : 'loss',
+            winChance: chance,
+            newBalance: newBal
+        });
+        await achievementsHelper.triggerEvent(message.client, db, message.author.id, 'CAPITAL', {});
+        // ---------------------------
 
         // Announce big wins
         const { announceBigWin } = require('../utils');

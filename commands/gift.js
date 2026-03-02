@@ -1,4 +1,5 @@
 const { createEmbed, COLORS, formatCoins } = require('../utils');
+const achievementsHelper = require('../helpers/achievementsHelper');
 
 module.exports = {
     name: 'gift',
@@ -37,6 +38,21 @@ module.exports = {
 
         await db.updateBalance(message.author.id, -amount, 'Gift: Envoi');
         await db.updateBalance(target.id, amount, 'Gift: Reçu');
+
+        // --- Achievements Engine ---
+        await achievementsHelper.triggerEvent(message.client, db, message.author.id, 'SOCIAL', {
+            action: 'send',
+            amount: amount,
+            targetId: target.id
+        });
+        await achievementsHelper.triggerEvent(message.client, db, target.id, 'SOCIAL', {
+            action: 'receive',
+            amount: amount,
+            targetId: message.author.id
+        });
+        await achievementsHelper.triggerEvent(message.client, db, message.author.id, 'CAPITAL', {});
+        await achievementsHelper.triggerEvent(message.client, db, target.id, 'CAPITAL', {});
+        // ---------------------------
 
         const embed = createEmbed(
             'Transfert réussi 🎁',

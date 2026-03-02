@@ -1,0 +1,214 @@
+{
+  "achievements": [
+    {
+      "id": "CAP_01",
+      "category": "Capital & Puissance",
+      "name": "I - Liquidité",
+      "description": "Détenir un solde de 10 000 Coins.",
+      "reward": { "coins": 1000, "tirages": 0 }
+    },
+    {
+      "id": "CAP_02",
+      "category": "Capital & Puissance",
+      "name": "II - Solvable",
+      "description": "Détenir un solde de 100 000 Coins.",
+      "reward": { "coins": 10000, "tirages": 1 }
+    },
+    {
+      "id": "CAP_03",
+      "category": "Capital & Puissance",
+      "name": "III - Capital",
+      "description": "Détenir un solde de 1 000 000 Coins.",
+      "reward": { "coins": 100000, "tirages": 2 }
+    },
+    {
+      "id": "CAP_04",
+      "category": "Capital & Puissance",
+      "name": "IV - Patrimoine",
+      "description": "Détenir un solde de 10 000 000 Coins.",
+      "reward": { "coins": 1000000, "tirages": 5 }
+    },
+    {
+      "id": "CAP_05",
+      "category": "Capital & Puissance",
+      "name": "V - Influence",
+      "description": "Détenir un solde de 50 000 000 Coins.",
+      "reward": { "coins": 5000000, "tirages": 10 }
+    },
+    {
+      "id": "CAP_06",
+      "category": "Capital & Puissance",
+      "name": "VI - Hégémonie",
+      "description": "Détenir un solde de 100 000 000 Coins.",
+      "reward": { "coins": 10000000, "tirages": 20 }
+    },
+    {
+      "id": "CAP_07",
+      "category": "Capital & Puissance",
+      "name": "VII - Banque Centrale",
+      "description": "Atteindre le Milliard de Coins.",
+      "reward": { "coins": 100000000, "tirages": 50 }
+    },
+    {
+      "id": "RISK_01",
+      "category": "Prise de Risque",
+      "name": "All-In",
+      "description": "Parier l'intégralité de son solde sur un seul coup et gagner.",
+      "reward": { "coins": 100000, "tirages": 2 }
+    },
+    {
+      "id": "RISK_02",
+      "category": "Prise de Risque",
+      "name": "La Mise Ultime",
+      "description": "Placer un pari unique de plus de 5 000 000 Coins.",
+      "reward": { "coins": 500000, "tirages": 3 }
+    },
+    {
+      "id": "RISK_03",
+      "category": "Prise de Risque",
+      "name": "Tapis Noir",
+      "description": "Enchaîner 3 All-In victorieux consécutifs.",
+      "reward": { "coins": 150000, "tirages": 10 }
+    },
+    {
+      "id": "RISK_04",
+      "category": "Prise de Risque",
+      "name": "Main d'Acier",
+      "description": "Parier plus de 50% de son solde sur un jeu à moins de 30% de chance de victoire.",
+      "reward": { "coins": 20000, "tirages": 3 }
+    },
+    {
+      "id": "RISK_05",
+      "category": "Prise de Risque",
+      "name": "Double ou Rien",
+      "description": "Gagner un Quitte ou Double trois fois de suite.",
+      "reward": { "coins": 10000, "tirages": 2 }
+    },
+    {
+      "id": "RISK_06",
+      "category": "Prise de Risque",
+      "name": "Insatiable",
+      "description": "Reparier instantanément la totalité d'un gain venant d'être empoché.",
+      "reward": { "coins": 5000, "tirages": 1 }
+    },
+    {
+      "id": "RISK_07",
+      "category": "Prise de Risque",
+      "name": "Adrénaline",
+      "description": "Placer un pari représentant 90% de son capital (si capital > 1M).",
+      "reward": { "coins": 30000, "tirages": 2 }
+    },
+    {
+      "id": "RISK_08",
+      "category": "Prise de Risque",
+      "name": "Le Pari des 100",
+      "description": "Avoir 100 paris terminés en moins de 24h.",
+      "reward": { "coins": 25000, "tirages": 5 }
+    },
+    {
+      "id": "RISK_09",
+      "category": "Prise de Risque",
+      "name": "Whale",
+      "description": "Placer des mises massives de manière répétée sans jamais faiblir.",
+      "reward": { "coins": 100000, "tirages": 5 }
+    },
+    {
+      "id": "RISK_10",
+      "category": "Prise de Risque",
+      "name": "Coup de Poker",
+      "description": "Miser plus de 1M sur le résultat le moins probable d'un jeu.",
+      "reward": { "coins": 200000, "tirages": 10 }
+    },
+    {
+      "id": "DRAW_01",
+      "category": "Tirages",
+      "name": "Premier Tirage",
+      "description": "Lancer son premier tirage de récompense.",
+      "reward": { "coins": 500, "tirages": 1 }
+    },
+    {
+      "id": "DRAW_02",
+      "category": "Tirages",
+      "name": "Série de Tirages",
+      "description": "Effectuer 10 tirages à la suite.",
+      "reward": { "coins": 2500, "tirages": 2 }
+    },
+    {
+      "id": "DRAW_03",
+      "category": "Tirages",
+      "name": "L'Équilibre",
+      "description": "Avoir un taux de victoire exact de 50% sur 100 tirages.",
+      "reward": { "coins": 15000, "tirages": 5 }
+    },
+    {
+      "id": "DRAW_04",
+      "category": "Tirages",
+      "name": "Jackpot",
+      "description": "Obtenir la récompense maximale sur un seul tirage.",
+      "reward": { "coins": 50000, "tirages": 10 }
+    },
+    {
+      "id": "DRAW_05",
+      "category": "Tirages",
+      "name": "Tireur d'Élite",
+      "description": "Obtenir un gain supérieur à 10x la mise de départ du tirage.",
+      "reward": { "coins": 10000, "tirages": 3 }
+    },
+    {
+      "id": "DRAW_06",
+      "category": "Tirages",
+      "name": "Frénésie",
+      "description": "Lancer 10 tirages en moins de 60 secondes.",
+      "reward": { "coins": 5000, "tirages": 2 }
+    },
+    {
+      "id": "DRAW_07",
+      "category": "Tirages",
+      "name": "Le Grand Tirage",
+      "description": "Débloquer et utiliser le palier de tirage le plus coûteux.",
+      "reward": { "coins": 100000, "tirages": 10 }
+    },
+    {
+      "id": "RES_01",
+      "category": "Résilience & Flux",
+      "name": "Zéro Absolu",
+      "description": "Perdre l'intégralité de son solde (min 50k) sur un pari raté.",
+      "reward": { "coins": 5000, "tirages": 2 }
+    },
+    {
+      "id": "RES_02",
+      "category": "Résilience & Flux",
+      "name": "L'Infortuné",
+      "description": "Perdre un tirage alors que la probabilité de gain était de 90%.",
+      "reward": { "coins": 2000, "tirages": 3 }
+    },
+    {
+      "id": "RES_03",
+      "category": "Résilience & Flux",
+      "name": "Phénix",
+      "description": "Retomber à 0 Coins et remonter à 1M sans aide extérieure.",
+      "reward": { "coins": 250000, "tirages": 15 }
+    },
+    {
+      "id": "RES_04",
+      "category": "Résilience & Flux",
+      "name": "Mécène",
+      "description": "Transférer plus de 5 000 000 Coins à un autre membre.",
+      "reward": { "coins": 0, "tirages": 10 }
+    },
+    {
+      "id": "RES_05",
+      "category": "Résilience & Flux",
+      "name": "Négociant",
+      "description": "Utiliser ses gains pour acheter un rôle permanent dans le Shop.",
+      "reward": { "coins": 10000, "tirages": 5 }
+    },
+    {
+      "id": "RES_06",
+      "category": "Résilience & Flux",
+      "name": "Le Pivot",
+      "description": "Être l'expéditeur d'une transaction unique dépassant 10M.",
+      "reward": { "coins": 0, "tirages": 20 }
+    }
+  ]
+}
