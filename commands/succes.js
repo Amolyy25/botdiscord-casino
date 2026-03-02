@@ -48,18 +48,15 @@ module.exports = {
         const unlockedCount = unlockedAchievements.length;
         const color = '#FFFFFF'; // Style Monochrome (Le Secteur)
 
-        let description = `**Progression : ${unlockedCount} / ${totalCount} succès débloqués**\n\n`;
+        let description = `**Progression : ${unlockedCount} / ${totalCount} succès**\n\n`;
 
         if (unlockedCount === 0) {
-            description += "*Vous n'avez encore débloqué aucun succès. Continuez à jouer et à prendre des risques pour révéler les secrets du casino !*";
+            description += "*Vous n'avez encore débloqué aucun succès. Jouez pour révéler les secrets du casino !*";
         } else {
-            description += `*Les succès encore non débloqués restent volontairement cachés pour préserver la surprise.*\n\n`;
-            description += `**--- VOS SUCCÈS ---**\n\n`;
+            description += `*Les succès non obtenus restent cachés pour préserver la surprise.*\n\n`;
 
             for (const ach of unlockedAchievements) {
-                description += `🏆 **${ach.name}**\n*${ach.description}*\n`;
-                // Optionally show the reward as part of the description? The user just asked for name and description
-                description += `\n`; // Spacing
+                description += `🏆 **${ach.name}** : *${ach.description}*\n`;
             }
         }
 
