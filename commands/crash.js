@@ -196,9 +196,7 @@ module.exports = {
             const profit = total - bet;
             let finalGain = profit;
 
-            if (eventsManager.isDoubleGainActive()) {
-                finalGain *= 2n;
-            }
+            finalGain = eventsManager.applyGloryHourMultiplier(finalGain);
 
             // Appliquer Bonus de Prestige
             const { applyPrestigeBonus } = require('../prestigeConfig');

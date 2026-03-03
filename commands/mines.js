@@ -204,7 +204,7 @@ module.exports = {
 
                 const winAmount = BigInt(Math.floor(Number(st.bet) * st.multiplier));
                 let profit = winAmount - st.bet;
-                if (eventsManager.isDoubleGainActive()) profit *= 2n;
+                profit = eventsManager.applyGloryHourMultiplier(profit);
 
                 // Appliquer Bonus de Prestige
                 const { applyPrestigeBonus } = require('../prestigeConfig');
@@ -303,7 +303,7 @@ module.exports = {
 
                 const winAmount = BigInt(Math.floor(Number(st.bet) * st.multiplier));
                 let profit = winAmount - st.bet;
-                if (eventsManager.isDoubleGainActive()) profit *= 2n;
+                profit = eventsManager.applyGloryHourMultiplier(profit);
 
                 // Appliquer Bonus de Prestige
                 const { applyPrestigeBonus } = require('../prestigeConfig');

@@ -293,8 +293,12 @@ async function checkRewards(client, db) {
         for (const tierDef of TIERS) {
             if (minutes >= tierDef.mins && tierDef.level > session.currentTier) {
                 // Grant reward
-                const coinsWon = Math.floor(Math.random() * (tierDef.maxCoins - tierDef.minCoins + 1)) + tierDef.minCoins;
+                let coinsWon = Math.floor(Math.random() * (tierDef.maxCoins - tierDef.minCoins + 1)) + tierDef.minCoins;
                 const tiragesWon = tierDef.tirages;
+                
+                if (client.eventsManager && client.eventsManager.isBlackoutActive && client.eventsManager.isBlackoutActive()) {
+                    coinsWon *= 5;
+                }
 
                 try {
                     await db.updateBalance(userId, coinsWon, `Activité Vocale: ${tierDef.name}`);

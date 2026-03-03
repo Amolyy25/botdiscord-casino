@@ -142,6 +142,14 @@ client.on("messageCreate", async (message) => {
   }
 
   try {
+    if (client.eventsManager) {
+        if (client.eventsManager.isBlackoutActive && client.eventsManager.isBlackoutActive()) {
+            return message.reply({ content: "**[SYSTEM ALERTE]** Terminaux textuels en surchauffe. Commandes bloquées." }).then(m => setTimeout(() => m.delete().catch(()=>null), 5000)).catch(()=>null);
+        }
+        if (client.eventsManager.recordCommandActivity) {
+            client.eventsManager.recordCommandActivity(message.author.id);
+        }
+    }
     await command.execute(message, args, db);
   } catch (error) {
     console.error(error);
