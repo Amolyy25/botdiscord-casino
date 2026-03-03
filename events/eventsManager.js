@@ -12,7 +12,7 @@ let doubleGainEndTime = 0;
 let endTimeout = null;
 
 // L'Heure de Gloire s'active 1 fois par jour, à une heure aléatoire entre 19h et 23h
-const GLORY_HOUR_DURATION = 10 * 60 * 1000; // 10 minutes
+const GLORY_HOUR_DURATION = 15 * 60 * 1000; // 10 minutes
 const VOLE_GENIE_CHANCE = 0.03; // 3%
 const CASINO_CHANNEL_ID = "1469713523549540536";
 const ROLE_ID = "1469713522194780404"; // Casino Role
