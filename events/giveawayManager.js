@@ -166,6 +166,33 @@ function pickWinners(participants, count) {
   return shuffled.slice(0, Math.min(count, shuffled.length));
 }
 
+async function verifyParticipants(guild, giveaway, participantIds) {
+  if (!giveaway.required_roles) return participantIds;
+  const validIds = [];
+  const required = giveaway.required_roles.split(',');
+
+  for (const uid of participantIds) {
+    try {
+      const member = await guild.members.fetch(uid).catch(() => null);
+      if (!member) {
+        await _db.removeGiveawayParticipant(giveaway.id, uid);
+        continue;
+      }
+      
+      const hasAll = required.every(rid => member.roles.cache.has(rid));
+      if (hasAll) {
+        validIds.push(uid);
+      } else {
+        // Participant no longer meets requirements
+        await _db.removeGiveawayParticipant(giveaway.id, uid);
+      }
+    } catch (e) {
+      console.error(`[Giveaway] Erreur vérification participant ${uid}:`, e.message);
+    }
+  }
+  return validIds;
+}
+
 // ═══════════════════════════════════════════════
 // Core Manager
 // ═══════════════════════════════════════════════
@@ -175,9 +202,15 @@ let _db = null;
 
 async function endGiveaway(giveaway) {
   try {
-    const participants = await _db.getGiveawayParticipants(giveaway.id);
-    const winners = pickWinners(participants, giveaway.winner_count);
     const guild = _client.guilds.cache.get(giveaway.guild_id);
+    if (!guild) return;
+
+    let participants = await _db.getGiveawayParticipants(giveaway.id);
+    
+    // Final verification before picking winners
+    participants = await verifyParticipants(guild, giveaway, participants);
+
+    const winners = pickWinners(participants, giveaway.winner_count);
 
     // Mark as ended in DB
     await _db.endGiveaway(giveaway.id);
@@ -642,7 +675,13 @@ async function updateActiveEmbeds() {
         if (!channel) continue;
         const msg = await channel.messages.fetch(gw.message_id).catch(() => null);
         if (!msg) continue;
-        const count = await _db.getGiveawayParticipantCount(gw.id);
+
+        // Verify all participants
+        const ids = await _db.getGiveawayParticipants(gw.id);
+        const guild = channel.guild;
+        const validIds = await verifyParticipants(guild, gw, ids);
+        const count = validIds.length;
+
         const embed = buildGiveawayEmbed(gw, count);
         await msg.edit({ embeds: [embed] }).catch(() => {});
       } catch (e) {

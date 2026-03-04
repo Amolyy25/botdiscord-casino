@@ -606,6 +606,10 @@ module.exports = {
     );
     return res.rows.length > 0; // true = newly added, false = already existed
   },
+  
+  removeGiveawayParticipant: async (giveawayId, userId) => {
+    await pool.query('DELETE FROM giveaway_participants WHERE giveaway_id = $1 AND user_id = $2', [giveawayId, userId]);
+  },
 
   isGiveawayParticipant: async (giveawayId, userId) => {
     const res = await pool.query(
