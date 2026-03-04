@@ -19,6 +19,7 @@ const braquage = require("./events/braquage");
 const shop = require("./events/shop");
 const giveawayManager = require("./events/giveawayManager");
 const voiceRewards = require("./events/voiceRewards");
+const fortuneLeaderboard = require("./events/fortuneLeaderboard");
 
 const client = new Client({
   intents: [
@@ -69,6 +70,9 @@ client.once("clientReady", async () => {
     // Init Voice Rewards System
     await voiceRewards.init(client, db);
 
+    // Init Fortune Leaderboard System
+    await fortuneLeaderboard.init(client, db);
+
     // Init Events Manager (L'Heure de Gloire etc.)
     const eventsManager = require("./events/eventsManager");
     await eventsManager.init(client, db);
@@ -93,6 +97,12 @@ client.once("clientReady", async () => {
 });
 
 client.on("messageCreate", async (message) => {
+  // Track activity for Fortune Leaderboard (14-day window)
+  // Record for every non-bot message in a guild, regardless of prefix
+  if (!message.author.bot && message.guild && message.content.length >= 5) {
+    db.recordActivity(message.author.id, message.guild.id, 'message').catch(() => {});
+  }
+
   if (message.author.bot || !message.content.startsWith(prefix)) return;
 
   const args = message.content.slice(prefix.length).trim().split(/ +/);
@@ -149,6 +159,10 @@ client.on("messageCreate", async (message) => {
         if (client.eventsManager.recordCommandActivity) {
             client.eventsManager.recordCommandActivity(message.author.id);
         }
+    }
+    // Record bet/command activity for Fortune Leaderboard
+    if (message.guild) {
+      db.recordActivity(message.author.id, message.guild.id, 'bet').catch(() => {});
     }
     await command.execute(message, args, db);
   } catch (error) {

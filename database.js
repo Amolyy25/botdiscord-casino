@@ -169,6 +169,22 @@ const initDb = async () => {
       start_time BIGINT NOT NULL,
       current_tier INTEGER DEFAULT 0
     );
+
+    CREATE TABLE IF NOT EXISTS user_activity (
+      user_id TEXT NOT NULL,
+      guild_id TEXT NOT NULL,
+      activity_type TEXT NOT NULL,
+      recorded_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, guild_id, activity_type, recorded_at)
+    );
+    CREATE INDEX IF NOT EXISTS idx_activity_user ON user_activity(user_id, recorded_at);
+
+    CREATE TABLE IF NOT EXISTS fortune_leaderboard_config (
+      guild_id TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      message_id TEXT NOT NULL,
+      PRIMARY KEY (guild_id)
+    );
   `);
 };
 
@@ -782,5 +798,82 @@ module.exports = {
       [userId, statsData]
     );
     return res.rows[0]?.stats_trackers;
+  },
+
+  // ═══════════════════════════════════════════════
+  // Fortune Leaderboard — Activité 14 jours
+  // ═══════════════════════════════════════════════
+
+  /**
+   * Enregistre un signal d'activité pour un utilisateur (pari ou message).
+   * On déduplique par (userId, guildId, activityType) sur la même heure
+   * pour éviter des millions de lignes, mais on conserve la granularité
+   * nécessaire au filtrage 14 jours.
+   */
+  recordActivity: async (userId, guildId, activityType = 'message') => {
+    // On stocke avec une granularité à l'heure pour limiter le volume
+    const hourBucket = Math.floor(Date.now() / 3600000) * 3600000;
+    await pool.query(
+      `INSERT INTO user_activity (user_id, guild_id, activity_type, recorded_at)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT DO NOTHING`,
+      [userId, guildId, activityType, hourBucket]
+    ).catch(() => {}); // silencieux si PK conflict
+  },
+
+  /**
+   * Retourne le Top 10 des soldes, filtré sur les membres ayant eu
+   * au moins une activité au cours des 14 derniers jours.
+   */
+  getFortuneLeaderboard: async (guildId, limit = 10) => {
+    const cutoff = Date.now() - (14 * 24 * 60 * 60 * 1000);
+    const res = await pool.query(
+      `SELECT u.id, u.balance
+       FROM users u
+       WHERE u.id IN (
+         SELECT DISTINCT user_id FROM user_activity
+         WHERE guild_id = $1 AND recorded_at >= $2
+       )
+       ORDER BY u.balance DESC
+       LIMIT $3`,
+      [guildId, cutoff, limit]
+    );
+    return res.rows;
+  },
+
+  /**
+   * Nettoie les entrées d'activité de plus de 14 jours.
+   * Appelé périodiquement pour éviter une DB qui grossit sans fin.
+   */
+  cleanOldActivity: async () => {
+    const cutoff = Date.now() - (14 * 24 * 60 * 60 * 1000);
+    await pool.query(
+      'DELETE FROM user_activity WHERE recorded_at < $1',
+      [cutoff]
+    ).catch(() => {});
+  },
+
+  // ── Fortune Leaderboard Config ──
+
+  setFortuneLeaderboardConfig: async (guildId, channelId, messageId) => {
+    await pool.query(
+      `INSERT INTO fortune_leaderboard_config (guild_id, channel_id, message_id)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (guild_id) DO UPDATE SET channel_id = $2, message_id = $3`,
+      [guildId, channelId, messageId]
+    );
+  },
+
+  getFortuneLeaderboardConfig: async (guildId) => {
+    const res = await pool.query(
+      'SELECT * FROM fortune_leaderboard_config WHERE guild_id = $1',
+      [guildId]
+    );
+    return res.rows[0] || null;
+  },
+
+  getAllFortuneLeaderboardConfigs: async () => {
+    const res = await pool.query('SELECT * FROM fortune_leaderboard_config');
+    return res.rows;
   }
 };
