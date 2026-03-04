@@ -8,11 +8,11 @@ const {
 } = require("discord.js");
 
 const GIFS = {
-    INFILTRATION: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNGJmZDA0ZmI4ZDM4ZDM4ODU4ZDY4ZDM4ODU4ZDY4ZDM4ODU4ZDY4ZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKpwzOCQiX8s00g/giphy.gif", // Mafia desk typing
-    LOCKDOWN: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNmNmMzk4OWM3ZDM4ZDM4ODU4ZDY4ZDM4ODU4ZDY4ZDM4ODU4ZDY4ZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/C9pf20SvxVBM4/giphy.gif", // Vault door
-    TAXING: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNmNmMzk4OWM3ZDM4ZDM4ODU4ZDY4ZDM4ODU4ZDY4ZDM4ODU4ZDY4ZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oEdvbe78pM8FkG1K0/giphy.gif", // Money burning/flying
-    QUESTION: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNmNmMzk4OWM3ZDM4ZDM4ODU4ZDY4ZDM4ODU4ZDY4ZDM4ODU4ZDY4ZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKv6lS8TzgL7Fkc/giphy.gif", // Interrogation
-    LIQUIDATION: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNmNmMzk4OWM3ZDM4ZDM4ODU4ZDY4ZDM4ODU4ZDY4ZDM4ODU4ZDY4ZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l3vRhbzYFAn8t3h8A/giphy.gif" // Game Over
+    INFILTRATION: "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExdG9pNm0xOXF6Y3pvMHBkbDMwMmt3YXJuamg0OXlyemh0MHpidHNzaSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/E2UlE5Of9zEjK/giphy.gif", // Mafia desk typing
+    LOCKDOWN: "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExY2loanY1aDNsZmdjZWJjMTcyejJsM2JmNWpxMmhneW8xdml1OHV4YSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/37QUQqe3lHYAGEwqHL/giphy.gif", // Vault door
+    TAXING: "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExNGRlYXNkYTZ1MDZtMGttdjI3ZTlvaWdmNXlhajJjaWN5c2ZjdTBlMiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/KFWuXrGBxh93W/giphy.gif", // Money burning/flying
+    QUESTION: "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExY2loanY1aDNsZmdjZWJjMTcyejJsM2JmNWpxMmhneW8xdml1OHV4YSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/37QUQqe3lHYAGEwqHL/giphy.gif", // Interrogation
+    LIQUIDATION: "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExcDA4bnh1YzJsb3l3ODdkcXJzZzJleWtwN3NnY2o2M29peGFiYjAwYyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/U7OOdt3gYHRHgnHp0n/giphy.gif" // Game Over
 };
 
 const QUESTIONS = [
@@ -40,7 +40,7 @@ async function startEvent(client, db, channel) {
     // --- PHASE 1 : INFILTRATION (30s) ---
     const infiltrationEmbed = createEmbed(
         "🕵️ PROTOCOLE : INFILTRATION MAFIA",
-        "```\n[SYSTEM] Surveillance réseau active.\nEnregistrement des signatures biométriques...\nTout message envoyé dans ce salon marquera votre terminal.\n```",
+        "```\n[SYSTEM] Surveillance réseau active.\nEnregistrement des signatures biométriques...```",
         "#000000"
     );
     infiltrationEmbed.setImage(GIFS.INFILTRATION);
@@ -70,7 +70,7 @@ async function startEvent(client, db, channel) {
 
     const assuranceEmbed = createEmbed(
         "🛡️ PROTOCOLE : RACKET MAFIA - PROTECTION",
-        "```\n[SYSTEM] Le Secteur est sous contrôle Mafia.\nUne taxe exponentielle va être prélevée.\n\nASSURANCE (0.12% du solde, min 50k) :\n- Immunité contre le SABOTAGE (pénalité collective).\n- Les taxes normales s'appliquent toujours.\n```",
+        "```\n[SYSTEM] Le Secteur est sous contrôle Mafia.\nUne taxe exponentielle va être prélevée.\n\nASSURANCE :\n- Immunité contre le SABOTAGE (pénalité collective).\n- Les taxes normales s'appliquent toujours.\n```",
         "#000000"
     );
     assuranceEmbed.setImage(GIFS.LOCKDOWN);
@@ -234,7 +234,7 @@ async function startEvent(client, db, channel) {
 
             const liquidEmbed = createEmbed(
                 "💀 DERNIER SURVIVANT : LIQUIDATION",
-                `\`\`\`\n[SYSTEM] <@${lastId}> était le dernier sur la liste.\nLiquidation totale effectuée.\nTaxe finale prélevée : ${formatCoins(finalTax)}\n\`\`\``,
+                `\`\`\`\n[SYSTEM] <@${lastId}> était le dernier sur la liste.\nTaxe finale prélevée : ${formatCoins(finalTax)}\n\`\`\``,
                 "#000000"
             );
             liquidEmbed.setImage(GIFS.LIQUIDATION);
