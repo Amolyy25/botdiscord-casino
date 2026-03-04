@@ -94,7 +94,7 @@ async function handleInteraction(interaction, db) {
                 .addOptions(recentEvents.slice(0, 25).map((e, index) => ({
                     label: `${e.type}`,
                     description: new Date(e.time).toLocaleString('fr-FR'),
-                    value: `${e.key}_${e.originalIndex}`
+                    value: `${e.key}:${e.originalIndex}`
                 })));
 
             await interaction.reply({ 
@@ -107,10 +107,10 @@ async function handleInteraction(interaction, db) {
     }
 
     if (interaction.isStringSelectMenu() && customId === 'cal_select_edit') {
-        const [key, index] = interaction.values[0].split('_');
+        const [key, index] = interaction.values[0].split(':');
         
         const modal = new ModalBuilder()
-            .setCustomId(`cal_modal_edit_${key}_${index}`)
+            .setCustomId(`cal_modal_edit:${key}:${index}`)
             .setTitle('Reprogrammer l\'événement');
 
         const timeInput = new TextInputBuilder()
@@ -125,8 +125,8 @@ async function handleInteraction(interaction, db) {
         return true;
     }
 
-    if (interaction.isModalSubmit() && customId.startsWith('cal_modal_edit_')) {
-        const [, , , key, indexStr] = customId.split('_');
+    if (interaction.isModalSubmit() && customId.startsWith('cal_modal_edit:')) {
+        const [, key, indexStr] = customId.split(':');
         const index = parseInt(indexStr);
         const newTime = interaction.fields.getTextInputValue('new_time');
 
