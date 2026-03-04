@@ -196,7 +196,7 @@ module.exports = {
             const profit = total - bet;
             let finalGain = profit;
 
-            finalGain = eventsManager.applyGloryHourMultiplier(finalGain);
+            finalGain = await eventsManager.applyGloryHourMultiplier(message.author.id, finalGain, db);
 
             // Appliquer Bonus de Prestige
             const { applyPrestigeBonus } = require('../prestigeConfig');

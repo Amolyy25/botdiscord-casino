@@ -36,6 +36,9 @@ const initDb = async () => {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='stats_trackers') THEN
             ALTER TABLE users ADD COLUMN stats_trackers JSONB DEFAULT '{}'::jsonb;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='phoenix_until') THEN
+            ALTER TABLE users ADD COLUMN phoenix_until BIGINT DEFAULT 0;
+        END IF;
     END $$;
     
     CREATE TABLE IF NOT EXISTS bounties (
@@ -228,6 +231,20 @@ module.exports = {
       [id, BigInt(amount), reason, balanceAfter, Date.now()]
     ).catch(err => console.error('[BalHis] Erreur log:', err.message));
     return balanceAfter;
+  },
+  activatePhoenix: async (userId) => {
+    const expiresAt = Date.now() + 2 * 3600 * 1000; // 2 hours
+    await pool.query(
+      `UPDATE users SET balance = 0, phoenix_until = $2 WHERE id = $1`,
+      [userId, expiresAt]
+    );
+    // Log to balance history as a reset
+    await pool.query(
+      `INSERT INTO balance_history (user_id, amount, reason, balance_after, created_at)
+       VALUES ($1, 0, 'Protocole Phénix', 0, $2)`,
+      [userId, Date.now()]
+    ).catch(err => console.error('[BalHis] Erreur log phoenix:', err.message));
+    return expiresAt;
   },
   setBalance: async (id, balance) => {
     const res = await pool.query(

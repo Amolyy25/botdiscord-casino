@@ -203,8 +203,7 @@ module.exports = {
                 collector.stop('cashout');
 
                 const winAmount = BigInt(Math.floor(Number(st.bet) * st.multiplier));
-                let profit = winAmount - st.bet;
-                profit = eventsManager.applyGloryHourMultiplier(profit);
+                profit = await eventsManager.applyGloryHourMultiplier(userId, profit, db);
 
                 // Appliquer Bonus de Prestige
                 const { applyPrestigeBonus } = require('../prestigeConfig');
@@ -303,7 +302,7 @@ module.exports = {
 
                 const winAmount = BigInt(Math.floor(Number(st.bet) * st.multiplier));
                 let profit = winAmount - st.bet;
-                profit = eventsManager.applyGloryHourMultiplier(profit);
+                profit = await eventsManager.applyGloryHourMultiplier(userId, profit, db);
 
                 // Appliquer Bonus de Prestige
                 const { applyPrestigeBonus } = require('../prestigeConfig');

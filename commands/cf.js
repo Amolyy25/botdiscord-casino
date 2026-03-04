@@ -31,7 +31,7 @@ module.exports = {
 
         if (win) {
             profit = bet;
-            profit = eventsManager.applyGloryHourMultiplier(profit);
+            profit = await eventsManager.applyGloryHourMultiplier(message.author.id, profit, db);
 
             // Appliquer Bonus de Prestige
             const { applyPrestigeBonus } = require('../prestigeConfig');

@@ -187,6 +187,19 @@ module.exports = {
         endTimeout = setTimeout(() => {
           module.exports.endGloryHour(client, db);
         }, endTime - now);
+
+        // Resume Auth Control if not done yet
+        const authDone = await db.getConfig("glory_hour_auth_done");
+        if (authDone !== "true") {
+          const remaining = endTime - now;
+          if (remaining > 45000) { // S'il reste au moins 45s (code + cooldown)
+             // On le met au milieu du temps restant ou après 15s
+             const delay = Math.min(30000, remaining / 2);
+             authTimeout = setTimeout(() => {
+               module.exports.triggerAuthControl(client, db);
+             }, delay);
+          }
+        }
       } else {
         // Expired while offline
         await module.exports.endGloryHour(client, db);
@@ -211,6 +224,7 @@ module.exports = {
     if (authTimeout) clearTimeout(authTimeout);
 
     await db.setEventStatus("glory_hour", true, doubleGainEndTime);
+    await db.setConfig("glory_hour_auth_done", "false"); // Reset auth flag for new event
 
     // Announce
     const channel = await client.channels
@@ -237,7 +251,11 @@ module.exports = {
     }, duration);
 
     // 1. Événement Obligatoire : "Contrôle d'Authentification" (100% chance)
-    const authDelay = 60000 + Math.random() * (duration - 120000);
+    // Entre 15% et 85% de la durée pour éviter le début et la fin extrême
+    const minDelay = duration * 0.15;
+    const maxDelay = duration * 0.85;
+    const authDelay = minDelay + Math.random() * (maxDelay - minDelay);
+    
     authTimeout = setTimeout(() => {
       module.exports.triggerAuthControl(client, db);
     }, authDelay);
@@ -255,6 +273,15 @@ module.exports = {
       cohesionActive = true;
       cohesionMultiplier = 2.0;
       module.exports.initCohesionEmbed(client);
+    }
+
+    // 4. Événement Aléatoire "Hardcore" : "MAFIA RACKET" (15% chance)
+    if (Math.random() <= 0.15) {
+      const mafiaDelay = 60000 + Math.random() * (duration - 120000);
+      setTimeout(() => {
+        const { startEvent } = require("./mafiaRacket");
+        startEvent(client, db, channel);
+      }, mafiaDelay);
     }
   },
 
@@ -305,9 +332,19 @@ module.exports = {
     return doubleGainActive ? 2n : 1n;
   },
 
-  applyGloryHourMultiplier: (amount) => {
-    if (!doubleGainActive) return amount;
-    return BigInt(Math.floor(Number(amount) * cohesionMultiplier));
+  applyGloryHourMultiplier: async (userId, amount, db) => {
+    let multiplier = Number(cohesionMultiplier);
+    if (!doubleGainActive) multiplier = 1.0;
+
+    // Phoenix Boost (x1.5 for 2 hours)
+    if (db) {
+        const user = await db.getUser(userId);
+        if (user.phoenix_until && Date.now() < parseInt(user.phoenix_until)) {
+            multiplier *= 1.5;
+        }
+    }
+
+    return BigInt(Math.floor(Number(amount) * multiplier));
   },
 
   getGloryHourStatus: () => {
@@ -447,6 +484,10 @@ module.exports = {
 
   triggerAuthControl: async (client, db) => {
     if (!doubleGainActive) return; // Si HDG est déjà fini
+    
+    // Marquer comme fait/en cours pour éviter les doublons au restart
+    await db.setConfig("glory_hour_auth_done", "true");
+    
     authActive = true;
     authCode = `SEC-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -460,7 +501,10 @@ module.exports = {
     );
 
     authMsg = await channel.send({ content: `<@&${ROLE_ID}>`, embeds: [embed] }).catch(()=>null);
-    if (!authMsg) return;
+    if (!authMsg) {
+      authActive = false;
+      return;
+    }
 
     try {
       const filter = m => m.content.trim().toUpperCase() === authCode && !m.author.bot;

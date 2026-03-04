@@ -41,7 +41,7 @@ module.exports = {
             win = true;
             gain = choice === 'vert' ? bet * 35n : bet;
             
-            gain = eventsManager.applyGloryHourMultiplier(gain);
+            gain = await eventsManager.applyGloryHourMultiplier(message.author.id, gain, db);
 
             // Appliquer Bonus de Prestige
             const { applyPrestigeBonus } = require('../prestigeConfig');

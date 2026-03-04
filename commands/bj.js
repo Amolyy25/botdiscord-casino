@@ -154,7 +154,7 @@ module.exports = {
                 let finalGain = 0n;
                 if (dealerVal > 21 || playerVal > dealerVal) {
                     let winAmount = bet;
-                    winAmount = eventsManager.applyGloryHourMultiplier(winAmount);
+                    winAmount = await eventsManager.applyGloryHourMultiplier(message.author.id, winAmount, db);
 
                     result = 'Gagné !' + (eventsManager.isDoubleGainActive() ? ' (Double Gain! ⚡)' : '');
                     
