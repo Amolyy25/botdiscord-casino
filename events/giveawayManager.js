@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder, PermissionFlagsBits, StringSelectMenuBuilder, ComponentType } = require('discord.js');
 const { COLORS, createEmbed, formatCoins, sendLog } = require('../utils');
 const {
   drawMysteryItem,
@@ -19,6 +19,13 @@ const PRIZE_LABELS = {
   MYSTERY_BOX: 'Mystery Box',
   NITRO: 'Discord Nitro',
 };
+
+const GIVEAWAY_CONDITIONS = [
+  { id: '1469071689399926791', label: 'Rôle à vérifier' },
+  { id: '1471251878175309985', label: 'Lien en statut Discord' },
+];
+
+const pendingCreate = new Map();
 
 function parseDuration(str) {
   if (!str) return null;
@@ -121,6 +128,16 @@ function buildGiveawayEmbed(giveaway, participantCount, ended = false, winners =
         `**Temps restant :** <t:${endsAt}:R>\n` +
         `**Gagnants :** ${giveaway.winner_count}`
       );
+    }
+
+    // Add conditions to description if any
+    if (giveaway.required_roles) {
+      const roles = giveaway.required_roles.split(',');
+      const condText = roles.map(rid => {
+        const cond = GIVEAWAY_CONDITIONS.find(c => c.id === rid);
+        return cond ? `• ${cond.label} (<@&${rid}>)` : `• Role <@&${rid}>`;
+      }).join('\n');
+      embed.addFields({ name: 'Conditions Requises', value: condText });
     }
   }
 
@@ -728,6 +745,10 @@ module.exports = {
   prizeDescription,
   buildGiveawayEmbed,
   buildGiveawayButtons,
+  startSetupProcess: function(trigger, data) {
+    // This is a bridge to the method defined inside module.exports
+    return this.startSetupProcess(trigger, data);
+  },
 
   async init(client, db) {
     _client = client;
@@ -769,8 +790,46 @@ module.exports = {
   },
 
   async handleInteraction(interaction, db) {
-    if (!interaction.isButton()) return false;
+    if (!interaction.isButton() && !interaction.isStringSelectMenu()) return false;
     const id = interaction.customId;
+
+    // ── Setup: Choose conditions ──
+    if (id === 'giveaway_setup_conditions') {
+      const data = pendingCreate.get(interaction.user.id);
+      if (!data) return interaction.reply({ content: '❌ Session expirée.', flags: 64 });
+      data.requiredRoles = interaction.values.length > 0 ? interaction.values.join(',') : null;
+      await interaction.deferUpdate();
+      return true;
+    }
+
+    // ── Setup: Confirm and create ──
+    if (id === 'giveaway_setup_confirm') {
+      const data = pendingCreate.get(interaction.user.id);
+      if (!data) return interaction.reply({ content: '❌ Session expirée.', flags: 64 });
+
+      // Create immediately
+      const endsAt = Date.now() + data.duration;
+      const giveaway = await db.createGiveaway({
+        ...data,
+        messageId: null,
+        endsAt,
+      });
+
+      const embed = buildGiveawayEmbed(giveaway, 0);
+      const buttons = buildGiveawayButtons(giveaway.id);
+      const sent = await interaction.channel.send({ embeds: [embed], components: [buttons] });
+      await db.updateGiveawayMessage(giveaway.id, sent.id);
+
+      // Reply and cleanup
+      await interaction.update({
+        content: `✅ Giveaway **#${giveaway.id}** créé ! Fin <t:${Math.floor(endsAt / 1000)}:R>`,
+        components: [],
+        flags: 64
+      });
+
+      pendingCreate.delete(interaction.user.id);
+      return true;
+    }
 
     // ── Mystery Box: Take default reward ──
     if (id.startsWith('mb_choose_default_')) {
@@ -864,6 +923,24 @@ module.exports = {
         if (!gw || gw.status !== 'active') {
           await interaction.reply({ content: '❌ Ce giveaway est terminé ou n\'existe plus.', flags: 64 });
           return true;
+        }
+
+        // Check conditions (required roles)
+        if (gw.required_roles) {
+          const roles = gw.required_roles.split(',');
+          const missing = [];
+          for (const rid of roles) {
+            if (!interaction.member.roles.cache.has(rid)) {
+              const cond = GIVEAWAY_CONDITIONS.find(c => c.id === rid);
+              missing.push(cond ? `**${cond.label}** (<@&${rid}>)` : `<@&${rid}>`);
+            }
+          }
+          if (missing.length > 0) {
+            return interaction.reply({
+              content: `❌ Tu ne remplis pas toutes les conditions pour participer :\n\n${missing.map(m => `• ${m}`).join('\n')}`,
+              flags: 64,
+            });
+          }
         }
 
         const added = await db.addGiveawayParticipant(giveawayId, interaction.user.id);
@@ -1016,28 +1093,59 @@ module.exports = {
     // Safety fallback for postgres not-null constraint
     const safePrizeValue = finalValue || '---';
 
-    const endsAt = Date.now() + duration;
-    const giveaway = await db.createGiveaway({
+    return this.startSetupProcess(interaction, {
       guildId: interaction.guild.id,
       channelId: interaction.channel.id,
-      messageId: null,
       hostId: interaction.user.id,
       prizeType: type,
       prizeValue: safePrizeValue,
       winnerCount,
-      endsAt,
+      duration,
       tempRoleDuration,
     });
+  },
 
-    const embed = buildGiveawayEmbed(giveaway, 0);
-    const buttons = buildGiveawayButtons(giveaway.id);
-    const sent = await interaction.channel.send({ embeds: [embed], components: [buttons] });
-    await db.updateGiveawayMessage(giveaway.id, sent.id);
-
-    await interaction.reply({
-      content: `✅ Giveaway **#${giveaway.id}** créé ! Fin <t:${Math.floor(endsAt / 1000)}:R>`,
-      flags: 64,
+  async startSetupProcess(trigger, data) {
+    const userId = (trigger.user || trigger.author).id;
+    pendingCreate.set(userId, {
+      ...data,
+      requiredRoles: null
     });
+
+    const conditionsMenu = new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId('giveaway_setup_conditions')
+        .setPlaceholder('Ajouter des conditions (optionnel)')
+        .setMinValues(0)
+        .setMaxValues(GIVEAWAY_CONDITIONS.length)
+        .addOptions(GIVEAWAY_CONDITIONS.map(c => ({
+          label: c.label,
+          value: c.id,
+          description: `ID: ${c.id}`
+        })))
+    );
+
+    const confirmButton = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('giveaway_setup_confirm')
+        .setLabel('Confirmer et Créer le Giveaway')
+        .setStyle(ButtonStyle.Success)
+    );
+
+    const options = {
+      content: '### Finalisation du Giveaway\n' +
+               'Tu peux ajouter des conditions obligatoires (rôles) pour participer. ' +
+               'Si tu ne sélectionnes rien, le giveaway sera ouvert à tous.',
+      components: [conditionsMenu, confirmButton],
+    };
+
+    if (trigger.isCommand && trigger.isCommand()) {
+      // Slash command
+      return trigger.reply({ ...options, flags: 64 });
+    } else {
+      // Prefix command
+      return trigger.reply(options);
+    }
   },
 
   async _slashCancel(interaction, db) {

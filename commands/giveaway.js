@@ -167,34 +167,25 @@ async function handleCreate(message, args, db) {
     finalValue = parts.join(':');
   }
 
-  // Create in DB
-  const endsAt = Date.now() + duration;
-  const giveaway = await db.createGiveaway({
+  // Instead of creating immediately, start the setup process
+  await giveawayManager.startSetupProcess(message, {
     guildId: message.guild.id,
     channelId: message.channel.id,
-    messageId: null, // will update after sending the embed
     hostId: message.author.id,
     prizeType: type,
     prizeValue: finalValue,
     winnerCount,
-    endsAt,
+    duration,
     tempRoleDuration,
   });
 
-  // Build & send embed
-  const embed = giveawayManager.buildGiveawayEmbed(giveaway, 0);
-  const buttons = giveawayManager.buildGiveawayButtons(giveaway.id);
-  const sent = await message.channel.send({ embeds: [embed], components: [buttons] });
-
-  // Save message ID
-  await db.updateGiveawayMessage(giveaway.id, sent.id);
-
-  // Confirmation to host
+  // Confirmation to host (temporary message while setting up)
   const confirmEmbed = createEmbed(
-    'Giveaway Créé',
-    `**Gain :** ${giveawayManager.prizeDescription(giveaway)}\n` +
-    `**Fin :** <t:${Math.floor(endsAt / 1000)}:R>\n` +
-    `**Gagnants :** ${winnerCount}`,
+    'Configuration du Giveaway',
+    `**Gain :** ${giveawayManager.prizeDescription({ prize_type: type, prize_value: finalValue, temp_role_duration: tempRoleDuration })}\n` +
+    `**Durée :** ${durationStr}\n` +
+    `**Gagnants :** ${winnerCount}\n\n` +
+    `⚠️ *Veuillez configurer les conditions dans le message ci-dessus.*`,
     '#FFFFFF'
   );
   await message.reply({ embeds: [confirmEmbed] });
