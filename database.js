@@ -24,6 +24,9 @@ const initDb = async () => {
     -- Migration for existing tables
     DO $$
     BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='balance' AND data_type='integer') THEN
+            ALTER TABLE users ALTER COLUMN balance TYPE BIGINT;
+        END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='last_collect') THEN
             ALTER TABLE users ADD COLUMN last_collect BIGINT DEFAULT 0;
         END IF;

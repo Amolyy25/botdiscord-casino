@@ -1,5 +1,5 @@
 const { PermissionFlagsBits } = require('discord.js');
-const { createEmbed, COLORS, formatCoins } = require('../utils');
+const { createEmbed, COLORS, formatCoins, parseAmount } = require('../utils');
 
 module.exports = {
     name: 'prime',
@@ -25,9 +25,9 @@ module.exports = {
 
         const title = parsedArgs[0];
         const description = parsedArgs[1];
-        const reward = parseInt(parsedArgs[2]);
+        const reward = parseAmount(parsedArgs[2]);
 
-        if (isNaN(reward) || reward <= 0) {
+        if (reward === null) {
             return message.reply('❌ La récompense doit être un nombre positif.');
         }
 

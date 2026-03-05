@@ -190,9 +190,9 @@ module.exports = {
             const cashoutMultiplier = getMultiplierAtTime(Date.now());
 
             // Sécurité : ne jamais dépasser le crashPoint
-            const safeMult = Math.min(cashoutMultiplier, crashPoint);
+            const safeMultInt = BigInt(Math.floor(safeMult * 100));
 
-            const total = BigInt(Math.floor(Number(bet) * safeMult));
+            const total = (bet * safeMultInt) / 100n;
             const profit = total - bet;
             let finalGain = profit;
 

@@ -91,10 +91,15 @@ async function handleCreate(message, args, db) {
   }
 
   // Validate numeric value for COINS/TIRAGES
-  if ((type === 'COINS' || type === 'TIRAGES') && (isNaN(parseInt(value)) || parseInt(value) <= 0)) {
-    return message.reply({
-      embeds: [createEmbed('Erreur', 'La valeur doit être un nombre positif.', COLORS.ERROR)],
-    });
+  if (type === 'COINS' || type === 'TIRAGES') {
+    const { parseAmount } = require('../utils');
+    const parsedValue = parseAmount(value);
+    if (parsedValue === null) {
+      return message.reply({
+        embeds: [createEmbed('Erreur', 'La valeur doit être un nombre positif.', COLORS.ERROR)],
+      });
+    }
+    value = parsedValue.toString();
   }
 
   // Validate MYSTERY_BOX format: TYPE:VALEUR:LABEL

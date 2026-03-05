@@ -70,7 +70,8 @@ function buildGrid(state, revealAll = false) {
 }
 
 function buildEmbed(state, status = 'playing') {
-    let potentialGain = BigInt(Math.floor(Number(state.bet) * state.multiplier));
+    const multiplierInt = BigInt(Math.floor(state.multiplier * 100));
+    let potentialGain = (state.bet * multiplierInt) / 100n;
     const gloryStatus = eventsManager.getGloryHourStatus();
 
     if (gloryStatus.active) {
@@ -202,7 +203,9 @@ module.exports = {
                 st.gameOver = true;
                 collector.stop('cashout');
 
-                const winAmount = BigInt(Math.floor(Number(st.bet) * st.multiplier));
+                const multiplierInt = BigInt(Math.floor(st.multiplier * 100));
+                const winAmount = (st.bet * multiplierInt) / 100n;
+                let profit = winAmount - st.bet;
                 profit = await eventsManager.applyGloryHourMultiplier(userId, profit, db);
 
                 // Appliquer Bonus de Prestige
@@ -300,7 +303,8 @@ module.exports = {
                 st.gameOver = true;
                 collector.stop('cleared');
 
-                const winAmount = BigInt(Math.floor(Number(st.bet) * st.multiplier));
+                const multiplierInt = BigInt(Math.floor(st.multiplier * 100));
+                const winAmount = (st.bet * multiplierInt) / 100n;
                 let profit = winAmount - st.bet;
                 profit = await eventsManager.applyGloryHourMultiplier(userId, profit, db);
 

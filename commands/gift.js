@@ -1,4 +1,4 @@
-const { createEmbed, COLORS, formatCoins } = require('../utils');
+const { createEmbed, COLORS, formatCoins, parseAmount } = require('../utils');
 const achievementsHelper = require('../helpers/achievementsHelper');
 
 module.exports = {
@@ -7,7 +7,7 @@ module.exports = {
     async execute(message, args, db) {
         let target = message.mentions.users.first();
         const rawId = args[0] ? args[0].replace(/[<@!>]/g, '') : null;
-        const amountStr = args[1];
+        const amount = parseAmount(args[1]);
 
         if (!target && rawId) {
             try {
@@ -15,13 +15,11 @@ module.exports = {
             } catch (e) {}
         }
 
-        if (!target || !amountStr || isNaN(parseInt(amountStr)) || BigInt(amountStr) <= 0n) {
+        if (!target || amount === null) {
             return message.reply({ 
                 embeds: [createEmbed('Usage', `Format: \`;gift @user/ID [montant]\``, COLORS.ERROR)]
             });
         }
-
-        const amount = BigInt(amountStr);
 
         if (target.id === message.author.id) {
             return message.reply({ 

@@ -128,12 +128,12 @@ module.exports = {
             });
         }
 
-        const balanceNum = Number(targetData.balance);
-        let stealAmount = BigInt(Math.floor(balanceNum * (Math.random() * 0.2 + 0.1)));
+        const stealPct = Math.floor((Math.random() * 0.2 + 0.1) * 100);
+        let stealAmount = (BigInt(targetData.balance) * BigInt(stealPct)) / 100n;
         
         // Apply bonus from Vol de Génie
         if (bonusMultiplier > 1.0) {
-            stealAmount = BigInt(Math.floor(Number(stealAmount) * bonusMultiplier));
+            stealAmount = (stealAmount * 110n) / 100n; // 1.1 multiplier
         }
 
         const row = new ActionRowBuilder().addComponents(

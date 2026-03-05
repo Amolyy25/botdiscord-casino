@@ -41,9 +41,11 @@ function getItem(itemId) {
 function calculateImmunityPrice(userBalance, basePrice) {
   const averageSteal = (MIN_STEAL_PCT + MAX_STEAL_PCT) / 2;
   const highProbSteal = averageSteal * 1.2;
-  const price = Number(userBalance) * (highProbSteal + MARGIN_PCT);
-  const finalPrice = Math.max(Math.floor(price), Number(basePrice));
-  return BigInt(finalPrice);
+  const totalPct = Math.floor((highProbSteal + MARGIN_PCT) * 100);
+  
+  const price = (BigInt(userBalance) * BigInt(totalPct)) / 100n;
+  const base = BigInt(basePrice);
+  return price > base ? price : base;
 }
 
 function getCategory(categoryId) {
@@ -230,7 +232,8 @@ async function buildReventeItemsEmbed(interaction) {
 
   let itemsList = "";
   for (const item of sellableItems) {
-    const refundPrice = Math.floor(item.price * 0.5);
+    const itemPrice = BigInt(item.price);
+    const refundPrice = (itemPrice * 50n) / 100n;
     itemsList +=
       `**${item.label}**\n` +
       `Valeur de revente : ${formatCoins(refundPrice)}\n\n`;
@@ -244,12 +247,15 @@ async function buildReventeItemsEmbed(interaction) {
     .setColor(category.color)
     .setTimestamp();
 
-  const itemOptions = sellableItems.map((item) => ({
-    label: item.label,
-    value: `sell_${item.id}`, // Special ID prefix for selling
-    description: `Revente : ${Math.floor(item.price * 0.5)} coins`,
-    emoji: item.emoji,
-  }));
+  const itemOptions = sellableItems.map((item) => {
+    const refundPrice = (BigInt(item.price) * 50n) / 100n;
+    return {
+      label: item.label,
+      value: `sell_${item.id}`, // Special ID prefix for selling
+      description: `Revente : ${refundPrice.toString()} coins`,
+      emoji: item.emoji,
+    };
+  });
 
   const itemSelect = new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()
@@ -382,7 +388,7 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
     newBalance = await db.updateBalance(userId, -finalPrice, 'Shop: Achat');
 
     // Enregistrer l'achat (on log le prix réel payé)
-    await db.addShopPurchase(userId, item.id, targetId, Number(finalPrice));
+    await db.addShopPurchase(userId, item.id, targetId, finalPrice);
 
   } catch (error) {
       console.error("Erreur processPurchase Transaction:", error);
@@ -572,10 +578,8 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
         }
 
         // Calculer le montant volé (10-30% du solde cible)
-        const targetBalanceNum = Number(targetBalance);
-        const stealAmount = BigInt(
-          Math.floor(targetBalanceNum * (Math.random() * 0.2 + 0.1)),
-        );
+        const stealPct = Math.floor((Math.random() * 0.2 + 0.1) * 100);
+        const stealAmount = (targetBalance * BigInt(stealPct)) / 100n;
         const finalSteal = stealAmount < 50n ? 50n : stealAmount;
 
         await db.updateBalance(targetId, -finalSteal, 'Shop: Vol d\'item (Victime)');
@@ -945,15 +949,16 @@ module.exports = {
               return true;
           }
 
-          // ── Cas Standard (Permanent Role ou autre sans choix) ──
+          // Cas Standard (Permanent Role ou autre sans choix) 
           // Prix par dÃ©faut: 50%
-          const refundPrice = Math.floor(item.price * 0.5);
+          const itemPrice = BigInt(item.price);
+          const refundPrice = (itemPrice * 50n) / 100n;
 
           const embed = new EmbedBuilder()
             .setTitle(`Revente : ${item.label}`)
             .setDescription(
                 `Etes-vous sur de vouloir revendre cet objet ?\n\n` +
-                `**Prix d'achat :** ${formatCoins(item.price)}\n` +
+                `**Prix d'achat :** ${formatCoins(itemPrice)}\n` +
                 `**Prix de revente :** ${formatCoins(refundPrice)} (50%)\n\n` +
                 `⚠️ L'objet sera retire de votre inventaire et le role supprime.`
             )
@@ -1038,7 +1043,7 @@ module.exports = {
           const parts = customId.split(".");
           const itemId = parts[1];
           const specificRoleId = parts[2]; // Optional: Specific role ID to sell
-          const passedPrice = parts[3] ? parseInt(parts[3]) : null;
+          const passedPrice = parts[3] ? BigInt(parts[3]) : null;
 
           const item = getItem(itemId);
           const userId = interaction.user.id;
@@ -1047,13 +1052,13 @@ module.exports = {
           if (!item) return sendError(interaction, "Objet introuvable."), true;
 
           // Default 50%
-          let refundPrice = Math.floor(item.price * 0.5);
+          let refundPrice = (BigInt(item.price) * 50n) / 100n;
           
           // Override if specific Role & passed price (or recalc logic)
           if (passedPrice) {
                refundPrice = passedPrice;
           } else if (specificRoleId) {
-              refundPrice = getAdaptiveRefundPrice(specificRoleId);
+              refundPrice = BigInt(getAdaptiveRefundPrice(specificRoleId));
           }
 
           let roleRemoved = false;
@@ -1244,7 +1249,7 @@ module.exports = {
           const parts = customId.split(".");
           const itemId = parts[1];
           const roleId = parts[2];
-          const price = parseInt(parts[3]);
+          const price = BigInt(parts[3]);
           
           const item = getItem(itemId);
           if (!item) return sendError(interaction, "Objet introuvable."), true;
@@ -1469,16 +1474,12 @@ module.exports = {
         
         // ── SPECIAL : VOL DYNAMIQUE (instant_steal) ──
         if (item.type === "instant_steal") {
-            const targetData = await db.getUser(targetId);
-            const targetBalance = Number(targetData.balance);
-            
-            // Calcul du prix dynamique
             // Gain Potentiel = Solde_Cible * 0.20
             // Prix_Vente = Gain_Potentiel * 0.60
             // Min 400
-            const potentialGain = targetBalance * 0.20;
-            let dynamicPrice = Math.floor(potentialGain * 0.60);
-            if (dynamicPrice < 400) dynamicPrice = 400;
+            const potentialGain = (BigInt(targetData.balance) * 20n) / 100n;
+            let dynamicPrice = (potentialGain * 60n) / 100n;
+            if (dynamicPrice < 400n) dynamicPrice = 400n;
 
             const confirmEmbed = new EmbedBuilder()
                 .setTitle(`⚠️ Confirmation de Vol`)
@@ -1530,11 +1531,11 @@ module.exports = {
 
           // Re-calcul du prix en temps réel
           const targetData = await db.getUser(targetId);
-          const targetBalance = Number(targetData.balance);
+          const targetBalance = BigInt(targetData.balance);
           
-          const potentialGain = targetBalance * 0.20;
-          let dynamicPrice = Math.floor(potentialGain * 0.60);
-          if (dynamicPrice < 400) dynamicPrice = 400;
+          const potentialGain = (targetBalance * 20n) / 100n;
+          let dynamicPrice = (potentialGain * 60n) / 100n;
+          if (dynamicPrice < 400n) dynamicPrice = 400n;
 
           // Créer un faux item avec le nouveau prix
           const dynamicItem = { ...item, price: dynamicPrice };

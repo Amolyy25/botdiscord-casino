@@ -339,12 +339,12 @@ module.exports = {
     // Phoenix Boost (x1.5 for 2 hours)
     if (db) {
         const user = await db.getUser(userId);
-        if (user.phoenix_until && Date.now() < parseInt(user.phoenix_until)) {
+        if (user.phoenix_until && BigInt(Date.now()) < BigInt(user.phoenix_until)) {
             multiplier *= 1.5;
         }
     }
-
-    return BigInt(Math.floor(Number(amount) * multiplier));
+    const multInt = BigInt(Math.floor(multiplier * 10)); // Accurate up to 1 decimal point
+    return (BigInt(amount) * multInt) / 10n;
   },
 
   getGloryHourStatus: () => {
@@ -442,10 +442,10 @@ module.exports = {
       let multiplier = currentVoiceUsers.length;
       if (multiplier > maxMultiplier) maxMultiplier = multiplier;
 
-      let coinsSec = 100 * multiplier;
+      let coinsSec = 100n * BigInt(multiplier);
       if (multiplier > 0) {
         for (const uid of currentVoiceUsers) {
-          rewards.set(uid, (rewards.get(uid) || 0) + coinsSec);
+          rewards.set(uid, (rewards.get(uid) || 0n) + coinsSec);
         }
       }
 
@@ -464,7 +464,7 @@ module.exports = {
         clearInterval(blackoutInterval);
         blackoutActive = false;
 
-        let totalCoinsGained = 0;
+        let totalCoinsGained = 0n;
         for (const [uid, total] of rewards.entries()) {
           db.updateBalance(uid, total, "Survie Blackout Vocal").catch(()=>null);
           totalCoinsGained += total;

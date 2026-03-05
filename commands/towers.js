@@ -97,7 +97,8 @@ function buildEmbed(state, status = 'playing') {
     const floorIdx = state.currentFloor - 1; // 0-indexed
     const mult = floorIdx > 0 ? MULTIPLIERS[floorIdx - 1] : 1.00;
     const nextMult = floorIdx < MAX_FLOOR ? MULTIPLIERS[floorIdx] : MULTIPLIERS[MAX_FLOOR - 1];
-    let currentGain = BigInt(Math.floor(Number(state.bet) * mult));
+    const multInt = BigInt(Math.floor(mult * 100));
+    let currentGain = (state.bet * multInt) / 100n;
     const completedFloors = state.floors;
     const gloryStatus = eventsManager.getGloryHourStatus();
 
@@ -137,7 +138,8 @@ function buildEmbed(state, status = 'playing') {
         desc += `\nVous avez choisi la mauvaise porte ! Mise perdue.`;
     } else if (status === 'cashout') {
         const cashMult = MULTIPLIERS[completedFloors.length - 1];
-        let cashGain = BigInt(Math.floor(Number(state.bet) * cashMult));
+        const cashMultInt = BigInt(Math.floor(cashMult * 100));
+        let cashGain = (state.bet * cashMultInt) / 100n;
         let profit = cashGain - state.bet;
         if (gloryStatus.active) profit *= 2n;
 
@@ -150,7 +152,8 @@ function buildEmbed(state, status = 'playing') {
         desc += `Profit: ${formatCoins(profit)}${eventIndicator}\n\nVous avez recupere vos gains !`;
     } else if (status === 'cleared') {
         const cashMult = MULTIPLIERS[MAX_FLOOR - 1];
-        let cashGain = BigInt(Math.floor(Number(state.bet) * cashMult));
+        const cashMultInt = BigInt(Math.floor(cashMult * 100));
+        let cashGain = (state.bet * cashMultInt) / 100n;
         let profit = cashGain - state.bet;
         if (gloryStatus.active) profit *= 2n;
 
@@ -175,7 +178,8 @@ function buildEmbed(state, status = 'playing') {
     if (status !== 'lost' && status !== 'timeout' && status !== 'playing') {
         // En cas de cashout ou completion
         const cashMult = MULTIPLIERS[completedFloors.length - 1];
-        let cashGain = BigInt(Math.floor(Number(state.bet) * cashMult));
+        const cashMultInt = BigInt(Math.floor(cashMult * 100));
+        let cashGain = (state.bet * cashMultInt) / 100n;
         let finalProfit = cashGain - state.bet;
         if (gloryStatus.active) finalProfit *= 2n;
         const { applyPrestigeBonus } = require('../prestigeConfig');
@@ -257,7 +261,8 @@ module.exports = {
                 collector.stop('cashout');
 
                 const cashMult = MULTIPLIERS[st.floors.length - 1];
-                let profit = winAmount - st.bet;
+                const cashMultInt = BigInt(Math.floor(cashMult * 100));
+                let profit = ((st.bet * cashMultInt) / 100n) - st.bet;
                 profit = await eventsManager.applyGloryHourMultiplier(userId, profit, db);
 
                 // Appliquer Bonus de Prestige
@@ -358,7 +363,8 @@ module.exports = {
                 collector.stop('cleared');
 
                 const cashMult = MULTIPLIERS[MAX_FLOOR - 1];
-                let profit = winAmount - st.bet;
+                const cashMultInt = BigInt(Math.floor(cashMult * 100));
+                let profit = ((st.bet * cashMultInt) / 100n) - st.bet;
                 profit = await eventsManager.applyGloryHourMultiplier(userId, profit, db);
 
                 // Appliquer Bonus de Prestige
