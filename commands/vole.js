@@ -215,7 +215,6 @@ module.exports = {
                             embeds: [createEmbed('Vol échoué ❌', `La victime n'a plus rien en poche !`, COLORS.ERROR)]
                         });
                     }
-                    }
                 } catch (err) {
                     await logError(message.client, err, { message, filePath: 'commands/vole.js:collector:end' });
                     await mainMsg.edit({ 
