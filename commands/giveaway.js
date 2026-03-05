@@ -1,7 +1,7 @@
 const { createEmbed, COLORS, formatCoins, logError } = require('../utils');
 const giveawayManager = require('../events/giveawayManager');
 
-const VALID_TYPES = ['COINS', 'TIRAGES', 'ROLE', 'TEMP_ROLE', 'MYSTERY_BOX', 'NITRO'];
+const VALID_TYPES = ['COINS', 'TIRAGES', 'ROLE', 'TEMP_ROLE', 'MYSTERY_BOX', 'NITRO', 'VOLE_DE_GENIE'];
 
 module.exports = {
   name: 'giveaway',
@@ -44,11 +44,12 @@ async function showHelp(message) {
     'Giveaway — Aide',
     `**Créer un giveaway :**\n` +
     `\`;giveaway create <type> <valeur> <durée> <nb_gagnants> [durée_rôle]\`\n\n` +
-    `**Types :** \`COINS\`, \`TIRAGES\`, \`ROLE\`, \`TEMP_ROLE\`, \`MYSTERY_BOX\`, \`NITRO\`\n` +
+    `**Types :** \`COINS\`, \`TIRAGES\`, \`ROLE\`, \`TEMP_ROLE\`, \`MYSTERY_BOX\`, \`NITRO\`, \`VOLE_DE_GENIE\`\n` +
     `**Durées :** \`10m\`, \`1h\`, \`2d\`, \`30s\`\n\n` +
     `**Exemples :**\n` +
     `→ \`;gw create COINS 1000 1h 2\`\n` +
     `→ \`;gw create NITRO 1d 1\`\n` +
+    `→ \`;gw create VOLE_DE_GENIE 2h 1\`\n` +
     `→ \`;gw create TEMP_ROLE 123456 30m 1 2d\`\n\n` +
     `**Autres commandes :**\n` +
     `\`;gw cancel <id>\`\n` +
@@ -67,12 +68,12 @@ async function handleCreate(message, args, db) {
   let winnersStr = args[3];
   let roleDurationStr = args[4];
 
-  // Special case for NITRO: since it doesn't need a value, 
+  // Special case for NITRO or VOLE_DE_GENIE: since they don't need a value, 
   // if called as `;gw create NITRO 1h 1`, we shift the arguments.
-  if (type === 'NITRO' && (durationStr === undefined || giveawayManager.parseDuration(value))) {
+  if ((type === 'NITRO' || type === 'VOLE_DE_GENIE') && (durationStr === undefined || giveawayManager.parseDuration(value))) {
     winnersStr = durationStr;
     durationStr = value;
-    value = 'NITRO_MANUAL';
+    value = type === 'NITRO' ? 'NITRO_MANUAL' : 'VOLE_DE_GENIE';
   }
 
   // Validate type
@@ -83,7 +84,7 @@ async function handleCreate(message, args, db) {
   }
 
   // Validate value
-  if (!value) {
+  if (!value && type !== 'NITRO' && type !== 'VOLE_DE_GENIE') {
     return message.reply({
       embeds: [createEmbed('Erreur', 'Valeur manquante.\n- COINS/TIRAGES : montant\n- ROLE/TEMP_ROLE : ID du rôle\n- MYSTERY_BOX : `TYPE:VALEUR:LABEL` (ex: `COINS:5000:5000 coins`)', COLORS.ERROR)],
     });

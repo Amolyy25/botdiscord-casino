@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder, PermissionFlagsBits, StringSelectMenuBuilder, ComponentType } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder, PermissionFlagsBits, StringSelectMenuBuilder, UserSelectMenuBuilder, ComponentType } = require('discord.js');
 const { COLORS, createEmbed, formatCoins, sendLog, logError } = require('../utils');
 const {
   drawMysteryItem,
@@ -18,6 +18,7 @@ const PRIZE_LABELS = {
   TEMP_ROLE: 'Rôle Temporaire',
   MYSTERY_BOX: 'Mystery Box',
   NITRO: 'Discord Nitro',
+  VOLE_DE_GENIE: 'Vole de génie',
 };
 
 const GIVEAWAY_CONDITIONS = [
@@ -68,6 +69,7 @@ function prizeDescription(giveaway) {
       return `**Mystery Box** *(ou ${label} garanti)*`;
     }
     case 'NITRO': return 'Discord Nitro';
+    case 'VOLE_DE_GENIE': return 'Vole de génie';
     default: return value;
   }
 }
@@ -253,6 +255,12 @@ async function endGiveaway(giveaway) {
       return;
     }
 
+    // ── VOLE DE GÉNIE special flow ──
+    if (giveaway.prize_type === 'VOLE_DE_GENIE') {
+      await endGiveawayVoleDeGenie(giveaway, winners, guild);
+      return;
+    }
+
     // ── Normal reward distribution ──
     const rewardResults = [];
     for (const winnerId of winners) {
@@ -371,6 +379,62 @@ async function endGiveawayMysteryBox(giveaway, winners, guild) {
     console.log(`[MysteryBox] Giveaway #${giveaway.id} terminé — ${winners.length} gagnant(s) en attente de choix`);
   } catch (err) {
     console.error(`[MysteryBox] Erreur fin giveaway #${giveaway.id}:`, err);
+  }
+}
+
+// ═══════════════════════════════════════════════
+// Vole de génie — Fin de giveaway
+// ═══════════════════════════════════════════════
+
+const CASINO_CHANNEL_ID = "1469713523549540536";
+
+async function endGiveawayVoleDeGenie(giveaway, winners, guild) {
+  try {
+    const channel = await _client.channels.fetch(CASINO_CHANNEL_ID).catch(() => null);
+    if (!channel) return;
+
+    if (winners.length === 0) {
+      await channel.send({
+        embeds: [createEmbed('Giveaway Vole de génie Terminé', `Aucun participant.`, '#FFFFFF')],
+      });
+      return;
+    }
+
+    for (const winnerId of winners) {
+       const embed = createEmbed(
+          '🎭 Gain Giveaway : Vole de génie',
+          `Félicitations <@${winnerId}> !\n\n` +
+          `Tu as gagné un **Vole de génie** !\n` +
+          `Cela te permet de voler un pourcentage du capital d'un joueur de ton choix, **sans qu'il ne puisse l'arrêter**.\n\n` +
+          `Sélectionne ta victime ci-dessous :`,
+          '#FFFFFF'
+        );
+
+        const select = new ActionRowBuilder().addComponents(
+          new UserSelectMenuBuilder()
+            .setCustomId(`giveaway_vole_genie_pick_${giveaway.id}`)
+            .setPlaceholder('Choisir une victime...')
+        );
+
+        await channel.send({
+          content: `<@${winnerId}>`,
+          embeds: [embed],
+          components: [select],
+        });
+    }
+
+    // Log
+    const winnerMentions = winners.map(w => `<@${w}>`).join(', ');
+    if (guild) {
+      await sendLog(guild, 'Giveaway Vole de génie Terminé',
+        `**Giveaway #${giveaway.id}** terminé.\n` +
+        `Gagnants : ${winnerMentions}\n` +
+        `Récompense : Vole de génie`,
+        '#FFFFFF'
+      );
+    }
+  } catch (err) {
+    console.error(`[Giveaway] Erreur fin giveaway Vole de génie #${giveaway.id}:`, err);
   }
 }
 
@@ -732,6 +796,7 @@ const slashCommand = new SlashCommandBuilder()
         { name: '⏳ Rôle Temporaire', value: 'TEMP_ROLE' },
         { name: '🎁 Mystery Box', value: 'MYSTERY_BOX' },
         { name: '💎 Discord Nitro', value: 'NITRO' },
+        { name: '🎭 Vole de génie', value: 'VOLE_DE_GENIE' },
       ))
       .addStringOption(opt =>
         opt.setName('duration')
@@ -921,7 +986,7 @@ module.exports = {
   },
 
   async handleInteraction(interaction, db) {
-    if (!interaction.isButton() && !interaction.isStringSelectMenu()) return false;
+    if (!interaction.isButton() && !interaction.isStringSelectMenu() && !interaction.isUserSelectMenu()) return false;
     const id = interaction.customId;
 
     // ── Setup: Choose conditions ──
@@ -1044,6 +1109,71 @@ module.exports = {
       } catch (err) {
         console.error('[MysteryBox] Erreur ouverture box:', err);
         await interaction.reply({ content: '❌ Une erreur est survenue lors de l\'ouverture.', flags: 64 }).catch(() => {});
+      }
+      return true;
+    }
+
+    // ── Vole de génie: Pick victim ──
+    if (id.startsWith('giveaway_vole_genie_pick_')) {
+      const winnerId = interaction.user.id;
+      const victimId = interaction.values[0];
+
+      if (winnerId === victimId) {
+        return interaction.reply({ content: '❌ Tu ne peux pas te voler toi-même.', flags: 64 });
+      }
+
+      const victimMember = await interaction.guild.members.fetch(victimId).catch(() => null);
+      if (!victimMember || victimMember.user.bot) {
+        return interaction.reply({ content: '❌ Victime invalide.', flags: 64 });
+      }
+
+      await interaction.deferUpdate();
+      
+      try {
+        const victimData = await db.getUser(victimId);
+        const victimBalance = BigInt(victimData.balance || 0);
+
+        if (victimBalance < 50n) {
+          return interaction.editReply({ content: '❌ Cette victime est trop pauvre !', embeds: [], components: [] });
+        }
+
+        // Steal percentage (between 10% and 35%)
+        const stealPct = Math.floor((Math.random() * 0.25 + 0.1) * 100);
+        const stealAmount = (victimBalance * BigInt(stealPct)) / 100n;
+        const finalSteal = stealAmount < 50n ? 50n : stealAmount;
+
+        await db.updateBalance(victimId, -finalSteal, 'Giveaway: Vole de génie (Victime)');
+        await db.updateBalance(winnerId, finalSteal, 'Giveaway: Vole de génie (Gain)');
+
+        const embed = createEmbed(
+          '🎭 Vole de génie accompli !',
+          `<@${winnerId}> a utilisé son pouvoir pour dévaliser <@${victimId}> !\n\n` +
+          `**Butin :** ${formatCoins(finalSteal)} (soit ${stealPct}%)`,
+          COLORS.SUCCESS
+        );
+
+        await interaction.editReply({ embeds: [embed], components: [], content: null });
+
+        // Notify victim via DM
+        try {
+          const dmEmbed = createEmbed(
+            '🎭 Victime d\'un Vole de génie',
+            `Tu as été victime d'un **Vole de génie** remporté lors d'un giveaway !\n\n` +
+            `**Auteur :** <@${winnerId}>\n` +
+            `**Butin prélevé :** ${formatCoins(finalSteal)}\n\n` +
+            `*Ce vol est exceptionnel et n'a pas pu être arrêté.*`,
+            COLORS.ERROR
+          );
+          await victimMember.send({ embeds: [dmEmbed] }).catch(() => {});
+        } catch (dmErr) {}
+
+        await sendLog(interaction.guild, '🎭 Vole de génie Giveaway',
+          `<@${winnerId}> a volé ${formatCoins(finalSteal)} à <@${victimId}>.`,
+          COLORS.SUCCESS
+        );
+      } catch (err) {
+        console.error('[Giveaway] Erreur Vole de génie:', err);
+        await interaction.editReply({ content: '❌ Une erreur est survenue lors du vol.', embeds: [], components: [] });
       }
       return true;
     }
@@ -1225,9 +1355,9 @@ module.exports = {
       finalValue = `${mbType.toUpperCase()}:${mbValue}:${mbLabel}`;
     }
 
-    // Prevent NULL prize_value for NITRO or if somehow missing
-    if (type === 'NITRO' && !finalValue) {
-      finalValue = 'NITRO_MANUAL';
+    // Prevent NULL prize_value for NITRO/VOLE_DE_GENIE or if somehow missing
+    if ((type === 'NITRO' || type === 'VOLE_DE_GENIE') && !finalValue) {
+      finalValue = type === 'NITRO' ? 'NITRO_MANUAL' : 'VOLE_DE_GENIE';
     }
     
     // Safety fallback for postgres not-null constraint
@@ -1342,7 +1472,6 @@ module.exports = {
 
     const winners = pickWinners(participants, gw.winner_count);
     const results = [];
-    const guild = interaction.guild;
 
     for (const winnerId of winners) {
       try {
