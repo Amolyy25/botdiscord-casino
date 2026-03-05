@@ -47,7 +47,7 @@ for (const file of commandFiles) {
   client.commands.set(command.name, command);
 }
 
-client.once("clientReady", async () => {
+client.once("ready", async () => {
   try {
     await db.initDb();
     console.log("Database initialized");
