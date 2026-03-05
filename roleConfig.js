@@ -8,8 +8,8 @@ const ROLE_POOL = [
     // ULTRA RARE (1.3% total)
     { type: 'role', id: '1479065962153119898', name: 'Archange de Marbre', probability: 0.0005, color: '#FFFFFF' },
     { type: 'role', id: '1479066013478817812', name: 'NUMBER ONE', probability: 0.0005, color: '#FFFFFF' },
-    { type: 'role', id: '1479068999718539335', name: 'Badge Stars', probability: 0.0005, color: '#FFFFFF', emoji: '<:starsss:1479069527873425429>', isBadge: true },
-    { type: 'role', id: '1479068888254648432', name: 'Badge Money', probability: 0.0005, color: '#FFFFFF', emoji: '<:moneyy:1479069525734330540>', isBadge: true },
+    { type: 'role', id: '1479068999718539335', name: 'Badge Stars', probability: 0.0005, color: '#FFFFFF', emoji: 'Badge : <:starsss:1479069527873425429>', isBadge: true },
+    { type: 'role', id: '1479068888254648432', name: 'Badge Money', probability: 0.0005, color: '#FFFFFF', emoji: 'Badge :<:moneyy:1479069525734330540>', isBadge: true },
     { type: 'role', id: '1479065289021722716', name: 'Angélique', probability: 0.0005, color: '#FFFFFF' },
     { type: 'role', id: '1479065047102783630', name: 'Lune celeste', probability: 0.0005, color: '#FFFFFF' },
     { type: 'role', id: '1473736462892794008', name: 'Nébuleuse', probability: 0.002, color: '#9B59B6' },
