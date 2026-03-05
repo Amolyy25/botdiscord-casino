@@ -192,7 +192,8 @@ module.exports = {
             addedRoles.add(r.id);
             const prob = (r.probability * 100).toFixed(r.probability < 0.001 ? 3 : 2);
             const countSuffix = roleCounts[r.id] > 1 ? ` **x${roleCounts[r.id]}**` : "";
-            resultText += `• <@&${r.id}> \`(${prob}%)\`${countSuffix} ${r.alreadyOwned ? "*(déjà possédé)*" : ""}\n`;
+            const roleMention = r.isBadge ? r.emoji : (r.emoji ? `${r.emoji} **${r.name}**` : `<@&${r.id}>`);
+            resultText += `• ${roleMention} \`(${prob}%)\`${countSuffix} ${r.alreadyOwned ? "*(déjà possédé)*" : ""}\n`;
         });
     }
 

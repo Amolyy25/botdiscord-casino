@@ -117,7 +117,8 @@ module.exports = {
         if (reward.type === "coins") {
           rolesDisplay += `**${reward.amount} Coins** - ${percentage}%\n`;
         } else {
-          rolesDisplay += `<@&${reward.id}> - ${percentage}%\n`;
+          const mention = reward.isBadge ? reward.emoji : (reward.emoji ? `${reward.emoji} **${reward.name}**` : `<@&${reward.id}>`);
+          rolesDisplay += `${mention} - ${percentage}%\n`;
         }
       }
 

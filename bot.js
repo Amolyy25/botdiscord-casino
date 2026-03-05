@@ -279,11 +279,14 @@ client.on("interactionCreate", async (interaction) => {
         else if (reward.probability < 0.06) rarity = "MOYEN RARE";
 
         let text = "";
-        if (reward.type === 'role') text = `<@&${reward.id}>`;
+        if (reward.type === 'role') {
+            if (reward.isBadge) text = reward.emoji;
+            else text = reward.emoji ? `${reward.emoji} **${reward.name}**` : `<@&${reward.id}>`;
+        }
         else if (reward.type === 'coins') text = `**${reward.amount} Coins**`;
         else if (reward.type === 'extra_tirages') text = `**+${reward.amount} Tirages**`;
 
-        categories[rarity].push(`${text} (${(reward.probability * 100).toFixed(2)}%)`);
+        categories[rarity].push(`${text} (${(reward.probability * 100).toFixed(3)}%)`);
     });
 
     let description = "";

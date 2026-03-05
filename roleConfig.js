@@ -5,7 +5,13 @@ const WINS_CHANNEL_ID = '1469719884249301176';
 // Role IDs and their probabilities
 // Scaling down roles by ~0.8 to make room for coins
 const ROLE_POOL = [
-    // ULTRA RARE (1% total) - Increased from 0.5%
+    // ULTRA RARE (1.3% total)
+    { type: 'role', id: '1479065962153119898', name: 'Archange de Marbre', probability: 0.0005, color: '#FFFFFF' },
+    { type: 'role', id: '1479066013478817812', name: 'NUMBER ONE', probability: 0.0005, color: '#FFFFFF' },
+    { type: 'role', id: '1479068999718539335', name: 'Badge Stars', probability: 0.0005, color: '#FFFFFF', emoji: '<:starsss:1479069527873425429>', isBadge: true },
+    { type: 'role', id: '1479068888254648432', name: 'Badge Money', probability: 0.0005, color: '#FFFFFF', emoji: '<:moneyy:1479069525734330540>', isBadge: true },
+    { type: 'role', id: '1479065289021722716', name: 'Angélique', probability: 0.0005, color: '#FFFFFF' },
+    { type: 'role', id: '1479065047102783630', name: 'Lune celeste', probability: 0.0005, color: '#FFFFFF' },
     { type: 'role', id: '1473736462892794008', name: 'Nébuleuse', probability: 0.002, color: '#9B59B6' },
     { type: 'role', id: '1473736527225028689', name: 'Horizon', probability: 0.002, color: '#3498DB' },
     { type: 'coins', amount: 20000, name: '20 000 Coins', probability: 0.002, color: '#FFD700' },
@@ -29,7 +35,7 @@ const ROLE_POOL = [
     { type: 'role', id: '1470934040692392008', name: 'Immunité 2H', probability: 0.02, color: '#CD7F32', duration: 2 * 60 * 60 * 1000 },
     { type: 'role', id: '1470931245381845216', name: 'Boost XP x1.5', probability: 0.01, color: '#FFA500' },
 
-    // COMMUN / PEU COMMUN (Remaining 84.2%)
+    // COMMUN / PEU COMMUN (Remaining 84.0%)
     { type: 'role', id: '1469071689831940302', name: 'Blanc', probability: 0.015, color: '#FFFFFF' },
     { type: 'role', id: '1469071689831940301', name: 'Violet', probability: 0.03, color: '#9B59B6' },
     { type: 'role', id: '1469071689823289446', name: 'Noir', probability: 0.015, color: '#000000' },
@@ -42,7 +48,7 @@ const ROLE_POOL = [
     { type: 'role', id: '1469071689823289439', name: 'Vert Claire', probability: 0.05, color: '#90EE90' },
     { type: 'role', id: '1469071689823289438', name: 'Bleu foncé', probability: 0.11, color: '#00008B' },
     { type: 'role', id: '1469071689823289437', name: 'Bleu Claire', probability: 0.11, color: '#87CEEB' },
-    { type: 'coins', amount: 500, name: '500 Coins', probability: 0.207, color: '#FFD700' },
+    { type: 'coins', amount: 500, name: '500 Coins', probability: 0.204, color: '#FFD700' },
     { type: 'coins', amount: 1000, name: '1000 Coins', probability: 0.04, color: '#FFD700' }
 ];
 
