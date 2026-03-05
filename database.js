@@ -104,6 +104,7 @@ const initDb = async () => {
       ends_at BIGINT NOT NULL,
       temp_role_duration BIGINT,
       required_roles TEXT,
+      voice_required BOOLEAN DEFAULT FALSE,
       status TEXT DEFAULT 'active',
       created_at TIMESTAMP DEFAULT NOW()
     );
@@ -223,6 +224,11 @@ const initDb = async () => {
         -- giveaways: add required_roles column
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='giveaways' AND column_name='required_roles') THEN
             ALTER TABLE giveaways ADD COLUMN required_roles TEXT;
+        END IF;
+
+        -- giveaways: add voice_required column
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='giveaways' AND column_name='voice_required') THEN
+            ALTER TABLE giveaways ADD COLUMN voice_required BOOLEAN DEFAULT FALSE;
         END IF;
     END $$;
   `);
@@ -608,11 +614,11 @@ module.exports = {
   // Giveaway System
   // ═══════════════════════════════════════════════
 
-  createGiveaway: async ({ guildId, channelId, messageId, hostId, prizeType, prizeValue, winnerCount, endsAt, tempRoleDuration, requiredRoles = null }) => {
+  createGiveaway: async ({ guildId, channelId, messageId, hostId, prizeType, prizeValue, winnerCount, endsAt, tempRoleDuration, requiredRoles = null, voiceRequired = false }) => {
     const res = await pool.query(
-      `INSERT INTO giveaways (guild_id, channel_id, message_id, host_id, prize_type, prize_value, winner_count, ends_at, temp_role_duration, required_roles)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-      [guildId, channelId, messageId, hostId, prizeType, prizeValue, winnerCount, endsAt, tempRoleDuration || null, requiredRoles]
+      `INSERT INTO giveaways (guild_id, channel_id, message_id, host_id, prize_type, prize_value, winner_count, ends_at, temp_role_duration, required_roles, voice_required)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+      [guildId, channelId, messageId, hostId, prizeType, prizeValue, winnerCount, endsAt, tempRoleDuration || null, requiredRoles, voiceRequired]
     );
     return res.rows[0];
   },

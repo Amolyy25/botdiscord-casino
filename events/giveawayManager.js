@@ -23,9 +23,11 @@ const PRIZE_LABELS = {
 const GIVEAWAY_CONDITIONS = [
   { id: '1469071689399926791', label: 'Rôle à vérifier' },
   { id: '1471251878175309985', label: 'Lien en statut Discord' },
+  { id: 'voice_required', label: 'Être en vocal' },
 ];
 
 const pendingCreate = new Map();
+const voiceLeaveTimers = new Map(); // userId => Timeout
 
 function parseDuration(str) {
   if (!str) return null;
@@ -131,13 +133,19 @@ function buildGiveawayEmbed(giveaway, participantCount, ended = false, winners =
     }
 
     // Add conditions to description if any
+    const condList = [];
+    if (giveaway.voice_required) {
+      condList.push('• **Être en vocal** (du début à la fin)');
+    }
     if (giveaway.required_roles) {
       const roles = giveaway.required_roles.split(',');
-      const condText = roles.map(rid => {
+      roles.forEach(rid => {
         const cond = GIVEAWAY_CONDITIONS.find(c => c.id === rid);
-        return cond ? `• ${cond.label} (<@&${rid}>)` : `• Role <@&${rid}>`;
-      }).join('\n');
-      embed.addFields({ name: 'Conditions Requises', value: condText });
+        condList.push(cond ? `• ${cond.label} (<@&${rid}>)` : `• Role <@&${rid}>`);
+      });
+    }
+    if (condList.length > 0) {
+      embed.addFields({ name: 'Conditions Requises', value: condList.join('\n') });
     }
   }
 
@@ -166,10 +174,10 @@ function pickWinners(participants, count) {
   return shuffled.slice(0, Math.min(count, shuffled.length));
 }
 
-async function verifyParticipants(guild, giveaway, participantIds) {
-  if (!giveaway.required_roles) return participantIds;
+async function verifyParticipants(guild, giveaway, participantIds, strict = false) {
+  if (!giveaway.required_roles && !giveaway.voice_required) return participantIds;
   const validIds = [];
-  const required = giveaway.required_roles.split(',');
+  const required = giveaway.required_roles ? giveaway.required_roles.split(',') : [];
 
   for (const uid of participantIds) {
     try {
@@ -179,8 +187,17 @@ async function verifyParticipants(guild, giveaway, participantIds) {
         continue;
       }
       
-      const hasAll = required.every(rid => member.roles.cache.has(rid));
-      if (hasAll) {
+      const hasAllRoles = required.every(rid => member.roles.cache.has(rid));
+      
+      // Voice check: valid if in voice OR currently in the 30s grace period (unless strict)
+      let hasVoice = true;
+      if (giveaway.voice_required) {
+        const inGrace = !strict && voiceLeaveTimers.has(uid);
+        const inVoice = member.voice && member.voice.channelId;
+        hasVoice = inVoice || inGrace;
+      }
+
+      if (hasAllRoles && hasVoice) {
         validIds.push(uid);
       } else {
         // Participant no longer meets requirements
@@ -207,8 +224,8 @@ async function endGiveaway(giveaway) {
 
     let participants = await _db.getGiveawayParticipants(giveaway.id);
     
-    // Final verification before picking winners
-    participants = await verifyParticipants(guild, giveaway, participants);
+    // Final verification before picking winners - STRICT check
+    participants = await verifyParticipants(guild, giveaway, participants, true);
 
     const winners = pickWinners(participants, giveaway.winner_count);
 
@@ -784,6 +801,7 @@ module.exports = {
   prizeDescription,
   buildGiveawayEmbed,
   buildGiveawayButtons,
+  verifyParticipants,
   startSetupProcess: function(trigger, data) {
     // This is a bridge to the method defined inside module.exports
     return this.startSetupProcess(trigger, data);
@@ -825,6 +843,80 @@ module.exports = {
     setInterval(processScheduledTasks, 60_000);  // Check scheduled tasks every 60s
     setInterval(updateActiveEmbeds, 10 * 60_000); // Update embeds every 10 minutes
 
+    // ── Real-time Voice Requirement Enforcement ──
+    client.on('voiceStateUpdate', async (oldState, newState) => {
+      const userId = newState.member.id;
+      const guildId = newState.guild.id;
+
+      // User left voice completely
+      if (oldState.channelId && !newState.channelId) {
+        try {
+          const activeGw = await _db.getActiveGiveaways();
+          const voiceGw = activeGw.filter(gw => gw.guild_id === guildId && gw.voice_required);
+          
+          const participatingIds = [];
+          for (const gw of voiceGw) {
+            const isParticipating = await _db.isGiveawayParticipant(gw.id, userId);
+            if (isParticipating) participatingIds.push(gw.id);
+          }
+
+          if (participatingIds.length > 0) {
+            console.log(`[Giveaway] Participant ${userId} a quitté le vocal. Lancement du timer de 30s.`);
+            
+            // Clear existing if any
+            if (voiceLeaveTimers.has(userId)) clearTimeout(voiceLeaveTimers.get(userId));
+
+            const timer = setTimeout(async () => {
+              voiceLeaveTimers.delete(userId);
+              
+              // Check current state fresh
+              const memberFresh = await newState.guild.members.fetch(userId).catch(() => null);
+              if (memberFresh && (!memberFresh.voice || !memberFresh.voice.channelId)) {
+                
+                let removedFrom = [];
+                for (const gwId of participatingIds) {
+                  // Ensure giveaway is still active and needs voice
+                  const currentGw = await _db.getGiveaway(gwId);
+                  if (currentGw && currentGw.status === 'active' && currentGw.voice_required) {
+                    await _db.removeGiveawayParticipant(gwId, userId);
+                    removedFrom.push(gwId);
+                  }
+                }
+
+                if (removedFrom.length > 0) {
+                  console.log(`[Giveaway] Participant ${userId} retiré des giveaways [${removedFrom.join(', ')}] (30s écoulées hors vocal)`);
+                  
+                  // Notify user via DM
+                  try {
+                    const embed = createEmbed(
+                      'Giveaway — Participation Retirée',
+                      `Tu as été retiré de la participation aux giveaway(s) suivant(s) : **#${removedFrom.join(', #')}**.\n\n` +
+                      `**Raison :** Tu as quitté le salon vocal pendant plus de 30 secondes alors que c'était une condition requise.\n\n` +
+                      `*Tu peux rejoindre à nouveau si tu retournes en vocal.*`,
+                      COLORS.ERROR
+                    );
+                    await newState.member.send({ embeds: [embed] }).catch(() => {});
+                  } catch (dmErr) {}
+                }
+              }
+            }, 30_000);
+
+            voiceLeaveTimers.set(userId, timer);
+          }
+        } catch (err) {
+          console.error('[Giveaway] Erreur voiceStateUpdate (leave):', err.message);
+        }
+      } 
+      // User joined voice
+      else if (!oldState.channelId && newState.channelId) {
+        if (voiceLeaveTimers.has(userId)) {
+          clearTimeout(voiceLeaveTimers.get(userId));
+          voiceLeaveTimers.delete(userId);
+          console.log(`[Giveaway] Participant ${userId} est revenu en vocal avant 30s. Timer annulé.`);
+        }
+      }
+    });
+
     console.log('[Giveaway] Système initialisé · check giveaways/30s · scheduled tasks/60s · embed update/10m · persistence DB active');
   },
 
@@ -836,7 +928,11 @@ module.exports = {
     if (id === 'giveaway_setup_conditions') {
       const data = pendingCreate.get(interaction.user.id);
       if (!data) return interaction.reply({ content: '❌ Session expirée.', flags: 64 });
-      data.requiredRoles = interaction.values.length > 0 ? interaction.values.join(',') : null;
+      
+      const values = interaction.values;
+      data.voiceRequired = values.includes('voice_required');
+      data.requiredRoles = values.filter(v => v !== 'voice_required').join(',') || null;
+      
       await interaction.deferUpdate();
       return true;
     }
@@ -964,22 +1060,27 @@ module.exports = {
           return true;
         }
 
-        // Check conditions (required roles)
+        // Check conditions (required roles & voice)
+        const missing = [];
+        if (gw.voice_required && (!interaction.member.voice || !interaction.member.voice.channelId)) {
+          missing.push('**Être dans un salon vocal**');
+        }
+
         if (gw.required_roles) {
           const roles = gw.required_roles.split(',');
-          const missing = [];
           for (const rid of roles) {
             if (!interaction.member.roles.cache.has(rid)) {
               const cond = GIVEAWAY_CONDITIONS.find(c => c.id === rid);
               missing.push(cond ? `**${cond.label}** (<@&${rid}>)` : `<@&${rid}>`);
             }
           }
-          if (missing.length > 0) {
-            return interaction.reply({
-              content: `❌ Tu ne remplis pas toutes les conditions pour participer :\n\n${missing.map(m => `• ${m}`).join('\n')}`,
-              flags: 64,
-            });
-          }
+        }
+        
+        if (missing.length > 0) {
+          return interaction.reply({
+            content: `❌ Tu ne remplis pas toutes les conditions pour participer :\n\n${missing.map(m => `• ${m}`).join('\n')}`,
+            flags: 64,
+          });
         }
 
         const added = await db.addGiveawayParticipant(giveawayId, interaction.user.id);
@@ -1148,7 +1249,8 @@ module.exports = {
     const userId = (trigger.user || trigger.author).id;
     pendingCreate.set(userId, {
       ...data,
-      requiredRoles: null
+      requiredRoles: null,
+      voiceRequired: false
     });
 
     const conditionsMenu = new ActionRowBuilder().addComponents(
@@ -1226,10 +1328,17 @@ module.exports = {
     if (!gw) return interaction.reply({ content: `❌ Giveaway #${id} introuvable.`, flags: 64 });
     if (gw.status !== 'ended') return interaction.reply({ content: '❌ Seuls les giveaways terminés peuvent être re-tirés.', flags: 64 });
 
-    const participants = await db.getGiveawayParticipants(id);
+    let participants = await db.getGiveawayParticipants(id);
     if (participants.length === 0) return interaction.reply({ content: '❌ Aucun participant.', flags: 64 });
 
     await interaction.deferReply();
+    const guild = interaction.guild;
+
+    // Verify participants still meet requirements - STRICT check
+    participants = await verifyParticipants(guild, gw, participants, true);
+    if (participants.length === 0) {
+      return interaction.editReply({ content: '❌ Plus aucun participant ne remplit les conditions requises.' });
+    }
 
     const winners = pickWinners(participants, gw.winner_count);
     const results = [];

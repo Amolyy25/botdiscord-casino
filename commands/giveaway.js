@@ -278,10 +278,13 @@ async function handleReroll(message, args, db) {
     });
   }
 
-  const participants = await db.getGiveawayParticipants(id);
+  let participants = await db.getGiveawayParticipants(id);
+  // Verify participants still meet requirements - STRICT check
+  participants = await giveawayManager.verifyParticipants(message.guild, gw, participants, true);
+
   if (participants.length === 0) {
     return message.reply({
-      embeds: [createEmbed('Erreur', 'Aucun participant pour ce giveaway.', '#FFFFFF')],
+      embeds: [createEmbed('Erreur', 'Plus aucun participant ne remplit les conditions requises pour ce giveaway.', COLORS.ERROR)],
     });
   }
 
