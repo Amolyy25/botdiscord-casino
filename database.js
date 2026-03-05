@@ -21,9 +21,7 @@ const initDb = async () => {
       prestige INTEGER DEFAULT 0
     );
 
-    -- Migration for existing tables
-    DO $$
-    BEGIN
+        -- Migration: users table
         IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='balance' AND data_type='integer') THEN
             ALTER TABLE users ALTER COLUMN balance TYPE BIGINT;
         END IF;
@@ -41,6 +39,29 @@ const initDb = async () => {
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='phoenix_until') THEN
             ALTER TABLE users ADD COLUMN phoenix_until BIGINT DEFAULT 0;
+        END IF;
+
+        -- Migration: balance_history table
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='balance_history' AND column_name='amount' AND data_type='integer') THEN
+            ALTER TABLE balance_history ALTER COLUMN amount TYPE BIGINT;
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='balance_history' AND column_name='balance_after' AND data_type='integer') THEN
+            ALTER TABLE balance_history ALTER COLUMN balance_after TYPE BIGINT;
+        END IF;
+
+        -- Migration: bounties table
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bounties' AND column_name='reward' AND data_type='integer') THEN
+            ALTER TABLE bounties ALTER COLUMN reward TYPE BIGINT;
+        END IF;
+
+        -- Migration: shop_purchases table
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='shop_purchases' AND column_name='price' AND data_type='integer') THEN
+            ALTER TABLE shop_purchases ALTER COLUMN price TYPE BIGINT;
+        END IF;
+
+        -- Migration: braquage_winners table
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='braquage_winners' AND column_name='coins_won' AND data_type='integer') THEN
+            ALTER TABLE braquage_winners ALTER COLUMN coins_won TYPE BIGINT;
         END IF;
     END $$;
     
@@ -220,18 +241,18 @@ module.exports = {
   updateBalance: async (id, amount, reason = 'Autre') => {
     const res = await pool.query(
       `INSERT INTO users (id, balance, tirages) 
-       VALUES ($1, 100 + $2, 2) 
+       VALUES ($1, 100 + $2::BIGINT, 2) 
        ON CONFLICT (id) 
-       DO UPDATE SET balance = users.balance + $2 
+       DO UPDATE SET balance = users.balance + $2::BIGINT
        RETURNING balance`,
-      [id, BigInt(amount)]
+      [id, amount.toString()]
     );
     const balanceAfter = res.rows[0].balance;
     // Auto-log to balance_history
     await pool.query(
       `INSERT INTO balance_history (user_id, amount, reason, balance_after, created_at)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [id, BigInt(amount), reason, balanceAfter, Date.now()]
+       VALUES ($1, $2::BIGINT, $3, $4::BIGINT, $5::BIGINT)`,
+      [id, amount.toString(), reason, balanceAfter.toString(), Date.now().toString()]
     ).catch(err => console.error('[BalHis] Erreur log:', err.message));
     return balanceAfter;
   },
@@ -252,11 +273,11 @@ module.exports = {
   setBalance: async (id, balance) => {
     const res = await pool.query(
       `INSERT INTO users (id, balance, tirages) 
-       VALUES ($1, $2, 2) 
+       VALUES ($1, $2::BIGINT, 2) 
        ON CONFLICT (id) 
-       DO UPDATE SET balance = $2 
+       DO UPDATE SET balance = $2::BIGINT 
        RETURNING balance`,
-      [id, BigInt(balance)]
+      [id, balance.toString()]
     );
     return res.rows[0].balance;
   },
@@ -338,8 +359,8 @@ module.exports = {
   // Bounty System
   createBounty: async (title, description, reward, authorId) => {
     const res = await pool.query(
-      'INSERT INTO bounties (title, description, reward, author_id) VALUES ($1, $2, $3, $4) RETURNING *',
-      [title, description, BigInt(reward), authorId]
+      'INSERT INTO bounties (title, description, reward, author_id) VALUES ($1, $2, $3::BIGINT, $4) RETURNING *',
+      [title, description, reward.toString(), authorId]
     );
     return res.rows[0];
   },
@@ -436,8 +457,8 @@ module.exports = {
   // Braquage System
   addBraquageWinner: async (userId, code, coinsWon, roleId, roleExpiresAt) => {
     await pool.query(
-      'INSERT INTO braquage_winners (user_id, code, coins_won, role_id, role_expires_at) VALUES ($1, $2, $3, $4, $5)',
-      [userId, code, BigInt(coinsWon), roleId, roleExpiresAt]
+      'INSERT INTO braquage_winners (user_id, code, coins_won, role_id, role_expires_at) VALUES ($1, $2, $3::BIGINT, $4, $5::BIGINT)',
+      [userId, code, coinsWon.toString(), roleId, roleExpiresAt ? roleExpiresAt.toString() : null]
     );
   },
 
@@ -488,8 +509,8 @@ module.exports = {
   // Shop System
   addShopPurchase: async (userId, itemId, targetId, price) => {
     await pool.query(
-      'INSERT INTO shop_purchases (user_id, item_id, target_id, price) VALUES ($1, $2, $3, $4)',
-      [userId, itemId, targetId, BigInt(price)]
+      'INSERT INTO shop_purchases (user_id, item_id, target_id, price) VALUES ($1, $2, $3, $4::BIGINT)',
+      [userId, itemId, targetId, price.toString()]
     );
   },
 
@@ -779,8 +800,8 @@ module.exports = {
     // Log to balance history as a reset
     await pool.query(
       `INSERT INTO balance_history (user_id, amount, reason, balance_after, created_at)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [id, 0n, 'Prestige Reset', 0n, Date.now()]
+       VALUES ($1, 0, 'Prestige Reset', 0, $2::BIGINT)`,
+      [id, Date.now().toString()]
     ).catch(err => console.error('[BalHis] Erreur log prestige:', err.message));
   },
 
