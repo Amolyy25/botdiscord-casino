@@ -8,6 +8,7 @@
  * - Style : embed blanc, titre "CLASSEMENT FORTUNE | LE SECTEUR".
  */
 
+const cron = require('node-cron');
 const { EmbedBuilder } = require('discord.js');
 const { logError } = require('../utils');
 
