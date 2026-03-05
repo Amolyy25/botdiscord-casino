@@ -12,7 +12,8 @@ module.exports = {
 
         if (isCheckingOthers && !isAdmin) {
             return message.reply({ 
-                embeds: [createEmbed('Erreur', `Seuls les administrateurs peuvent voir le profil des autres joueurs.`, COLORS.ERROR)]
+                embeds: [createEmbed('Erreur', `Seuls les administrateurs peuvent voir le profil des autres joueurs.`, COLORS.ERROR)],
+                failIfNotExists: false
             });
         }
 
@@ -109,6 +110,6 @@ module.exports = {
             embed.setThumbnail(targetUser.displayAvatarURL({ dynamic: true }));
         }
 
-        message.reply({ embeds: [embed] });
+        message.reply({ embeds: [embed], failIfNotExists: false });
     }
 };

@@ -1,7 +1,8 @@
+const { PermissionFlagsBits } = require('discord.js');
 const { createEmbed, COLORS, formatCoins, logError } = require('../utils');
 const giveawayManager = require('../events/giveawayManager');
 
-const VALID_TYPES = ['COINS', 'TIRAGES', 'ROLE', 'TEMP_ROLE', 'MYSTERY_BOX', 'NITRO', 'VOLE_DE_GENIE'];
+const VALID_TYPES = ['COINS', 'TIRAGES', 'ROLE', 'TEMP_ROLE', 'MYSTERY_BOX', 'NITRO', 'VOLE_DE_GENIE', 'DECO'];
 
 module.exports = {
   name: 'giveaway',
@@ -9,10 +10,12 @@ module.exports = {
   description: 'Système de giveaway (Admin)',
 
   async execute(message, args, db) {
-    // Admin only
-    if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+    // Admin or specific role only
+    const GIVEAWAY_PERM_ROLE = '1479250332235333653';
+    if (!message.member.permissions.has(PermissionFlagsBits.Administrator) && !message.member.roles.cache.has(GIVEAWAY_PERM_ROLE)) {
       return message.reply({
-        embeds: [createEmbed('Erreur', 'Permission insuffisante. (Administrateur requis)', COLORS.ERROR)],
+        embeds: [createEmbed('Erreur', 'Permission insuffisante. (Administrateur ou rôle autorisé requis)', COLORS.ERROR)],
+        failIfNotExists: false
       });
     }
 
@@ -44,11 +47,12 @@ async function showHelp(message) {
     'Giveaway — Aide',
     `**Créer un giveaway :**\n` +
     `\`;giveaway create <type> <valeur> <durée> <nb_gagnants> [durée_rôle]\`\n\n` +
-    `**Types :** \`COINS\`, \`TIRAGES\`, \`ROLE\`, \`TEMP_ROLE\`, \`MYSTERY_BOX\`, \`NITRO\`, \`VOLE_DE_GENIE\`\n` +
+    `**Types :** \`COINS\`, \`TIRAGES\`, \`ROLE\`, \`TEMP_ROLE\`, \`MYSTERY_BOX\`, \`NITRO\`, \`VOLE_DE_GENIE\`, \`DECO\`\n` +
     `**Durées :** \`10m\`, \`1h\`, \`2d\`, \`30s\`\n\n` +
     `**Exemples :**\n` +
     `→ \`;gw create COINS 1000 1h 2\`\n` +
     `→ \`;gw create NITRO 1d 1\`\n` +
+    `→ \`;gw create DECO 1d 1\`\n` +
     `→ \`;gw create VOLE_DE_GENIE 2h 1\`\n` +
     `→ \`;gw create TEMP_ROLE 123456 30m 1 2d\`\n\n` +
     `**Autres commandes :**\n` +
@@ -57,7 +61,7 @@ async function showHelp(message) {
     `\`;gw reroll <id>\``,
     '#FFFFFF'
   );
-  return message.reply({ embeds: [embed] });
+  return message.reply({ embeds: [embed], failIfNotExists: false });
 }
 
 async function handleCreate(message, args, db) {
@@ -68,25 +72,29 @@ async function handleCreate(message, args, db) {
   let winnersStr = args[3];
   let roleDurationStr = args[4];
 
-  // Special case for NITRO or VOLE_DE_GENIE: since they don't need a value, 
+  // Special case for NITRO, DECO or VOLE_DE_GENIE: since they don't need a value, 
   // if called as `;gw create NITRO 1h 1`, we shift the arguments.
-  if ((type === 'NITRO' || type === 'VOLE_DE_GENIE') && (durationStr === undefined || giveawayManager.parseDuration(value))) {
+  if ((type === 'NITRO' || type === 'VOLE_DE_GENIE' || type === 'DECO') && (durationStr === undefined || giveawayManager.parseDuration(value))) {
     winnersStr = durationStr;
     durationStr = value;
-    value = type === 'NITRO' ? 'NITRO_MANUAL' : 'VOLE_DE_GENIE';
+    if (type === 'NITRO') value = 'NITRO_MANUAL';
+    else if (type === 'DECO') value = 'DECORATION_MANUAL';
+    else value = 'VOLE_DE_GENIE';
   }
 
   // Validate type
   if (!VALID_TYPES.includes(type)) {
     return message.reply({
       embeds: [createEmbed('Erreur', 'Type invalide. Choix : `' + VALID_TYPES.join('`, `') + '`', '#FFFFFF')],
+      failIfNotExists: false
     });
   }
 
   // Validate value
-  if (!value && type !== 'NITRO' && type !== 'VOLE_DE_GENIE') {
+  if (!value && type !== 'NITRO' && type !== 'VOLE_DE_GENIE' && type !== 'DECO') {
     return message.reply({
       embeds: [createEmbed('Erreur', 'Valeur manquante.\n- COINS/TIRAGES : montant\n- ROLE/TEMP_ROLE : ID du rôle\n- MYSTERY_BOX : `TYPE:VALEUR:LABEL` (ex: `COINS:5000:5000 coins`)', COLORS.ERROR)],
+      failIfNotExists: false
     });
   }
 
@@ -97,6 +105,7 @@ async function handleCreate(message, args, db) {
     if (parsedValue === null) {
       return message.reply({
         embeds: [createEmbed('Erreur', 'La valeur doit être un nombre positif.', COLORS.ERROR)],
+        failIfNotExists: false
       });
     }
     value = parsedValue.toString();
@@ -112,12 +121,14 @@ async function handleCreate(message, args, db) {
           'Utilise : `TYPE:VALEUR:LABEL`\n' +
           'Ex : `COINS:5000:5000 coins` ou `TIRAGES:3:3 tirages`',
           COLORS.ERROR)],
+        failIfNotExists: false
       });
     }
     const mbType = parts[0].toUpperCase();
     if (!['COINS', 'TIRAGES', 'ROLE', 'TEMP_ROLE'].includes(mbType)) {
       return message.reply({
         embeds: [createEmbed('Erreur', `Type de récompense par défaut invalide : \`${mbType}\`. Choix : COINS, TIRAGES, ROLE, TEMP_ROLE`, COLORS.ERROR)],
+        failIfNotExists: false
       });
     }
   }
@@ -128,11 +139,13 @@ async function handleCreate(message, args, db) {
     if (!role) {
       return message.reply({
         embeds: [createEmbed('Erreur', `Rôle \`${value}\` introuvable. Utilisez l'ID du rôle.`, COLORS.ERROR)],
+        failIfNotExists: false
       });
     }
     if (message.guild.members.me.roles.highest.position <= role.position) {
       return message.reply({
         embeds: [createEmbed('Erreur', `Je ne peux pas donner le rôle **${role.name}** (hiérarchie insuffisante).`, COLORS.ERROR)],
+        failIfNotExists: false
       });
     }
   }
@@ -142,6 +155,7 @@ async function handleCreate(message, args, db) {
   if (!duration || duration < 10_000) { // min 10s
     return message.reply({
       embeds: [createEmbed('Erreur', 'Durée invalide ou trop courte. Format : `10m`, `1h`, `2d`, `30s` (min 10s)', COLORS.ERROR)],
+      failIfNotExists: false
     });
   }
 
@@ -150,6 +164,7 @@ async function handleCreate(message, args, db) {
   if (isNaN(winnerCount) || winnerCount < 1 || winnerCount > 20) {
     return message.reply({
       embeds: [createEmbed('Erreur', 'Nombre de gagnants invalide (1-20).', COLORS.ERROR)],
+      failIfNotExists: false
     });
   }
 
@@ -160,6 +175,7 @@ async function handleCreate(message, args, db) {
     if (!tempRoleDuration || tempRoleDuration < 60_000) { // min 1m
       return message.reply({
         embeds: [createEmbed('Erreur', 'Durée du rôle temporaire manquante ou trop courte.\nFormat : `5m`, `1h`, `2d` (min 1m)\n\nSyntaxe : `;gw create TEMP_ROLE <roleId> <durée_gw> <gagnants> <durée_rôle>`', COLORS.ERROR)],
+        failIfNotExists: false
       });
     }
   }
@@ -193,7 +209,7 @@ async function handleCreate(message, args, db) {
     `⚠️ *Veuillez configurer les conditions dans le message ci-dessus.*`,
     '#FFFFFF'
   );
-  await message.reply({ embeds: [confirmEmbed] });
+  await message.reply({ embeds: [confirmEmbed], failIfNotExists: false });
 }
 
 async function handleCancel(message, args, db) {
@@ -201,6 +217,7 @@ async function handleCancel(message, args, db) {
   if (isNaN(id)) {
     return message.reply({
       embeds: [createEmbed('Usage', '`;gw cancel <id>`', COLORS.ERROR)],
+      failIfNotExists: false
     });
   }
 
@@ -208,11 +225,13 @@ async function handleCancel(message, args, db) {
   if (!gw) {
     return message.reply({
       embeds: [createEmbed('Erreur', `Giveaway #${id} introuvable.`, COLORS.ERROR)],
+      failIfNotExists: false
     });
   }
   if (gw.status !== 'active') {
     return message.reply({
       embeds: [createEmbed('Erreur', `Giveaway #${id} est déjà ${gw.status}.`, COLORS.ERROR)],
+      failIfNotExists: false
     });
   }
 
@@ -234,6 +253,7 @@ async function handleCancel(message, args, db) {
 
   await message.reply({
     embeds: [createEmbed('Annulé', `Giveaway #${id} a été annulé avec succès.`, '#FFFFFF')],
+    failIfNotExists: false
   });
 }
 
@@ -243,6 +263,7 @@ async function handleList(message, db) {
   if (giveaways.length === 0) {
     return message.reply({
       embeds: [createEmbed('Giveaways Actifs', 'Aucun giveaway en cours.', '#FFFFFF')],
+      failIfNotExists: false
     });
   }
 
@@ -256,7 +277,7 @@ async function handleList(message, db) {
     lines.join('\n'),
     '#FFFFFF'
   );
-  return message.reply({ embeds: [embed] });
+  return message.reply({ embeds: [embed], failIfNotExists: false });
 }
 
 async function handleReroll(message, args, db) {
@@ -264,6 +285,7 @@ async function handleReroll(message, args, db) {
   if (isNaN(id)) {
     return message.reply({
       embeds: [createEmbed('Usage', '`;gw reroll <id>`', COLORS.ERROR)],
+      failIfNotExists: false
     });
   }
 
@@ -271,11 +293,13 @@ async function handleReroll(message, args, db) {
   if (!gw) {
     return message.reply({
       embeds: [createEmbed('Erreur', `Giveaway #${id} introuvable.`, COLORS.ERROR)],
+      failIfNotExists: false
     });
   }
   if (gw.status !== 'ended') {
     return message.reply({
       embeds: [createEmbed('Erreur', `Seuls les giveaways terminés peuvent être re-tirés. (status: ${gw.status})`, COLORS.ERROR)],
+      failIfNotExists: false
     });
   }
 
@@ -286,6 +310,7 @@ async function handleReroll(message, args, db) {
   if (participants.length === 0) {
     return message.reply({
       embeds: [createEmbed('Erreur', 'Plus aucun participant ne remplit les conditions requises pour ce giveaway.', COLORS.ERROR)],
+      failIfNotExists: false
     });
   }
 
@@ -345,6 +370,10 @@ async function handleReroll(message, args, db) {
           results.push(`<@${winnerId}>: Discord Nitro (Manuel)`);
           break;
         }
+        case 'DECO': {
+          results.push(`<@${winnerId}>: Décoration Discord (Manuel)`);
+          break;
+        }
       }
     } catch (err) {
       await logError(message.client, err, { message, filePath: 'commands/giveaway.js:handleReroll' });
@@ -358,7 +387,7 @@ async function handleReroll(message, args, db) {
     `**Résultats :**\n${results.map(r => r).join('\n')}`,
     '#FFFFFF'
   );
-  await message.reply({ embeds: [embed] });
+  await message.reply({ embeds: [embed], failIfNotExists: false });
 
   // Announce in the original channel
   try {

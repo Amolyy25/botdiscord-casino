@@ -22,7 +22,8 @@ module.exports = {
                         'Prestige Maximum',
                         `Bravo ! Vous avez déjà atteint le niveau maximum de prestige (**Niveau ${currentPrestige}**).`,
                         COLORS.GOLD
-                    )]
+                    )],
+                    failIfNotExists: false
                 });
             }
 
@@ -35,7 +36,8 @@ module.exports = {
                         `Vous avez besoin de ** ${formatCoins(price, false)} ** pour passer au ** ${nextPrestigeConfig.name} **.\n\n` +
                         `Votre solde actuel : ** ${formatCoins(user.balance, false)} **`,
                         COLORS.ERROR
-                    )]
+                    )],
+                    failIfNotExists: false
                 });
             }
 
@@ -65,7 +67,8 @@ module.exports = {
 
             const response = await message.reply({
                 embeds: [confirmationEmbed],
-                components: [row]
+                components: [row],
+                failIfNotExists: false
             });
 
             // 6. Créer le collecteur de boutons

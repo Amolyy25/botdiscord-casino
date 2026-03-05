@@ -128,10 +128,10 @@ client.on("messageCreate", async (message) => {
   // 1-second cooldown
   const now = Date.now();
   const timestamps = client.cooldowns.get(message.author.id) || 0;
-  const cooldownAmount = 1000; // 1 second
+  const cooldownAmount = 2000; // 1 second
 
   if (now < timestamps + cooldownAmount) {
-    return message.reply(`<@${message.author.id}>, moin vite détends-toi`).catch(() => {});
+    return message.reply({ content: `<@${message.author.id}>, moin vite détends-toi`, failIfNotExists: false }).catch(() => {});
   }
   client.cooldowns.set(message.author.id, now);
 
@@ -163,7 +163,7 @@ client.on("messageCreate", async (message) => {
   try {
     if (client.eventsManager) {
         if (client.eventsManager.isBlackoutActive && client.eventsManager.isBlackoutActive()) {
-            return message.reply({ content: "**[SYSTEM ALERTE]** Terminaux textuels en surchauffe. Commandes bloquées." }).then(m => setTimeout(() => m.delete().catch(()=>null), 5000)).catch(()=>null);
+            return message.reply({ content: "**[SYSTEM ALERTE]** Terminaux textuels en surchauffe. Commandes bloquées.", failIfNotExists: false }).then(m => setTimeout(() => m.delete().catch(()=>null), 5000)).catch(()=>null);
         }
         if (client.eventsManager.recordCommandActivity) {
             client.eventsManager.recordCommandActivity(message.author.id);

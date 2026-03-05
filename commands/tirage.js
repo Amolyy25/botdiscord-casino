@@ -30,6 +30,7 @@ module.exports = {
             COLORS.ERROR,
           ),
         ],
+        failIfNotExists: false
       });
     }
 
@@ -219,6 +220,6 @@ module.exports = {
         results.length === 1 ? results[0].color : COLORS.PRIMARY
     );
 
-    return message.reply({ embeds: [resultEmbed] });
+    return message.reply({ embeds: [resultEmbed], failIfNotExists: false });
   },
 };

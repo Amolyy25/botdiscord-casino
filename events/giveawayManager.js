@@ -19,6 +19,7 @@ const PRIZE_LABELS = {
   MYSTERY_BOX: 'Mystery Box',
   NITRO: 'Discord Nitro',
   VOLE_DE_GENIE: 'Vole de génie',
+  DECO: 'Décoration Discord',
 };
 
 const GIVEAWAY_CONDITIONS = [
@@ -70,6 +71,7 @@ function prizeDescription(giveaway) {
     }
     case 'NITRO': return 'Discord Nitro';
     case 'VOLE_DE_GENIE': return 'Vole de génie';
+    case 'DECO': return 'Décoration Discord';
     default: return value;
   }
 }
@@ -678,6 +680,9 @@ async function distributeReward(giveaway, winnerId, guild) {
     case 'NITRO': {
       return `Gain : Discord Nitro (Manuel : Un administrateur devra le fournir)`;
     }
+    case 'DECO': {
+      return `Gain : Décoration Discord (Manuel : Un administrateur devra le fournir)`;
+    }
     default:
       throw new Error(`Type de récompense inconnu: ${type}`);
   }
@@ -781,7 +786,7 @@ async function updateActiveEmbeds() {
 const slashCommand = new SlashCommandBuilder()
   .setName('giveaway')
   .setDescription('Système de giveaway Casino')
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+  .setDefaultMemberPermissions(PermissionFlagsBits.SendMessages)
   .addSubcommand(sub =>
     sub.setName('create')
       .setDescription('Créer un nouveau giveaway')
@@ -796,6 +801,7 @@ const slashCommand = new SlashCommandBuilder()
         { name: '⏳ Rôle Temporaire', value: 'TEMP_ROLE' },
         { name: '🎁 Mystery Box', value: 'MYSTERY_BOX' },
         { name: '💎 Discord Nitro', value: 'NITRO' },
+        { name: '✨ Décoration Discord', value: 'DECO' },
         { name: '🎭 Vole de génie', value: 'VOLE_DE_GENIE' },
       ))
       .addStringOption(opt =>
@@ -1286,6 +1292,11 @@ module.exports = {
   slashCommand,
 
   async handleSlashCommand(interaction, db) {
+    const GIVEAWAY_PERM_ROLE = '1479250332235333653';
+    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && !interaction.member.roles.cache.has(GIVEAWAY_PERM_ROLE)) {
+      return interaction.reply({ content: '❌ Permission insuffisante.', flags: 64 });
+    }
+
     const sub = interaction.options.getSubcommand();
 
     switch (sub) {
@@ -1355,9 +1366,11 @@ module.exports = {
       finalValue = `${mbType.toUpperCase()}:${mbValue}:${mbLabel}`;
     }
 
-    // Prevent NULL prize_value for NITRO/VOLE_DE_GENIE or if somehow missing
-    if ((type === 'NITRO' || type === 'VOLE_DE_GENIE') && !finalValue) {
-      finalValue = type === 'NITRO' ? 'NITRO_MANUAL' : 'VOLE_DE_GENIE';
+    // Prevent NULL prize_value for NITRO/VOLE_DE_GENIE/DECO or if somehow missing
+    if ((type === 'NITRO' || type === 'VOLE_DE_GENIE' || type === 'DECO') && !finalValue) {
+      if (type === 'NITRO') finalValue = 'NITRO_MANUAL';
+      else if (type === 'DECO') finalValue = 'DECORATION_MANUAL';
+      else finalValue = 'VOLE_DE_GENIE';
     }
     
     // Safety fallback for postgres not-null constraint
@@ -1415,7 +1428,7 @@ module.exports = {
       return trigger.reply({ ...options, flags: 64 });
     } else {
       // Prefix command
-      return trigger.reply(options);
+      return trigger.reply({ ...options, failIfNotExists: false });
     }
   },
 
@@ -1504,6 +1517,10 @@ module.exports = {
           }
           case 'NITRO': {
             results.push(`<@${winnerId}>: Discord Nitro (Manuel)`);
+            break;
+          }
+          case 'DECO': {
+            results.push(`<@${winnerId}>: Décoration Discord (Manuel)`);
             break;
           }
         }
