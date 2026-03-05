@@ -1,5 +1,6 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const { createEmbed, COLORS, formatCoins } = require('../utils');
+const eventsManager = require('../events/eventsManager');
 
 module.exports = {
     name: 'vole',
@@ -9,10 +10,11 @@ module.exports = {
         const now = Date.now();
         const cooldown = 2 * 60 * 60 * 1000; // 2 hours
 
-        if (now - parseInt(user.last_vole || 0) < cooldown) {
-            const remaining = cooldown - (now - parseInt(user.last_vole));
-            const hours = Math.floor(remaining / (60 * 60 * 1000));
-            const minutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+        const lastVoleTime = BigInt(user.last_vole || 0);
+        if (BigInt(now) - lastVoleTime < BigInt(cooldown)) {
+            const remaining = BigInt(cooldown) - (BigInt(now) - lastVoleTime);
+            const hours = Number(remaining / BigInt(60 * 60 * 1000));
+            const minutes = Number((remaining % BigInt(60 * 60 * 1000)) / BigInt(60 * 1000));
             
             return message.reply({ 
                 embeds: [createEmbed('Pas si vite ! 🖐️', `Vous devez attendre **${hours}h ${minutes}m** avant de pouvoir voler à nouveau.`, COLORS.ERROR)]
@@ -51,7 +53,6 @@ module.exports = {
         }
         
         // --- ÉVÉNEMENT VOL DE GÉNIE ---
-        const eventsManager = require('../events/eventsManager');
         let bypassImmunity = false;
         let bonusMultiplier = 1.0;
 
@@ -185,23 +186,40 @@ module.exports = {
 
         collector.on('end', async () => {
             if (!stopped) {
-                const latestTarget = await db.getUser(target.id);
-                const finalSteal = stealAmount > BigInt(latestTarget.balance) ? BigInt(latestTarget.balance) : stealAmount;
-                
-                if (finalSteal > 0n) {
-                    await db.updateBalance(target.id, -finalSteal, 'Vol: Victime');
-                    await db.updateBalance(message.author.id, finalSteal, 'Vol: Butin');
-
-                    mainMsg.edit({ 
-                        content: null,
-                        embeds: [createEmbed('Vol réussi! 💰', `**${message.author.username}** a réussi à voler ${formatCoins(finalSteal)} à **${target.username}** !`, COLORS.ERROR)],
-                        components: [] 
+                try {
+                    // Update message to show processing to the user
+                    await mainMsg.edit({ 
+                        components: [], 
+                        embeds: [createEmbed('⚠️ Analyse du vol...', `Calcul du butin final en cours...`, COLORS.VIOLET)] 
                     }).catch(() => {});
-                } else {
-                    mainMsg.edit({ 
-                        content: null,
-                        embeds: [createEmbed('Vol échoué ❌', `La victime n'a plus rien en poche !`, COLORS.ERROR)],
-                        components: [] 
+
+                    const latestTarget = await db.getUser(target.id);
+                    if (!latestTarget) {
+                        return mainMsg.edit({ 
+                            embeds: [createEmbed('Vol échoué ❌', `Impossible de localiser la victime.`, COLORS.ERROR)]
+                        }).catch(() => {});
+                    }
+
+                    const targetBalance = BigInt(latestTarget.balance || 0);
+                    // Crucial: ensure stealAmount is BigInt for comparison
+                    const finalSteal = BigInt(stealAmount) > targetBalance ? targetBalance : BigInt(stealAmount);
+                    
+                    if (finalSteal > 0n) {
+                        await db.updateBalance(target.id, -finalSteal, 'Vol: Victime');
+                        await db.updateBalance(message.author.id, finalSteal, 'Vol: Butin');
+
+                        await mainMsg.edit({ 
+                            embeds: [createEmbed('Vol réussi! 💰', `**${message.author.username}** a réussi à voler ${formatCoins(finalSteal)} à **${target.username}** !`, COLORS.ERROR)]
+                        });
+                    } else {
+                        await mainMsg.edit({ 
+                            embeds: [createEmbed('Vol échoué ❌', `La victime n'a plus rien en poche !`, COLORS.ERROR)]
+                        });
+                    }
+                } catch (err) {
+                    console.error("[Vole] Erreur fatale dénouement:", err);
+                    await mainMsg.edit({ 
+                        embeds: [createEmbed('Erreur Système', `Une défaillance technique a empêché le calcul du butin.`, COLORS.ERROR)]
                     }).catch(() => {});
                 }
             }
