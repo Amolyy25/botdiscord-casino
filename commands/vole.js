@@ -1,5 +1,4 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
-const { createEmbed, COLORS, formatCoins } = require('../utils');
+const { createEmbed, COLORS, formatCoins, logError } = require('../utils');
 const eventsManager = require('../events/eventsManager');
 
 module.exports = {
@@ -216,8 +215,9 @@ module.exports = {
                             embeds: [createEmbed('Vol échoué ❌', `La victime n'a plus rien en poche !`, COLORS.ERROR)]
                         });
                     }
+                    }
                 } catch (err) {
-                    console.error("[Vole] Erreur fatale dénouement:", err);
+                    await logError(message.client, err, { message, filePath: 'commands/vole.js:collector:end' });
                     await mainMsg.edit({ 
                         embeds: [createEmbed('Erreur Système', `Une défaillance technique a empêché le calcul du butin.`, COLORS.ERROR)]
                     }).catch(() => {});

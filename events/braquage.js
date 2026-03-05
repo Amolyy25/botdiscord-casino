@@ -1,5 +1,4 @@
-const cron = require('node-cron');
-const { createEmbed, COLORS } = require('../utils');
+const { createEmbed, COLORS, logError } = require('../utils');
 const {
     ANNONCE_CHANNEL_ID,
     REPONSE_CHANNEL_ID,
@@ -39,7 +38,7 @@ module.exports = {
                         await db.clearBraquageRoleExpiration(entry.id);
                     }
                 } catch (error) {
-                    console.error(`[Braquage] Erreur lors du retrait du rôle pour user ${entry.user_id}:`, error);
+                    await logError(client, error, { filePath: 'events/braquage.js:checkBraquageExpirations' });
                 }
             }
         };
@@ -160,7 +159,7 @@ module.exports = {
                                 });
                                 console.log(`[Braquage] Braquage #${activeBraquage.id} lancé par cron restauré`);
                             } catch (err) {
-                                console.error('[Braquage] Erreur lors du lancement cron restauré :', err);
+                                await logError(client, err, { filePath: 'events/braquage.js:openCron' });
                             } finally {
                                 openCron.stop();
                             }
@@ -198,8 +197,9 @@ module.exports = {
 
                 console.log(`[Braquage] Collecteur relancé pour braquage #${activeBraquage.id}`);
             }
+            }
         } catch (err) {
-            console.error('[Braquage] Erreur lors de la restauration du braquage actif :', err);
+            await logError(client, err, { filePath: 'events/braquage.js:init:recovery' });
         }
     }
 };

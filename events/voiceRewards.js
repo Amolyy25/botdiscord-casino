@@ -1,4 +1,4 @@
-const { createEmbed, COLORS, formatCoins } = require('../utils');
+const { createEmbed, COLORS, formatCoins, logError } = require('../utils');
 const { WINS_CHANNEL_ID } = require('../roleConfig');
 
 const activeSessions = new Map(); // userId => { startTime, currentTier }
@@ -102,7 +102,7 @@ async function init(client, db) {
             });
         }
     } catch (err) {
-        console.error("[VoiceRewards] Erreur chargement BDD:", err);
+        await logError(client, err, { filePath: 'events/voiceRewards.js:init:loadSessions' });
     }
     
     console.log(`[VoiceRewards] Initialisation terminée. ${activeSessions.size} session(s) chargée(s). Vérification des salons en cours...`);
@@ -206,6 +206,9 @@ async function init(client, db) {
             }
         }
     });
+} catch (err) {
+    await logError(client, err, { filePath: 'events/voiceRewards.js:init' });
+}
 }
 
 function handleUserVoiceState(member, voiceState, db) {
@@ -223,7 +226,7 @@ function handleUserVoiceState(member, voiceState, db) {
         if (!activeSessions.has(userId)) {
             const now = Date.now();
             activeSessions.set(userId, { startTime: now, currentTier: 0 });
-            db.saveVoiceSession(userId, now, 0).catch(console.error);
+            db.saveVoiceSession(userId, now, 0).catch(err => logError(member.client, err, { filePath: 'events/voiceRewards.js:saveSession' }));
             console.log(`[VoiceRewards] Nouvelle session démarrée pour ${member.user.tag} (${userId})`);
         }
     } else {
@@ -239,83 +242,87 @@ function startResetTimer(userId, db) {
         console.log(`[VoiceRewards] Temps écoulé (30s) : Session supprimée pour ${userId}`);
         activeSessions.delete(userId);
         pendingResets.delete(userId);
-        await db.deleteVoiceSession(userId).catch(console.error);
+        await db.deleteVoiceSession(userId).catch(err => logError(null, err, { filePath: 'events/voiceRewards.js:deleteSession' }));
     }, 30000); // 30 seconds
     
     pendingResets.set(userId, timeout);
 }
 
 async function checkRewards(client, db) {
-    const now = Date.now();
-    
-    // We do a full sweep to guarantee anyone active but not cached is caught,
-    // and anyone who slipped through a bug is invalidated.
-    for (const guild of client.guilds.cache.values()) {
-        for (const channel of guild.channels.cache.values()) {
-            if (!channel.isVoiceBased()) continue;
-            for (const member of channel.members.values()) {
-                if (member.user.bot) continue;
-                handleUserVoiceState(member, member.voice, db);
-            }
-        }
-    }
-
-    for (const [userId, session] of activeSessions.entries()) {
-        if (pendingResets.has(userId)) continue;
+    try {
+        const now = Date.now();
         
-        // Final safety check: if we somehow bypassed the interval sweep, manually check valid state.
-        if (!getMemberCurrentValidState(client, userId)) {
-            if (!pendingResets.has(userId)) {
-                startResetTimer(userId, db);
-            }
-            continue;
-        }
-
-        const minutes = Math.floor((now - session.startTime) / 60000);
-        
-        console.log(`[VoiceRewards] Check session: UID ${userId} | En cours depuis ${minutes} min | Tier actuel: ${session.currentTier}`);
-
-        // REQUIRED ROLE CHECK: 1469713522194780404
-        let hasRequiredRole = false;
+        // We do a full sweep to guarantee anyone active but not cached is caught,
+        // and anyone who slipped through a bug is invalidated.
         for (const guild of client.guilds.cache.values()) {
-            const member = guild.members.cache.get(userId);
-            if (member && member.roles.cache.has("1469713522194780404")) {
-                hasRequiredRole = true;
-                break;
+            for (const channel of guild.channels.cache.values()) {
+                if (!channel.isVoiceBased()) continue;
+                for (const member of channel.members.values()) {
+                    if (member.user.bot) continue;
+                    handleUserVoiceState(member, member.voice, db);
+                }
             }
         }
-        
-        if (!hasRequiredRole) {
-            console.log(`[VoiceRewards] ❌ ${userId} ignoré : il n'a pas le rôle requis (1469713522194780404).`);
-            continue; // Skip the reward logic entirely for this user
-        }
 
-        for (const tierDef of TIERS) {
-            if (minutes >= tierDef.mins && tierDef.level > session.currentTier) {
-                // Grant reward
-                let coinsWon = Math.floor(Math.random() * (tierDef.maxCoins - tierDef.minCoins + 1)) + tierDef.minCoins;
-                const tiragesWon = tierDef.tirages;
-                
-                if (client.eventsManager && client.eventsManager.isBlackoutActive && client.eventsManager.isBlackoutActive()) {
-                    coinsWon *= 5;
+        for (const [userId, session] of activeSessions.entries()) {
+            if (pendingResets.has(userId)) continue;
+            
+            // Final safety check: if we somehow bypassed the interval sweep, manually check valid state.
+            if (!getMemberCurrentValidState(client, userId)) {
+                if (!pendingResets.has(userId)) {
+                    startResetTimer(userId, db);
                 }
+                continue;
+            }
 
-                try {
-                    await db.updateBalance(userId, coinsWon, `Activité Vocale: ${tierDef.name}`);
-                    if (tiragesWon > 0) {
-                        await db.updateTirages(userId, tiragesWon);
+            const minutes = Math.floor((now - session.startTime) / 60000);
+            
+            console.log(`[VoiceRewards] Check session: UID ${userId} | En cours depuis ${minutes} min | Tier actuel: ${session.currentTier}`);
+
+            // REQUIRED ROLE CHECK: 1469713522194780404
+            let hasRequiredRole = false;
+            for (const guild of client.guilds.cache.values()) {
+                const member = guild.members.cache.get(userId);
+                if (member && member.roles.cache.has("1469713522194780404")) {
+                    hasRequiredRole = true;
+                    break;
+                }
+            }
+            
+            if (!hasRequiredRole) {
+                console.log(`[VoiceRewards] ❌ ${userId} ignoré : il n'a pas le rôle requis (1469713522194780404).`);
+                continue; // Skip the reward logic entirely for this user
+            }
+
+            for (const tierDef of TIERS) {
+                if (minutes >= tierDef.mins && tierDef.level > session.currentTier) {
+                    // Grant reward
+                    let coinsWon = Math.floor(Math.random() * (tierDef.maxCoins - tierDef.minCoins + 1)) + tierDef.minCoins;
+                    const tiragesWon = tierDef.tirages;
+                    
+                    if (client.eventsManager && client.eventsManager.isBlackoutActive && client.eventsManager.isBlackoutActive()) {
+                        coinsWon *= 5;
                     }
 
-                    session.currentTier = tierDef.level;
-                    await db.updateVoiceSessionTier(userId, tierDef.level);
-                    
-                    console.log(`[VoiceRewards] 🏆 Récompense décernée à ${userId} pour le palier "${tierDef.name}"`);
-                    announceReward(client, userId, tierDef, coinsWon, tiragesWon);
-                } catch (err) {
-                    console.error(`[VoiceRewards] Erreur récompense pour ${userId}:`, err);
+                    try {
+                        await db.updateBalance(userId, coinsWon, `Activité Vocale: ${tierDef.name}`);
+                        if (tiragesWon > 0) {
+                            await db.updateTirages(userId, tiragesWon);
+                        }
+
+                        session.currentTier = tierDef.level;
+                        await db.updateVoiceSessionTier(userId, tierDef.level);
+                        
+                        console.log(`[VoiceRewards] 🏆 Récompense décernée à ${userId} pour le palier "${tierDef.name}"`);
+                        announceReward(client, userId, tierDef, coinsWon, tiragesWon);
+                    } catch (err) {
+                        await logError(client, err, { filePath: 'events/voiceRewards.js:checkRewards:tierDef' });
+                    }
                 }
             }
         }
+    } catch (err) {
+        await logError(client, err, { filePath: 'events/voiceRewards.js:checkRewards' });
     }
 }
 

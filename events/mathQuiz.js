@@ -1,5 +1,4 @@
-const cron = require('node-cron');
-const { createEmbed, COLORS, formatCoins } = require('../utils');
+const { createEmbed, COLORS, formatCoins, logError } = require('../utils');
 
 const EVENT_CHANNEL_ID = '1469713523549540536';
 const QUIZ_CONFIG_KEY = 'math_quiz_schedule';
@@ -15,10 +14,14 @@ async function init(client, db) {
 
     // 1. Schedule daily planner at 09:00 AM
     cron.schedule('0 9 * * *', async () => {
-        console.log('Running daily Math Quiz scheduler...');
-        await scheduleDailyEvents(db);
-        await loadAndScheduleEvents(client, db);
-    });
+        try {
+            console.log('Running daily Math Quiz scheduler...');
+            await scheduleDailyEvents(db);
+            await loadAndScheduleEvents(client, db);
+        } catch (err) {
+            await logError(client, err, { filePath: 'events/mathQuiz.js:cron' });
+        }
+    }, { timezone: "Europe/Paris" });
 
     // 2. Load existing schedule from DB (in case of restart)
     await loadAndScheduleEvents(client, db);
@@ -110,72 +113,76 @@ async function loadAndScheduleEvents(client, db) {
 async function startQuiz(client, db) {
     const channel = client.channels.cache.get(EVENT_CHANNEL_ID);
     if (!channel) {
-        console.error(`Math Quiz Channel ${EVENT_CHANNEL_ID} not found!`);
         return;
     }
 
-    // Generate Math Problem
-    // Additions (1-100), Subtractions (positive result), Multiplications (2-12)
-    const type = Math.floor(Math.random() * 3);
-    let expression, answer;
+    try {
+        // Generate Math Problem
+        const type = Math.floor(Math.random() * 3);
+        let expression, answer;
 
-    if (type === 0) { // Addition
-        const a = Math.floor(Math.random() * 100) + 1;
-        const b = Math.floor(Math.random() * 100) + 1;
-        expression = `${a} + ${b}`;
-        answer = a + b;
-    } else if (type === 1) { // Subtraction
-        const a = Math.floor(Math.random() * 100) + 1;
-        const b = Math.floor(Math.random() * a); // b <= a to keep positive
-        expression = `${a} - ${b}`;
-        answer = a - b;
-    } else { // Multiplication
-        const a = Math.floor(Math.random() * 11) + 2; // 2 to 12
-        const b = Math.floor(Math.random() * 11) + 2;
-        expression = `${a} x ${b}`;
-        answer = a * b;
+        if (type === 0) { // Addition
+            const a = Math.floor(Math.random() * 100) + 1;
+            const b = Math.floor(Math.random() * 100) + 1;
+            expression = `${a} + ${b}`;
+            answer = a + b;
+        } else if (type === 1) { // Subtraction
+            const a = Math.floor(Math.random() * 100) + 1;
+            const b = Math.floor(Math.random() * a); 
+            expression = `${a} - ${b}`;
+            answer = a - b;
+        } else { // Multiplication
+            const a = Math.floor(Math.random() * 11) + 2; 
+            const b = Math.floor(Math.random() * 11) + 2;
+            expression = `${a} x ${b}`;
+            answer = a * b;
+        }
+
+        const embed = createEmbed(
+            '🧠 Événement Calcul Mental !',
+            `Le premier à donner la bonne réponse gagne **500 coins** !\n` +
+            `⏳ Vous avez **2 minutes** pour répondre.\n\n` +
+            `# ${expression} = ?`,
+            COLORS.GOLD
+        );
+
+        await channel.send({ content: '<@&1469713522194780404>', embeds: [embed] });
+
+        const collector = channel.createMessageCollector({
+            filter: m => !m.author.bot && parseInt(m.content) === answer,
+            time: 120000, 
+            max: 1 
+        });
+
+        collector.on('collect', async m => {
+            try {
+                const userId = m.author.id;
+                let rewardMsg = `Bravo ${m.author} ! La réponse était bien **${answer}**.\n`;
+                rewardMsg += `Tu remportes ${formatCoins(500)} !`;
+
+                await db.updateBalance(userId, 500, 'Quiz Maths');
+
+                if (Math.random() < 0.02) {
+                    await db.updateTirages(userId, 1);
+                    rewardMsg += `\n✨ **CHANCE INCROYABLE !** Tu reçois aussi **+1 Tirage gratuit** ! 🎰`;
+                }
+
+                await channel.send(rewardMsg);
+            } catch (err) {
+                await logError(client, err, { filePath: 'events/mathQuiz.js:collector:collect' });
+            }
+        });
+
+        collector.on('end', (collected, reason) => {
+            try {
+                if (reason === 'time') {
+                    channel.send(`⏳ Temps écoulé ! Personne n'a trouvé. La réponse était **${answer}**.`);
+                }
+            } catch (err) {}
+        });
+    } catch (err) {
+        await logError(client, err, { filePath: 'events/mathQuiz.js:startQuiz' });
     }
-
-    const embed = createEmbed(
-        '🧠 Événement Calcul Mental !',
-        `Le premier à donner la bonne réponse gagne **100 coins** !\n` +
-        `⏳ Vous avez **2 minutes** pour répondre.\n\n` +
-        `# ${expression} = ?`,
-        COLORS.GOLD
-    );
-
-    await channel.send({ content: '<@&1469713522194780404>', embeds: [embed] });
-
-    const collector = channel.createMessageCollector({
-        filter: m => !m.author.bot && parseInt(m.content) === answer,
-        time: 120000, // 2 minutes
-        max: 1 // Stop after 1 correct answer
-    });
-
-    collector.on('collect', async m => {
-        // Valid winner
-        const userId = m.author.id;
-        
-        let rewardMsg = `Bravo ${m.author} ! La réponse était bien **${answer}**.\n`;
-        rewardMsg += `Tu remportes ${formatCoins(100)} !`;
-
-        // Base reward
-        await db.updateBalance(userId, 100, 'Quiz Maths');
-
-        // Rare Bonus (2%)
-        if (Math.random() < 0.02) {
-            await db.updateTirages(userId, 1);
-            rewardMsg += `\n✨ **CHANCE INCROYABLE !** Tu reçois aussi **+1 Tirage gratuit** ! 🎰`;
-        }
-
-        await channel.send(rewardMsg);
-    });
-
-    collector.on('end', (collected, reason) => {
-        if (reason === 'time') {
-            channel.send(`⏳ Temps écoulé ! Personne n'a trouvé. La réponse était **${answer}**.`);
-        }
-    });
 }
 
 module.exports = { init, scheduleDailyEvents, startQuiz, loadAndScheduleEvents };

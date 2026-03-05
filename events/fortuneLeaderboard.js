@@ -8,8 +8,8 @@
  * - Style : embed blanc, titre "CLASSEMENT FORTUNE | LE SECTEUR".
  */
 
-const cron = require('node-cron');
 const { EmbedBuilder } = require('discord.js');
+const { logError } = require('../utils');
 
 // ── Formatting helpers ─────────────────────────────────────────────────────────
 
@@ -80,10 +80,12 @@ module.exports = {
 
         // Nettoyage journalier des activités > 14 jours (à 4h du matin)
         cron.schedule('0 4 * * *', async () => {
-            await db.cleanOldActivity().catch(err =>
-                console.error('[FortuneLeaderboard] Erreur nettoyage activité:', err.message)
-            );
-            console.log('[FortuneLeaderboard] Nettoyage des activités anciennes effectué.');
+            try {
+                await db.cleanOldActivity();
+                console.log('[FortuneLeaderboard] Nettoyage des activités anciennes effectué.');
+            } catch (err) {
+                await logError(client, err, { filePath: 'events/fortuneLeaderboard.js:cleanOldActivity' });
+            }
         }, { timezone: 'Europe/Paris' });
 
         // Mise à jour du leaderboard toutes les 60 minutes
@@ -102,12 +104,14 @@ module.exports = {
         try {
             const configs = await db.getAllFortuneLeaderboardConfigs();
             for (const config of configs) {
-                await module.exports.refreshLeaderboard(client, db, config.guild_id).catch(err => {
-                    console.error(`[FortuneLeaderboard] Erreur refresh guild ${config.guild_id}:`, err.message);
-                });
+                try {
+                    await module.exports.refreshLeaderboard(client, db, config.guild_id);
+                } catch (err) {
+                    await logError(client, err, { filePath: `events/fortuneLeaderboard.js:refreshLeaderboard:${config.guild_id}` });
+                }
             }
         } catch (err) {
-            console.error('[FortuneLeaderboard] Erreur refreshAllLeaderboards:', err.message);
+            await logError(client, err, { filePath: 'events/fortuneLeaderboard.js:refreshAllLeaderboards' });
         }
     },
 

@@ -9,7 +9,7 @@ const {
   TextInputBuilder,
   TextInputStyle,
 } = require("discord.js");
-const { createEmbed, COLORS, formatCoins, sendLog } = require("../utils");
+const { createEmbed, COLORS, formatCoins, sendLog, logError } = require("../utils");
 const { ROLE_POOL } = require("../roleConfig");
 const shopData = require("../shop.json");
 
@@ -371,8 +371,9 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
           "🚫 **Limite atteinte !**\n\nVous ne pouvez acheter que **2 tirages** par jour dans la boutique."
         );
       }
+      }
     } catch (err) {
-      console.error("[Shop] Erreur check daily limit:", err);
+      await logError(interaction.client, err, { interaction, filePath: 'events/shop.js:dailyCountLimit' });
     }
   }
 
@@ -391,7 +392,7 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
     await db.addShopPurchase(userId, item.id, targetId, finalPrice);
 
   } catch (error) {
-      console.error("Erreur processPurchase Transaction:", error);
+      await logError(interaction.client, error, { interaction, filePath: 'events/shop.js:processPurchase:balance' });
       return sendError(interaction, "Erreur lors de la transaction.");
   }
 
@@ -433,7 +434,7 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
         }
       }
     } catch (err) {
-      console.error("[Shop] Erreur verification staff/newcomer:", err);
+      await logError(interaction.client, err, { interaction, filePath: 'events/shop.js:protectionStaff' });
     }
   }
 

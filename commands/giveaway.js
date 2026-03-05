@@ -1,5 +1,4 @@
-const { PermissionFlagsBits } = require('discord.js');
-const { createEmbed, COLORS, formatCoins } = require('../utils');
+const { createEmbed, COLORS, formatCoins, logError } = require('../utils');
 const giveawayManager = require('../events/giveawayManager');
 
 const VALID_TYPES = ['COINS', 'TIRAGES', 'ROLE', 'TEMP_ROLE', 'MYSTERY_BOX', 'NITRO'];
@@ -344,7 +343,7 @@ async function handleReroll(message, args, db) {
         }
       }
     } catch (err) {
-      results.push(`<@${winnerId}>: Erreur (${err.message})`);
+      await logError(message.client, err, { message, filePath: 'commands/giveaway.js:handleReroll' });
     }
   }
 

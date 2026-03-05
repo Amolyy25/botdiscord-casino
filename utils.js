@@ -159,4 +159,63 @@ async function announceBigWin(client, user, gameName, bet, profit, extraDetails 
     }
 }
 
-module.exports = { COLORS, CURRENCY, createEmbed, parseBet, parseAmount, formatCoins, sendLog, announceBigWin };
+async function logError(client, error, context = {}) {
+    const { message, interaction, filePath, commandName } = context;
+    const ERROR_LOG_CHANNEL_ID = '1471509327419543552';
+    
+    // 1. Notify the user (if possible)
+    const userEmbed = createEmbed(
+        "Maintenance Technique 🛠️",
+        "Un problème est survenu, l'équipe du secteur a été alertée et va résoudre ce bug le plus rapidement possible. Merci de votre compréhension.",
+        COLORS.SUCCESS
+    );
+
+    try {
+        if (message && message.reply) {
+            await message.reply({ embeds: [userEmbed] }).catch(() => {});
+        } else if (interaction && (interaction.replied || interaction.deferred)) {
+            await interaction.followUp({ embeds: [userEmbed], flags: 64 }).catch(() => {});
+        } else if (interaction && interaction.reply) {
+            await interaction.reply({ embeds: [userEmbed], flags: 64 }).catch(() => {});
+        }
+    } catch (e) {
+        // Ignore notification errors
+    }
+
+    // 2. Log to the dedicated channel
+    try {
+        const channel = await client.channels.fetch(ERROR_LOG_CHANNEL_ID).catch(() => null);
+        if (channel) {
+            const executor = (message ? message.author : (interaction ? interaction.user : null));
+            const location = (message ? message.channel : (interaction ? interaction.channel : null));
+            
+            const fields = [
+                { name: ' Fichier / Module', value: `\`${filePath || 'Inconnu'}\``, inline: true },
+                { name: ' Commande', value: `\`${commandName || 'N/A'}\``, inline: true },
+                { name: ' Utilisateur', value: executor ? `<@${executor.id}> (${executor.tag})` : 'Inconnu', inline: true },
+                { name: ' Salon', value: location ? `<#${location.id}>` : 'Inconnu', inline: true },
+                { name: ' Heure', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true },
+            ];
+
+            const errorMsg = error.stack || error.message || String(error);
+            // Truncate if too long for embed description
+            const description = errorMsg.length > 2000 ? errorMsg.substring(0, 2000) + "..." : errorMsg;
+
+            const logEmbed = new EmbedBuilder()
+                .setTitle('⚠️ ALERTE ERREUR SYSTÈME')
+                .setDescription(`\`\`\`js\n${description}\n\`\`\``)
+                .setColor(COLORS.ERROR)
+                .addFields(fields)
+                .setTimestamp();
+
+            await channel.send({ embeds: [logEmbed] });
+        }
+    } catch (err) {
+        console.error("[Critical Error Logger] Failed to log error to channel:", err);
+    }
+
+    // 3. Always log to console
+    console.error(`[ERROR][${filePath || 'Unknown'}]`, error);
+}
+
+module.exports = { COLORS, CURRENCY, createEmbed, parseBet, parseAmount, formatCoins, sendLog, announceBigWin, logError };

@@ -1,3 +1,4 @@
+const { sendLog, COLORS, logError } = require('../utils');
 module.exports = {
     async init(client, db) {
         const checkExpirations = async () => {
@@ -43,8 +44,6 @@ module.exports = {
                                 await member.roles.remove(entry.role_id);
                                 console.log(`[RoleExpiration] Role ${entry.role_id} retire de ${member.user.tag} (Guild: ${guild.name})`);
                                 
-                                // LOG
-                                const { sendLog, COLORS } = require('../utils');
                                 await sendLog(
                                     guild, 
                                     '⏳ Rôle Expiré',
@@ -57,10 +56,7 @@ module.exports = {
                             }
                             await db.removeRoleExpiration(entry.user_id, entry.role_id);
                         } catch (removeErr) {
-                            console.error(
-                                `[RoleExpiration] Echec retrait role ${entry.role_id} pour ${member.user.tag}, sera reessaye :`,
-                                removeErr.message,
-                            );
+                            await logError(client, removeErr, { filePath: 'events/roleExpiration.js:checkExpirations:member.roles.remove' });
                         }
                     } else {
                         // Membre introuvable
@@ -101,7 +97,7 @@ module.exports = {
                 console.log('[RoleExpiration] Aucun role temporaire actif');
             }
         } catch (err) {
-            console.error('[RoleExpiration] Erreur lors du startup recovery:', err);
+            await logError(client, err, { filePath: 'events/roleExpiration.js:init:recovery' });
         }
 
         // ── Interval régulier ──

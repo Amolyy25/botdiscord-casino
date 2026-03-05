@@ -1,5 +1,5 @@
 const cron = require("node-cron");
-const { createEmbed, COLORS, formatCoins, sendLog } = require("../utils");
+const { createEmbed, COLORS, formatCoins, sendLog, logError } = require("../utils");
 const {
   ActionRowBuilder,
   ButtonBuilder,
@@ -57,23 +57,26 @@ const QUESTIONS = [
 
 module.exports = {
   init: async (client, db) => {
-    // Récupérer un événement en cours (si le bot a redémarré pendant une Heure de Gloire)
-    await module.exports.checkActiveEvent(client, db);
-
-    // --- PERSISTANCE INTELLIGENTE ---
-    // Au démarrage : vérifier si aujourd'hui a déjà un schedule, sinon en créer un
-    await module.exports.ensureTodaySchedule(db);
-    await module.exports.loadAndScheduleEvents(client, db);
-
-    // Cron quotidien à 9h → générer le schedule du jour (si pas déjà fait)
-    cron.schedule(
-      "0 9 * * *",
-      async () => {
-        await module.exports.scheduleDailyGloryHour(db, true);
+    try {
+        await module.exports.checkActiveEvent(client, db);
+        await module.exports.ensureTodaySchedule(db);
         await module.exports.loadAndScheduleEvents(client, db);
-      },
-      { timezone: "Europe/Paris" }
-    );
+
+        cron.schedule(
+          "0 9 * * *",
+          async () => {
+            try {
+                await module.exports.scheduleDailyGloryHour(db, true);
+                await module.exports.loadAndScheduleEvents(client, db);
+            } catch (err) {
+                await logError(client, err, { filePath: 'events/eventsManager.js:cron' });
+            }
+          },
+          { timezone: "Europe/Paris" }
+        );
+    } catch (err) {
+        await logError(client, err, { filePath: 'events/eventsManager.js:init' });
+    }
   },
 
   // --- PERSISTANCE : vérifie si un schedule existe pour aujourd'hui ---
@@ -278,9 +281,13 @@ module.exports = {
     // 4. Événement Aléatoire "Hardcore" : "MAFIA RACKET" (15% chance)
     if (Math.random() <= 0.15) {
       const mafiaDelay = 60000 + Math.random() * (duration - 120000);
-      setTimeout(() => {
-        const { startEvent } = require("./mafiaRacket");
-        startEvent(client, db, channel);
+      setTimeout(async () => {
+        try {
+            const { startEvent } = require("./mafiaRacket");
+            await startEvent(client, db, channel);
+        } catch (err) {
+            await logError(client, err, { filePath: 'events/eventsManager.js:mafiaDelay' });
+        }
       }, mafiaDelay);
     }
   },
@@ -398,12 +405,14 @@ module.exports = {
 
   updateCohesionEmbed: async () => {
     if (!cohesionActive || !cohesionMsg) return;
-    const embed = createEmbed(
-      "ÉLAN COLLABORATIF",
-      `\`\`\`\n[SYSTEM] Analyse de la cohésion en cours...\nMultiplicateur de Cohésion : x${cohesionMultiplier.toFixed(1)}\nParticipants uniques : ${uniqueParticipants.size}\n\`\`\``,
-      "#FFFFFF"
-    );
-    await cohesionMsg.edit({ embeds: [embed] }).catch(()=>null);
+    try {
+        const embed = createEmbed(
+          "ÉLAN COLLABORATIF",
+          `\`\`\`\n[SYSTEM] Analyse de la cohésion en cours...\nMultiplicateur de Cohésion : x${cohesionMultiplier.toFixed(1)}\nParticipants uniques : ${uniqueParticipants.size}\n\`\`\``,
+          "#FFFFFF"
+        );
+        await cohesionMsg.edit({ embeds: [embed] }).catch(()=>null);
+    } catch (err) {}
   },
 
   triggerBlackout: async (client, db) => {
@@ -425,59 +434,64 @@ module.exports = {
     let rewards = new Map();
     let maxMultiplier = 1;
 
-    blackoutInterval = setInterval(() => {
-      let currentVoiceUsers = [];
-      for (const guild of client.guilds.cache.values()) {
-        for (const vChannel of guild.channels.cache.values()) {
-          if (vChannel.isVoiceBased()) {
-            for (const member of vChannel.members.values()) {
-              if (!member.user.bot) {
-                currentVoiceUsers.push(member.id);
+    blackoutInterval = setInterval(async () => {
+      try {
+          let currentVoiceUsers = [];
+          for (const guild of client.guilds.cache.values()) {
+            for (const vChannel of guild.channels.cache.values()) {
+              if (vChannel.isVoiceBased()) {
+                for (const member of vChannel.members.values()) {
+                  if (!member.user.bot) {
+                    currentVoiceUsers.push(member.id);
+                  }
+                }
               }
             }
           }
-        }
-      }
 
-      let multiplier = currentVoiceUsers.length;
-      if (multiplier > maxMultiplier) maxMultiplier = multiplier;
+          let multiplier = currentVoiceUsers.length;
+          if (multiplier > maxMultiplier) maxMultiplier = multiplier;
 
-      let coinsSec = 100n * BigInt(multiplier);
-      if (multiplier > 0) {
-        for (const uid of currentVoiceUsers) {
-          rewards.set(uid, (rewards.get(uid) || 0n) + coinsSec);
-        }
-      }
+          let coinsSec = 100n * BigInt(multiplier);
+          if (multiplier > 0) {
+            for (const uid of currentVoiceUsers) {
+              rewards.set(uid, (rewards.get(uid) || 0n) + coinsSec);
+            }
+          }
 
-      ticks++;
-      
-      if (ticks % 10 === 0 && blackoutMsg) {
-         const embedSync = createEmbed(
-          "BLACKOUT",
-          `\`\`\`\n[SYSTEM ALERTE]\nSurchauffe des terminaux textuels.\nLe Secteur bascule en mode Vocal uniquement.\n\n[STATUS EN DIRECT]\nUtilisateurs en vocal : ${currentVoiceUsers.length}\nMultiplicateur : x${multiplier}\nGains générés : +${coinsSec} coins/sec par membre\nTemps restant : ${60 - ticks}s\n\`\`\``,
-          "#000000"
-        );
-        blackoutMsg.edit({ embeds: [embedSync] }).catch(()=>null);
-      }
+          ticks++;
+          
+          if (ticks % 10 === 0 && blackoutMsg) {
+             const embedSync = createEmbed(
+              "BLACKOUT",
+              `\`\`\`\n[SYSTEM ALERTE]\nSurchauffe des terminaux textuels.\nLe Secteur bascule en mode Vocal uniquement.\n\n[STATUS EN DIRECT]\nUtilisateurs en vocal : ${currentVoiceUsers.length}\nMultiplicateur : x${multiplier}\nGains générés : +${coinsSec} coins/sec par membre\nTemps restant : ${60 - ticks}s\n\`\`\``,
+              "#000000"
+            );
+            blackoutMsg.edit({ embeds: [embedSync] }).catch(()=>null);
+          }
 
-      if (ticks >= 60) {
-        clearInterval(blackoutInterval);
-        blackoutActive = false;
+          if (ticks >= 60) {
+            clearInterval(blackoutInterval);
+            blackoutActive = false;
 
-        let totalCoinsGained = 0n;
-        for (const [uid, total] of rewards.entries()) {
-          db.updateBalance(uid, total, "Survie Blackout Vocal").catch(()=>null);
-          totalCoinsGained += total;
-        }
+            let totalCoinsGained = 0n;
+            for (const [uid, total] of rewards.entries()) {
+              db.updateBalance(uid, total, "Survie Blackout Vocal").catch(()=>null);
+              totalCoinsGained += total;
+            }
 
-        if (channel) {
-          const embedEnd = createEmbed(
-            "RESTAURATION",
-            `\`\`\`\n[SYSTEM] Refroidissement terminé.\nTerminaux textuels de nouveau opérationnels.\n\n[RÉCOMPENSES VOCALES]\nFinancement maximum atteint : x${maxMultiplier}\nTotal distribué : ${totalCoinsGained} coins aux participants vocaux.\n\`\`\``,
-            "#FFFFFF"
-          );
-          channel.send({ embeds: [embedEnd] }).catch(()=>null);
-        }
+            if (channel) {
+              const embedEnd = createEmbed(
+                "RESTAURATION",
+                `\`\`\`\n[SYSTEM] Refroidissement terminé.\nTerminaux textuels de nouveau opérationnels.\n\n[RÉCOMPENSES VOCALES]\nFinancement maximum atteint : x${maxMultiplier}\nTotal distribué : ${totalCoinsGained} coins aux participants vocaux.\n\`\`\``,
+                "#FFFFFF"
+              );
+              channel.send({ embeds: [embedEnd] }).catch(()=>null);
+            }
+          }
+      } catch (err) {
+          clearInterval(blackoutInterval);
+          await logError(client, err, { filePath: 'events/eventsManager.js:blackoutInterval' });
       }
     }, 1000);
   },

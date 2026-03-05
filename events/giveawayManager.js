@@ -1,5 +1,5 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder, PermissionFlagsBits, StringSelectMenuBuilder, ComponentType } = require('discord.js');
-const { COLORS, createEmbed, formatCoins, sendLog } = require('../utils');
+const { COLORS, createEmbed, formatCoins, sendLog, logError } = require('../utils');
 const {
   drawMysteryItem,
   RARITY_COLORS,
@@ -638,7 +638,7 @@ async function processScheduledTasks() {
       }
     }
   } catch (err) {
-    console.error('[ScheduledTask] Erreur globale:', err);
+    await logError(_client, err, { filePath: 'events/giveawayManager.js:processScheduledTasks' });
   }
 }
 
@@ -657,7 +657,7 @@ async function checkGiveaways() {
       }
     }
   } catch (err) {
-    console.error('[Giveaway] Erreur check loop:', err);
+    await logError(_client, err, { filePath: 'events/giveawayManager.js:checkGiveaways' });
   }
 }
 
@@ -689,7 +689,7 @@ async function updateActiveEmbeds() {
       }
     }
   } catch (err) {
-    console.error('[Giveaway] Erreur update embeds:', err);
+    await logError(_client, err, { filePath: 'events/giveawayManager.js:updateActiveEmbeds' });
   }
 }
 

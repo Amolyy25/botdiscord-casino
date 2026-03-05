@@ -12,7 +12,7 @@ const {
 const fs = require("fs");
 const path = require("path");
 const db = require("./database");
-const { COLORS, createEmbed, formatCoins } = require("./utils");
+const { COLORS, createEmbed, formatCoins, logError } = require("./utils");
 const mathQuiz = require("./events/mathQuiz");
 const roleExpiration = require("./events/roleExpiration");
 const braquage = require("./events/braquage");
@@ -91,9 +91,18 @@ client.once("ready", async () => {
       console.error("Erreur enregistrement slash commands:", slashErr);
     }
   } catch (err) {
-    console.error("Failed to initialize database:", err);
+    await logError(client, err, { filePath: 'bot.js:ready' });
   }
   console.log(`Logged in as ${client.user.tag}`);
+});
+
+// --- GLOBAL ROBUST ERROR HANDLING ---
+process.on('unhandledRejection', (reason, promise) => {
+    logError(client, reason, { filePath: 'GLOBAL:unhandledRejection' });
+});
+
+process.on('uncaughtException', (err, origin) => {
+    logError(client, err, { filePath: `GLOBAL:uncaughtException (${origin})` });
 });
 
 client.on("messageCreate", async (message) => {
@@ -166,13 +175,11 @@ client.on("messageCreate", async (message) => {
     }
     await command.execute(message, args, db);
   } catch (error) {
-    console.error(error);
-    const errorEmbed = createEmbed(
-      "Erreur",
-      "Une erreur est survenue lors de l'exécution de cette commande.",
-      COLORS.ERROR,
-    );
-    message.reply({ embeds: [errorEmbed] }).catch(() => {});
+    await logError(client, error, { 
+        message, 
+        filePath: `commands/${command.name}.js`, 
+        commandName: commandName 
+    });
   }
 });
 
@@ -192,7 +199,7 @@ client.on("interactionCreate", async (interaction) => {
     const handledCal = await calendarManager.handleInteraction(interaction, db);
     if (handledCal) return;
   } catch (err) {
-    console.error("Erreur handler interaction:", err);
+    await logError(client, err, { interaction, filePath: 'bot.js:interactionCreate:handlers' });
   }
 
   // Slash commands
@@ -201,13 +208,7 @@ client.on("interactionCreate", async (interaction) => {
       try {
         await giveawayManager.handleSlashCommand(interaction, db);
       } catch (err) {
-        console.error("Erreur slash giveaway:", err);
-        const reply = { content: "❌ Une erreur est survenue.", flags: 64 };
-        if (interaction.replied || interaction.deferred) {
-          await interaction.followUp(reply).catch(() => {});
-        } else {
-          await interaction.reply(reply).catch(() => {});
-        }
+        await logError(client, err, { interaction, filePath: 'events/giveawayManager.js:slash', commandName: 'giveaway' });
       }
     }
     return;
@@ -252,13 +253,7 @@ client.on("interactionCreate", async (interaction) => {
 
       await interaction.reply({ embeds: [embed], flags: 64 }); // EPHEMERAL flag
     } catch (error) {
-      console.error("Error granting casino access:", error);
-      interaction
-        .reply({
-          content: "❌ Une erreur est survenue. Contactez un administrateur.",
-          flags: 64, // EPHEMERAL flag
-        })
-        .catch(() => {});
+      await logError(client, error, { interaction, filePath: 'bot.js:access_casino' });
     }
   }
 
@@ -359,14 +354,7 @@ client.on("interactionCreate", async (interaction) => {
 
       interaction.reply({ content: `✅ Ticket créé : ${channel}`, flags: 64 });
     } catch (error) {
-      console.error("Error creating proposal ticket:", error);
-      interaction
-        .reply({
-          content:
-            "❌ Erreur lors de la création du ticket. Vérifiez mes permissions.",
-          flags: 64,
-        })
-        .catch(() => {});
+      await logError(client, error, { interaction, filePath: 'bot.js:propose_bounty' });
     }
   }
 
@@ -442,13 +430,7 @@ client.on("interactionCreate", async (interaction) => {
         flags: 64,
       });
     } catch (error) {
-      console.error("Error creating proof ticket:", error);
-      interaction
-        .reply({
-          content: `❌ Erreur lors de l'ouverture du ticket : ${error.message}`,
-          flags: 64,
-        })
-        .catch(() => {});
+      await logError(client, error, { interaction, filePath: 'bot.js:accept_bounty' });
     }
   }
 });
