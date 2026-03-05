@@ -8,6 +8,7 @@ const pool = new Pool({
 });
 
 const initDb = async () => {
+  // ── 1. Create all tables ────────────────────────────────────────────────────
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
@@ -21,50 +22,6 @@ const initDb = async () => {
       prestige INTEGER DEFAULT 0
     );
 
-        -- Migration: users table
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='balance' AND data_type='integer') THEN
-            ALTER TABLE users ALTER COLUMN balance TYPE BIGINT;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='last_collect') THEN
-            ALTER TABLE users ADD COLUMN last_collect BIGINT DEFAULT 0;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='prestige') THEN
-            ALTER TABLE users ADD COLUMN prestige INTEGER DEFAULT 0;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='achievements') THEN
-            ALTER TABLE users ADD COLUMN achievements JSONB DEFAULT '{}'::jsonb;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='stats_trackers') THEN
-            ALTER TABLE users ADD COLUMN stats_trackers JSONB DEFAULT '{}'::jsonb;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='phoenix_until') THEN
-            ALTER TABLE users ADD COLUMN phoenix_until BIGINT DEFAULT 0;
-        END IF;
-
-        -- Migration: balance_history table
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='balance_history' AND column_name='amount' AND data_type='integer') THEN
-            ALTER TABLE balance_history ALTER COLUMN amount TYPE BIGINT;
-        END IF;
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='balance_history' AND column_name='balance_after' AND data_type='integer') THEN
-            ALTER TABLE balance_history ALTER COLUMN balance_after TYPE BIGINT;
-        END IF;
-
-        -- Migration: bounties table
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bounties' AND column_name='reward' AND data_type='integer') THEN
-            ALTER TABLE bounties ALTER COLUMN reward TYPE BIGINT;
-        END IF;
-
-        -- Migration: shop_purchases table
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='shop_purchases' AND column_name='price' AND data_type='integer') THEN
-            ALTER TABLE shop_purchases ALTER COLUMN price TYPE BIGINT;
-        END IF;
-
-        -- Migration: braquage_winners table
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='braquage_winners' AND column_name='coins_won' AND data_type='integer') THEN
-            ALTER TABLE braquage_winners ALTER COLUMN coins_won TYPE BIGINT;
-        END IF;
-    END $$;
-    
     CREATE TABLE IF NOT EXISTS bounties (
       id SERIAL PRIMARY KEY,
       message_id TEXT,
@@ -146,18 +103,10 @@ const initDb = async () => {
       winner_count INTEGER DEFAULT 1,
       ends_at BIGINT NOT NULL,
       temp_role_duration BIGINT,
-      required_roles TEXT, -- Comma-separated role IDs
+      required_roles TEXT,
       status TEXT DEFAULT 'active',
       created_at TIMESTAMP DEFAULT NOW()
     );
-
-    -- Migration for giveaways table
-    DO $$
-    BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='giveaways' AND column_name='required_roles') THEN
-            ALTER TABLE giveaways ADD COLUMN required_roles TEXT;
-        END IF;
-    END $$;
 
     CREATE TABLE IF NOT EXISTS giveaway_participants (
       giveaway_id INTEGER REFERENCES giveaways(id) ON DELETE CASCADE,
@@ -221,6 +170,61 @@ const initDb = async () => {
       message_id TEXT NOT NULL,
       PRIMARY KEY (guild_id)
     );
+  `);
+
+  // ── 2. Migrations (DO $$ block — the ONLY way to use IF in PostgreSQL) ──────
+  await pool.query(`
+    DO $$
+    BEGIN
+        -- users: balance INTEGER → BIGINT
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='balance' AND data_type='integer') THEN
+            ALTER TABLE users ALTER COLUMN balance TYPE BIGINT;
+        END IF;
+        -- users: add missing columns
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='last_collect') THEN
+            ALTER TABLE users ADD COLUMN last_collect BIGINT DEFAULT 0;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='prestige') THEN
+            ALTER TABLE users ADD COLUMN prestige INTEGER DEFAULT 0;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='achievements') THEN
+            ALTER TABLE users ADD COLUMN achievements JSONB DEFAULT '{}'::jsonb;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='stats_trackers') THEN
+            ALTER TABLE users ADD COLUMN stats_trackers JSONB DEFAULT '{}'::jsonb;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='phoenix_until') THEN
+            ALTER TABLE users ADD COLUMN phoenix_until BIGINT DEFAULT 0;
+        END IF;
+
+        -- balance_history: amount/balance_after INTEGER → BIGINT
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='balance_history' AND column_name='amount' AND data_type='integer') THEN
+            ALTER TABLE balance_history ALTER COLUMN amount TYPE BIGINT;
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='balance_history' AND column_name='balance_after' AND data_type='integer') THEN
+            ALTER TABLE balance_history ALTER COLUMN balance_after TYPE BIGINT;
+        END IF;
+
+        -- bounties: reward INTEGER → BIGINT
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bounties' AND column_name='reward' AND data_type='integer') THEN
+            ALTER TABLE bounties ALTER COLUMN reward TYPE BIGINT;
+        END IF;
+
+        -- shop_purchases: price INTEGER → BIGINT
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='shop_purchases' AND column_name='price' AND data_type='integer') THEN
+            ALTER TABLE shop_purchases ALTER COLUMN price TYPE BIGINT;
+        END IF;
+
+        -- braquage_winners: coins_won INTEGER → BIGINT
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='braquage_winners' AND column_name='coins_won' AND data_type='integer') THEN
+            ALTER TABLE braquage_winners ALTER COLUMN coins_won TYPE BIGINT;
+        END IF;
+
+        -- giveaways: add required_roles column
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='giveaways' AND column_name='required_roles') THEN
+            ALTER TABLE giveaways ADD COLUMN required_roles TEXT;
+        END IF;
+    END $$;
   `);
 };
 
