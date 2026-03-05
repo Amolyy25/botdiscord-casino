@@ -1,3 +1,4 @@
+const cron = require('node-cron');
 const { createEmbed, COLORS, formatCoins, logError } = require('../utils');
 
 const EVENT_CHANNEL_ID = '1469713523549540536';
