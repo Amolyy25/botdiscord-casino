@@ -371,7 +371,6 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
           "🚫 **Limite atteinte !**\n\nVous ne pouvez acheter que **2 tirages** par jour dans la boutique."
         );
       }
-      }
     } catch (err) {
       await logError(interaction.client, err, { interaction, filePath: 'events/shop.js:dailyCountLimit' });
     }

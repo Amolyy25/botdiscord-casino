@@ -197,7 +197,6 @@ module.exports = {
 
                 console.log(`[Braquage] Collecteur relancé pour braquage #${activeBraquage.id}`);
             }
-            }
         } catch (err) {
             await logError(client, err, { filePath: 'events/braquage.js:init:recovery' });
         }
