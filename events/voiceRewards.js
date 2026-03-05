@@ -92,8 +92,8 @@ function isUserValid(member, voiceState) {
 }
 
 async function init(client, db) {
-    // 1. Load active sessions from DB
     try {
+        // 1. Load active sessions from DB
         const savedSessions = await db.getAllVoiceSessions();
         for (const s of savedSessions) {
             activeSessions.set(s.user_id, { 
@@ -101,114 +101,111 @@ async function init(client, db) {
                 currentTier: s.current_tier 
             });
         }
-    } catch (err) {
-        await logError(client, err, { filePath: 'events/voiceRewards.js:init:loadSessions' });
-    }
-    
-    console.log(`[VoiceRewards] Initialisation terminée. ${activeSessions.size} session(s) chargée(s). Vérification des salons en cours...`);
-
-    // 2. Validate current state for everyone
-    for (const guild of client.guilds.cache.values()) {
-        for (const channel of guild.channels.cache.values()) {
-            if (!channel.isVoiceBased()) continue;
-            
-            for (const member of channel.members.values()) {
-                if (member.user.bot) continue;
-                
-                const valid = isUserValid(member, member.voice);
-                if (valid) {
-                    if (!activeSessions.has(member.id)) {
-                        const now = Date.now();
-                        activeSessions.set(member.id, { startTime: now, currentTier: 0 });
-                        await db.saveVoiceSession(member.id, now, 0).catch(() => {});
-                        console.log(`[VoiceRewards] Session démarrée pour ${member.user.tag} (${member.id})`);
-                    }
-                    if (pendingResets.has(member.id)) {
-                        clearTimeout(pendingResets.get(member.id));
-                        pendingResets.delete(member.id);
-                        console.log(`[VoiceRewards] Timer d'annulation révoqué pour ${member.user.tag}`);
-                    }
-                } else {
-                    if (activeSessions.has(member.id) && !pendingResets.has(member.id)) {
-                        console.log(`[VoiceRewards] ${member.user.tag} n'est plus valide. Démarrage du timer de 30s...`);
-                        startResetTimer(member.id, db);
-                    }
-                }
-            }
-        }
-    }
-
-    // 3. For any DB session that wasn't found in voice at all, start reset timer immediately
-    for (const [userId, session] of activeSessions.entries()) {
-        if (!pendingResets.has(userId)) {
-            // Check if they are actually in a voice channel
-            let inVoc = false;
-            for (const guild of client.guilds.cache.values()) {
-                const member = guild.members.cache.get(userId);
-                if (member && member.voice && member.voice.channel) {
-                    inVoc = true;
-                    if (!isUserValid(member, member.voice)) {
-                        startResetTimer(userId, db);
-                    }
-                    break;
-                }
-            }
-            if (!inVoc) {
-                startResetTimer(userId, db);
-            }
-        }
-    }
-
-    // 4. Set interval for checks
-    setInterval(() => checkRewards(client, db), 60000); // Check every minute
-
-    // 5. Handle user voice state updates
-    client.on('voiceStateUpdate', (oldState, newState) => {
-        if (newState.member.user.bot) return;
         
-        console.log(`[VoiceRewards] Changement d'état vocal détecté pour ${newState.member.user.tag} (Mute: ${newState.selfMute}, Deaf: ${newState.selfDeaf}, Channel: ${newState.channelId})`);
+        console.log(`[VoiceRewards] Initialisation terminée. ${activeSessions.size} session(s) chargée(s). Vérification des salons en cours...`);
 
-        // If the user completely disconnects, newState.channelId is null.
-        if (!newState.channelId) {
-            console.log(`[VoiceRewards] ${newState.member.user.tag} s'est déconnecté du vocal.`);
-            handleUserVoiceState(newState.member, newState, db);
-        } else {
-            // Re-evaluate the user themselves explicitly right now with their new state
-            handleUserVoiceState(newState.member, newState, db);
-        }
-
-        // Re-evaluate ALL users in the affected channels because member count changed.
-        const channelsToCheck = new Set();
-        if (oldState.channelId) channelsToCheck.add(oldState.channelId);
-        if (newState.channelId) channelsToCheck.add(newState.channelId);
-
-        for (const channelId of channelsToCheck) {
-            const channel = newState.guild.channels.cache.get(channelId) || oldState.guild.channels.cache.get(channelId);
-            if (!channel) continue;
-            
-            // Re-fetch the channel fresh to ensure we get the accurate current members size
-            const freshChannel = client.channels.cache.get(channelId);
-            if (!freshChannel) continue;
-
-            for (const member of freshChannel.members.values()) {
-                if (member.user.bot) continue;
+        // 2. Validate current state for everyone
+        for (const guild of client.guilds.cache.values()) {
+            for (const channel of guild.channels.cache.values()) {
+                if (!channel.isVoiceBased()) continue;
                 
-                // If member == the user who just updated their state, we use newState. 
-                // Otherwise we use their current member.voice state.
-                const stateToEvaluate = (member.id === newState.id) ? newState : member.voice;
-                
-                if (stateToEvaluate.channelId) {
-                    handleUserVoiceState(member, stateToEvaluate, db);
-                } else if (activeSessions.has(member.id)) {
-                    // Safety catch if they somehow have an active session but aren't in a voice channel
-                    handleUserVoiceState(member, stateToEvaluate, db);
+                for (const member of channel.members.values()) {
+                    if (member.user.bot) continue;
+                    
+                    const valid = isUserValid(member, member.voice);
+                    if (valid) {
+                        if (!activeSessions.has(member.id)) {
+                            const now = Date.now();
+                            activeSessions.set(member.id, { startTime: now, currentTier: 0 });
+                            await db.saveVoiceSession(member.id, now, 0).catch(() => {});
+                            console.log(`[VoiceRewards] Session démarrée pour ${member.user.tag} (${member.id})`);
+                        }
+                        if (pendingResets.has(member.id)) {
+                            clearTimeout(pendingResets.get(member.id));
+                            pendingResets.delete(member.id);
+                            console.log(`[VoiceRewards] Timer d'annulation révoqué pour ${member.user.tag}`);
+                        }
+                    } else {
+                        if (activeSessions.has(member.id) && !pendingResets.has(member.id)) {
+                            console.log(`[VoiceRewards] ${member.user.tag} n'est plus valide. Démarrage du timer de 30s...`);
+                            startResetTimer(member.id, db);
+                        }
+                    }
                 }
             }
         }
-    });
-} catch (err) {
-    await logError(client, err, { filePath: 'events/voiceRewards.js:init' });
-}
+
+        // 3. For any DB session that wasn't found in voice at all, start reset timer immediately
+        for (const [userId, session] of activeSessions.entries()) {
+            if (!pendingResets.has(userId)) {
+                // Check if they are actually in a voice channel
+                let inVoc = false;
+                for (const guild of client.guilds.cache.values()) {
+                    const member = guild.members.cache.get(userId);
+                    if (member && member.voice && member.voice.channel) {
+                        inVoc = true;
+                        if (!isUserValid(member, member.voice)) {
+                            startResetTimer(userId, db);
+                        }
+                        break;
+                    }
+                }
+                if (!inVoc) {
+                    startResetTimer(userId, db);
+                }
+            }
+        }
+
+        // 4. Set interval for checks
+        setInterval(() => checkRewards(client, db), 60000); // Check every minute
+
+        // 5. Handle user voice state updates
+        client.on('voiceStateUpdate', (oldState, newState) => {
+            if (newState.member.user.bot) return;
+            
+            console.log(`[VoiceRewards] Changement d'état vocal détecté pour ${newState.member.user.tag} (Mute: ${newState.selfMute}, Deaf: ${newState.selfDeaf}, Channel: ${newState.channelId})`);
+
+            // If the user completely disconnects, newState.channelId is null.
+            if (!newState.channelId) {
+                console.log(`[VoiceRewards] ${newState.member.user.tag} s'est déconnecté du vocal.`);
+                handleUserVoiceState(newState.member, newState, db);
+            } else {
+                // Re-evaluate the user themselves explicitly right now with their new state
+                handleUserVoiceState(newState.member, newState, db);
+            }
+
+            // Re-evaluate ALL users in the affected channels because member count changed.
+            const channelsToCheck = new Set();
+            if (oldState.channelId) channelsToCheck.add(oldState.channelId);
+            if (newState.channelId) channelsToCheck.add(newState.channelId);
+
+            for (const channelId of channelsToCheck) {
+                const channel = newState.guild.channels.cache.get(channelId) || oldState.guild.channels.cache.get(channelId);
+                if (!channel) continue;
+                
+                // Re-fetch the channel fresh to ensure we get the accurate current members size
+                const freshChannel = client.channels.cache.get(channelId);
+                if (!freshChannel) continue;
+
+                for (const member of freshChannel.members.values()) {
+                    if (member.user.bot) continue;
+                    
+                    // If member == the user who just updated their state, we use newState. 
+                    // Otherwise we use their current member.voice state.
+                    const stateToEvaluate = (member.id === newState.id) ? newState : member.voice;
+                    
+                    if (stateToEvaluate.channelId) {
+                        handleUserVoiceState(member, stateToEvaluate, db);
+                    } else if (activeSessions.has(member.id)) {
+                        // Safety catch if they somehow have an active session but aren't in a voice channel
+                        handleUserVoiceState(member, stateToEvaluate, db);
+                    }
+                }
+            }
+        });
+    } catch (err) {
+        await logError(client, err, { filePath: 'events/voiceRewards.js:init' });
+    }
 }
 
 function handleUserVoiceState(member, voiceState, db) {
