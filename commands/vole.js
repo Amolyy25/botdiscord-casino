@@ -1,3 +1,4 @@
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { createEmbed, COLORS, formatCoins, logError } = require('../utils');
 const eventsManager = require('../events/eventsManager');
 
