@@ -15,7 +15,10 @@ module.exports = {
         if (arg === 'x3') count = 3;
         else if (arg === 'x5') count = 5;
         else if (arg === 'x10') count = 10;
-        else if (!isNaN(arg)) count = Math.min(Math.max(parseInt(arg), 1), 10);
+        else if (arg === 'x30') count = 30;
+        else if (arg === 'x50') count = 50;
+        else if (arg === 'x100') count = 100;
+        else if (!isNaN(arg)) count = Math.min(Math.max(parseInt(arg), 1), 100);
     }
 
     if (user.tirages < count) {
@@ -36,7 +39,7 @@ module.exports = {
         results.push(drawRole());
     }
 
-    // Remove tirages
+    // Remove tirages (base cost)
     await db.updateTirages(message.author.id, -count);
 
     // Process results
@@ -72,7 +75,6 @@ module.exports = {
             amount = applyPrestigeBonus(amount, parseInt(user.prestige || 0));
 
             summary.coins += amount;
-            await db.updateBalance(message.author.id, amount);
             
             if (winsChannel && wonReward.probability < 0.06) {
                 const winEmbed = createEmbed(
@@ -88,7 +90,6 @@ module.exports = {
         } 
         else if (wonReward.type === 'extra_tirages') {
             summary.extraTirages += wonReward.amount;
-            await db.updateTirages(message.author.id, wonReward.amount);
             
             if (winsChannel && wonReward.probability < 0.06) {
                 const winEmbed = createEmbed(
@@ -144,12 +145,20 @@ module.exports = {
         }
     }
 
+    // Final database updates
+    if (summary.coins > 0n) {
+        await db.updateBalance(message.author.id, summary.coins, 'Gains Tirage(s)');
+    }
+    if (summary.extraTirages > 0) {
+        await db.updateTirages(message.author.id, summary.extraTirages);
+    }
+
     // --- Achievements Engine ---
     db.getUser(message.author.id).then(async u => {
         const isMaxTier = results.some(r => r.probability < 0.005); // Ultra rare
         await achievementsHelper.triggerEvent(message.client, db, message.author.id, 'DRAW', {
             drawCount: count,
-            winMultiplier: 0, // Tirage has no 'bet', we just base DRAW_05 on probability if needed, though DRAW_05 says >10x mise. Tirages have no mise, skip.
+            winMultiplier: 0,
             isMaxTier: isMaxTier
         });
         await achievementsHelper.triggerEvent(message.client, db, message.author.id, 'CAPITAL', {});
@@ -171,20 +180,33 @@ module.exports = {
 
     if (summary.roles.length > 0) {
         resultText += `**Rôles obtenus :**\n`;
+        // Group identical roles if multi-tirage
+        const roleCounts = {};
         summary.roles.forEach(r => {
+            roleCounts[r.id] = (roleCounts[r.id] || 0) + 1;
+        });
+
+        const addedRoles = new Set();
+        summary.roles.forEach(r => {
+            if (addedRoles.has(r.id)) return;
+            addedRoles.add(r.id);
             const prob = (r.probability * 100).toFixed(r.probability < 0.001 ? 3 : 2);
-            resultText += `• <@&${r.id}> \`(${prob}%)\` ${r.alreadyOwned ? "*(déjà possédé)*" : ""}\n`;
+            const countSuffix = roleCounts[r.id] > 1 ? ` **x${roleCounts[r.id]}**` : "";
+            resultText += `• <@&${r.id}> \`(${prob}%)\`${countSuffix} ${r.alreadyOwned ? "*(déjà possédé)*" : ""}\n`;
         });
     }
 
-    if (count > 1 && (summary.coins > 0n || summary.extraTirages > 0)) {
-        resultText += `\n*Détails des gains probabilités :*\n`;
+    // Detailed logs only for small counts or if specifically interesting
+    if (count > 1 && count <= 15 && (summary.coins > 0n || summary.extraTirages > 0)) {
+        resultText += `\n*Détails des gains :*\n`;
         results.forEach((res, index) => {
             if (res.type !== 'role') {
                 const prob = (res.probability * 100).toFixed(res.probability < 0.001 ? 3 : 2);
                 resultText += `> Tirage ${index + 1}: **${res.name}** \`(${prob}%)\`\n`;
             }
         });
+    } else if (count > 15) {
+        resultText += `\n*Résumé de ${count} tirages effectué avec succès.*`;
     }
 
     if (!resultText) resultText = "Vous n'avez rien gagné de neuf cette fois-ci ! Better luck next time ! 🍀";
