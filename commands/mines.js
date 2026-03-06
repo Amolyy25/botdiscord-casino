@@ -213,6 +213,7 @@ module.exports = {
                 profit = applyPrestigeBonus(profit, parseInt(user.prestige || 0));
 
                 await db.updateBalance(userId, st.bet + profit, 'Mines: Cashout');
+                await db.incrementGameWin(userId, 'mines');
 
                 await i.update({
                     embeds: [buildEmbed(st, 'cashout')],
@@ -313,6 +314,8 @@ module.exports = {
                 profit = applyPrestigeBonus(profit, parseInt(user.prestige || 0));
 
                 await db.updateBalance(userId, st.bet + profit, 'Mines: Cashout');
+                await db.incrementGameWin(userId, 'mines');
+                
                 await i.update({
                     embeds: [buildEmbed(st, 'cashout')],
                     components: buildGrid(st, true)

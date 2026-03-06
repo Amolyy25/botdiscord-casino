@@ -7,6 +7,13 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
+const snipePool = process.env.DATABASE_SNIPE ? new Pool({
+  connectionString: process.env.DATABASE_SNIPE,
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+}) : null;
+
 const initDb = async () => {
   // ── 1. Create all tables ────────────────────────────────────────────────────
   await pool.query(`
@@ -172,6 +179,16 @@ const initDb = async () => {
       message_id TEXT NOT NULL,
       PRIMARY KEY (guild_id)
     );
+
+    CREATE TABLE IF NOT EXISTS game_wins (
+      user_id TEXT PRIMARY KEY,
+      roulette BIGINT DEFAULT 0,
+      blackjack BIGINT DEFAULT 0,
+      coinflip BIGINT DEFAULT 0,
+      braquage BIGINT DEFAULT 0,
+      mines BIGINT DEFAULT 0,
+      towers BIGINT DEFAULT 0
+    );
   `);
 
   // ── 2. Migrations (DO $$ block — the ONLY way to use IF in PostgreSQL) ──────
@@ -200,6 +217,9 @@ const initDb = async () => {
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='last_gift') THEN
             ALTER TABLE users ADD COLUMN last_gift BIGINT DEFAULT 0;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='last_tax_used') THEN
+            ALTER TABLE users ADD COLUMN last_tax_used BIGINT DEFAULT 0;
         END IF;
 
         -- balance_history: amount/balance_after INTEGER → BIGINT
@@ -952,5 +972,56 @@ module.exports = {
   getAllFortuneLeaderboardConfigs: async () => {
     const res = await pool.query('SELECT * FROM fortune_leaderboard_config');
     return res.rows;
+  },
+
+  // ═══════════════════════════════════════════════
+  // Prestige Tracking & Taxe
+  // ═══════════════════════════════════════════════
+
+  incrementGameWin: async (userId, game) => {
+    const validGames = ['roulette', 'blackjack', 'coinflip', 'braquage', 'mines', 'towers'];
+    if (!validGames.includes(game)) return false;
+
+    await pool.query(
+      `INSERT INTO game_wins (user_id, ${game}) VALUES ($1, 1)
+       ON CONFLICT (user_id) DO UPDATE SET ${game} = game_wins.${game} + 1`,
+      [userId]
+    );
+    return true;
+  },
+
+  getGameWins: async (userId) => {
+    const res = await pool.query('SELECT * FROM game_wins WHERE user_id = $1', [userId]);
+    if (res.rows.length === 0) {
+      return { roulette: 0n, blackjack: 0n, coinflip: 0n, braquage: 0n, mines: 0n, towers: 0n };
+    }
+    return res.rows[0];
+  },
+
+  getMessageCount: async (userId) => {
+    if (!snipePool) {
+      console.error('[DATABASE_SNIPE] Snipe Pool is not initialized (DATABASE_SNIPE missing)');
+      return 0;
+    }
+    try {
+      const query = `
+          SELECT COUNT(*) as total 
+          FROM stats_text 
+          WHERE user_id = $1 
+          AND recorded_at >= NOW() - INTERVAL '14 days'
+      `;
+      const result = await snipePool.query(query, [userId]);
+      return parseInt(result.rows[0].total) || 0;
+    } catch (error) {
+      console.error('[DATABASE_SNIPE] Error fetching message count:', error);
+      return 0;
+    }
+  },
+
+  updateTaxeDate: async (userId, time) => {
+    await pool.query(
+      `UPDATE users SET last_tax_used = $2 WHERE id = $1`,
+      [userId, time.toString()]
+    );
   }
 };

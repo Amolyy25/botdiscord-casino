@@ -78,6 +78,51 @@ const PRESTIGE_LEVELS = [
             "+40 Tirages (Ticket)",
             "Rôle exclusif PRESTIGE V"
         ]
+    },
+    {
+        level: 6,
+        name: "PRESTIGE VI",
+        price: 1000000000,
+        collectReward: 50000,
+        gainMultiplier: 0.17, // +17%
+        tirageReward: 60,
+        roleId: "1479485016080646295",
+        rewards: [
+            "+17% de gains au casino",
+            "+60 Tirages (Ticket)",
+            "Rôle exclusif PRESTIGE VI"
+        ]
+    },
+    {
+        level: 7,
+        name: "PRESTIGE VII",
+        price: 100000000000, // 100B
+        collectReward: 100000,
+        gainMultiplier: 0.17,
+        tirageReward: 30,
+        roleId: "1479485042290851972",
+        rewards: [
+            "Commande ;collect passe à 100 000 coins",
+            "Débloque la commande ;taxe (3% de la cible)",
+            "+30 Tirages (Ticket)",
+            "Rôle exclusif PRESTIGE VII"
+        ]
+    },
+    {
+        level: 8,
+        name: "PRESTIGE VIII",
+        price: 500000000000, // 500B
+        collectReward: 500000,
+        gainMultiplier: 0.21, // +21%
+        tirageReward: 30,
+        roleId: "1479485055175757987",
+        rewards: [
+            "Commande ;collect passe à 500 000 coins",
+            "+21% de gains au casino",
+            "Amélioration de ;taxe (4% de la cible)",
+            "+30 Tirages (Ticket)",
+            "Rôle exclusif PRESTIGE VIII"
+        ]
     }
 ];
 
@@ -111,8 +156,85 @@ function applyPrestigeBonus(profit, level) {
     return profit + (profit * multiplier / 100n);
 }
 
+const PRESTIGE_REQUIREMENTS = {
+    6: {
+        roleId: '1474149732124463379',
+        roleName: 'SPECTRE D\'OR',
+        games: { roulette: 100, blackjack: 100 }
+    },
+    7: {
+        activity: 1500,
+        games: { coinflip: 1000, braquage: 3 }
+    },
+    8: {
+        roleId: '1473734999608918077',
+        roleName: 'BRAS DROIT',
+        games: { braquage: 5, mines: 200, towers: 200 }
+    }
+};
+
+async function checkPrestigeRequirements(level, userId, member, db) {
+    const reqs = PRESTIGE_REQUIREMENTS[level];
+    if (!reqs) return { hasRequirements: true, details: [] }; // No specific advanced requirements
+
+    let hasRequirements = true;
+    const details = [];
+
+    // 1. Role Check
+    if (reqs.roleId) {
+        const hasRole = member.roles.cache.has(reqs.roleId);
+        if (!hasRole) hasRequirements = false;
+        details.push({
+            name: 'Vocal',
+            text: `Rôle ${reqs.roleName}`,
+            passed: hasRole
+        });
+    }
+
+    // 2. Activity Check
+    if (reqs.activity) {
+        const msgCount = await db.getMessageCount(userId);
+        const passed = msgCount >= reqs.activity;
+        if (!passed) hasRequirements = false;
+        details.push({
+            name: 'Activité',
+            text: `${msgCount} / ${reqs.activity} messages (14j)`,
+            passed: passed
+        });
+    }
+
+    // 3. Games Check
+    if (reqs.games) {
+        const wins = await db.getGameWins(userId);
+        for (const [game, requiredAmount] of Object.entries(reqs.games)) {
+            const userWins = parseInt(wins[game] || 0);
+            const passed = userWins >= requiredAmount;
+            if (!passed) hasRequirements = false;
+            
+            const gameNames = {
+                roulette: 'Roulette',
+                blackjack: 'Blackjack',
+                coinflip: 'Coinflip',
+                braquage: 'Braquage',
+                mines: 'Mines',
+                towers: 'Towers'
+            };
+
+            details.push({
+                name: `Jeux (${gameNames[game]})`,
+                text: `${userWins} / ${requiredAmount} victoires`,
+                passed: passed
+            });
+        }
+    }
+
+    return { hasRequirements, details };
+}
+
 module.exports = {
     PRESTIGE_LEVELS,
     getPrestigeBenefits,
-    applyPrestigeBonus
+    applyPrestigeBonus,
+    checkPrestigeRequirements
 };
+

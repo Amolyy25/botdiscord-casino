@@ -166,6 +166,7 @@ module.exports = {
 
                     // Refund bet + win amount
                     await db.updateBalance(message.author.id, bet + winAmount, 'Blackjack: Gain');
+                    await db.incrementGameWin(message.author.id, 'blackjack');
                 } else if (playerVal < dealerVal) {
                     result = 'Perdu';
                     finalGain = -bet;

@@ -270,6 +270,7 @@ module.exports = {
                 profit = applyPrestigeBonus(profit, parseInt(user.prestige || 0));
 
                 await db.updateBalance(userId, st.bet + profit, 'Towers: Cashout');
+                await db.incrementGameWin(userId, 'towers');
 
                 await i.update({
                     embeds: [buildEmbed(st, 'cashout')],
@@ -372,6 +373,7 @@ module.exports = {
                 profit = applyPrestigeBonus(profit, parseInt(user.prestige || 0));
 
                 await db.updateBalance(userId, st.bet + profit, 'Towers: Cashout');
+                await db.incrementGameWin(userId, 'towers');
 
                 await i.update({
                     embeds: [buildEmbed(st, 'cleared')],

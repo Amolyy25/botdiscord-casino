@@ -49,6 +49,7 @@ module.exports = {
 
             // Refund bet + gain
             await db.updateBalance(message.author.id, bet + gain, 'Roulette: Gain');
+            await db.incrementGameWin(message.author.id, 'roulette');
         } else {
             gain = -bet;
             // Bet already deducted

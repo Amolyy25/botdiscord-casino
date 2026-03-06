@@ -179,6 +179,7 @@ function startBraquageCollector({
             try {
                 // 1. Ajouter les coins
                 await db.updateBalance(winnerId, BRAQUAGE_REWARD);
+                await db.incrementGameWin(winnerId, 'braquage');
 
                 // 2. Récupérer le membre
                 const member = await guild.members.fetch(winnerId).catch(() => null);

@@ -39,6 +39,7 @@ module.exports = {
 
         // Refund bet + gain
             await db.updateBalance(message.author.id, bet + profit, 'Coinflip: Gain');
+            await db.incrementGameWin(message.author.id, 'coinflip');
         }
         // If lost, bet is already deducted
         

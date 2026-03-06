@@ -41,6 +41,22 @@ module.exports = {
                 });
             }
 
+            // 3.5 Vérifier les pré-requis avancés
+            const { checkPrestigeRequirements } = require('../prestigeConfig');
+            const reqs = await checkPrestigeRequirements(nextLevel, message.author.id, message.member, db);
+            
+            if (!reqs.hasRequirements) {
+                let description = `Vous ne remplissez pas encore les pré-requis pour le **${nextPrestigeConfig.name}**.\n\n`;
+                for (const req of reqs.details) {
+                    description += `${req.passed ? '[Valide]' : '[Refusé]'} ${req.name} : ${req.text}\n`;
+                }
+                
+                return message.reply({
+                    embeds: [createEmbed('Pré-requis Insuffisants', description, COLORS.ERROR)],
+                    failIfNotExists: false
+                });
+            }
+
             // 4. Créer l'Embed de confirmation
             const confirmationEmbed = createEmbed(
                 `Ascension vers le ${nextPrestigeConfig.name}`,
