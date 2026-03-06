@@ -235,6 +235,7 @@ module.exports = {
     PRESTIGE_LEVELS,
     getPrestigeBenefits,
     applyPrestigeBonus,
-    checkPrestigeRequirements
+    checkPrestigeRequirements,
+    PRESTIGE_REQUIREMENTS
 };
 

@@ -1,5 +1,5 @@
 const { createEmbed, COLORS, formatCoins } = require('../utils');
-const { PRESTIGE_LEVELS, checkPrestigeRequirements } = require('../prestigeConfig');
+const { PRESTIGE_LEVELS, checkPrestigeRequirements, PRESTIGE_REQUIREMENTS } = require('../prestigeConfig');
 
 const cooldowns = new Map();
 
@@ -47,23 +47,43 @@ module.exports = {
             const embed = createEmbed(`Conditions : ${config.name}`, description, COLORS.PRIMARY);
             return message.reply({ embeds: [embed] });
         } else {
-            let description = "L'ascension vous permet de réinitialiser votre solde en échange de bonus permanents et de rôles exclusifs.\n\n";
-
-            for (const p of PRESTIGE_LEVELS) {
-                description += `✨ **${p.name}**\n`;
-                description += `💰 Prix : **${formatCoins(p.price, false)}**\n`;
-                description += `🛡️ Rôle : <@&${p.roleId}>\n`;
-                description += `🎁 Avantages :\n`;
-                description += p.rewards.map(r => `• ${r}`).join('\n') + "\n\n";
-            }
-
-            description += `*Utilisez la commande \`;prestige [niveau]\` pour voir vos pré-requis, ou \`;reset\` pour ascensionner.*`;
-
             const embed = createEmbed(
                 '🏆 Système de Prestige',
-                description,
+                "L'ascension vous permet de réinitialiser votre solde en échange de bonus permanents et de rôles exclusifs.\n\n*Utilisez la commande \`;prestige [niveau]\` pour voir vos pré-requis en détail, ou \`;reset\` pour ascensionner.*",
                 COLORS.PRIMARY
             );
+
+            for (const p of PRESTIGE_LEVELS) {
+                let fieldValue = `💰 **Prix :** ${formatCoins(p.price, false)}\n`;
+                fieldValue += `🛡️ **Rôle :** <@&${p.roleId}>\n`;
+                
+                // Conditions d'accès si présentes
+                const reqs = PRESTIGE_REQUIREMENTS[p.level];
+                if (reqs) {
+                    fieldValue += `\n📋 **Conditions d'accès :**\n`;
+                    if (reqs.roleName) fieldValue += `• Vocal : Rôle **${reqs.roleName}**\n`;
+                    if (reqs.activity) fieldValue += `• Activité : **${reqs.activity} messages** (14j)\n`;
+                    if (reqs.games) {
+                        const gameNames = {
+                            roulette: 'Roulette',
+                            blackjack: 'Blackjack',
+                            coinflip: 'Coinflip',
+                            braquage: 'Braquage',
+                            mines: 'Mines',
+                            towers: 'Towers'
+                        };
+                        const gamesText = Object.entries(reqs.games)
+                            .map(([game, amount]) => `**${amount}** victoires en ${gameNames[game]}`)
+                            .join(', ');
+                        fieldValue += `• Jeux : ${gamesText}\n`;
+                    }
+                }
+
+                fieldValue += `\n🎁 **Avantages :**\n`;
+                fieldValue += p.rewards.map(r => `• ${r}`).join('\n');
+
+                embed.addFields({ name: `✨ ${p.name}`, value: fieldValue, inline: false });
+            }
 
             return message.reply({ embeds: [embed] });
         }
