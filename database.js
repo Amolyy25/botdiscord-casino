@@ -19,6 +19,7 @@ const initDb = async () => {
       tirages INTEGER DEFAULT 2,
       last_weekly_tirage BIGINT DEFAULT 0,
       last_boost BIGINT DEFAULT 0,
+      last_gift BIGINT DEFAULT 0,
       prestige INTEGER DEFAULT 0
     );
 
@@ -197,6 +198,9 @@ const initDb = async () => {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='phoenix_until') THEN
             ALTER TABLE users ADD COLUMN phoenix_until BIGINT DEFAULT 0;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='last_gift') THEN
+            ALTER TABLE users ADD COLUMN last_gift BIGINT DEFAULT 0;
+        END IF;
 
         -- balance_history: amount/balance_after INTEGER → BIGINT
         IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='balance_history' AND column_name='amount' AND data_type='integer') THEN
@@ -315,6 +319,15 @@ module.exports = {
        VALUES ($1, $2, 100, 2) 
        ON CONFLICT (id) 
        DO UPDATE SET last_vole = $2`,
+      [id, time.toString()]
+    );
+  },
+  updateGift: async (id, time) => {
+    await pool.query(
+      `INSERT INTO users (id, last_gift, balance, tirages) 
+       VALUES ($1, $2, 100, 2) 
+       ON CONFLICT (id) 
+       DO UPDATE SET last_gift = $2`,
       [id, time.toString()]
     );
   },
