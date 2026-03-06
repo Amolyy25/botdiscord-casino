@@ -1474,10 +1474,13 @@ module.exports = {
         
         // ── SPECIAL : VOL DYNAMIQUE (instant_steal) ──
         if (item.type === "instant_steal") {
+            const targetData = await db.getUser(targetId);
+            const targetBalance = BigInt(targetData.balance);
+
             // Gain Potentiel = Solde_Cible * 0.20
             // Prix_Vente = Gain_Potentiel * 0.60
             // Min 400
-            const potentialGain = (BigInt(targetData.balance) * 20n) / 100n;
+            const potentialGain = (targetBalance * 20n) / 100n;
             let dynamicPrice = (potentialGain * 60n) / 100n;
             if (dynamicPrice < 400n) dynamicPrice = 400n;
 
