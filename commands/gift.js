@@ -27,6 +27,20 @@ module.exports = {
             });
         }
 
+        // --- Protection Fame (New User Limit) ---
+        const member = await message.guild.members.fetch(target.id).catch(() => null);
+        if (member && member.joinedAt) {
+            const threeDaysMs = 72 * 60 * 60 * 1000;
+            const isNew = (Date.now() - member.joinedAt.getTime()) < threeDaysMs;
+            
+            if (isNew && amount > 30000n) {
+                return message.reply({ 
+                    embeds: [createEmbed('Protection Anti-Abus 🛡️', `Vous ne pouvez pas donner plus de **${formatCoins(30000)}** à un utilisateur qui a rejoint le serveur depuis moins de 72h.`, COLORS.ERROR)]
+                });
+            }
+        }
+        // ----------------------------------------
+
         const sender = await db.getUser(message.author.id);
         if (BigInt(sender.balance) < amount) {
             return message.reply({ 
