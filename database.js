@@ -189,6 +189,18 @@ const initDb = async () => {
       mines BIGINT DEFAULT 0,
       towers BIGINT DEFAULT 0
     );
+
+    CREATE TABLE IF NOT EXISTS sanctions (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      moderator_id TEXT NOT NULL,
+      category TEXT NOT NULL,
+      severity TEXT NOT NULL,
+      amount BIGINT DEFAULT 0,
+      mute_time BIGINT DEFAULT 0,
+      stats_reset BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
   `);
 
   // ── 2. Migrations (DO $$ block — the ONLY way to use IF in PostgreSQL) ──────
@@ -1023,5 +1035,32 @@ module.exports = {
       `UPDATE users SET last_tax_used = $2 WHERE id = $1`,
       [userId, time.toString()]
     );
+  },
+  resetUserStats: async (userId) => {
+    // Reset game wins
+    await pool.query(
+      'UPDATE game_wins SET roulette = 0, blackjack = 0, coinflip = 0, braquage = 0, mines = 0, towers = 0 WHERE user_id = $1',
+      [userId]
+    );
+    // Reset achievements and trackers in users table
+    await pool.query(
+      "UPDATE users SET achievements = '{}'::jsonb, stats_trackers = '{}'::jsonb WHERE id = $1",
+      [userId]
+    );
+    // Reset activity tracking
+    await pool.query(
+      'DELETE FROM user_activity WHERE user_id = $1',
+      [userId]
+    );
+  },
+  addSanction: async (userId, moderatorId, category, severity, amount, muteTime, statsReset) => {
+    await pool.query(
+      'INSERT INTO sanctions (user_id, moderator_id, category, severity, amount, mute_time, stats_reset) VALUES ($1, $2, $3, $4, $5::BIGINT, $6::BIGINT, $7)',
+      [userId, moderatorId, category, severity, amount.toString(), muteTime.toString(), statsReset]
+    );
+  },
+  getUserSanctions: async (userId) => {
+    const res = await pool.query('SELECT * FROM sanctions WHERE user_id = $1 ORDER BY created_at DESC', [userId]);
+    return res.rows;
   }
 };

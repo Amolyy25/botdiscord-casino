@@ -41,7 +41,8 @@ module.exports = {
             `🗼 \`${prefix}towers\` - Towers (tw)`,
             ``,
             `**🛠️ Admin**`,
-            `\`${prefix}setupcasino\` | \`${prefix}addmoney\` | \`${prefix}givetirages\``
+            `\`${prefix}sanction\` | \`${prefix}sanctionsuser\` | \`${prefix}setupcasino\``,
+            `\`${prefix}removemoney\` | \`${prefix}addmoney\` | \`${prefix}givetirages\``
         ];
 
         const embed = createEmbed(
