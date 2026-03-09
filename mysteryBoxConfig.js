@@ -67,21 +67,21 @@ const MYSTERY_BOX_ITEMS = [
   },
   {
     id: 'mb_coins_50k',
-    name: '150 000 SCoins',
+    name: '1 500 000 SCoins',
     rarity: 'LEGENDAIRE',
     probability: 0.005,    // 0.5%
     type: 'coins',
-    value: 150000,
-    description: 'Un trésor de **150 000 SCoins** déposé directement dans ton coffre !',
+    value: 1500000,
+    description: 'Un trésor de **1 500 000 SCoins** déposé directement dans ton coffre !',
   },
   {
     id: 'mb_coins_25k',
-    name: '85 000 SCoins',
+    name: '800 000 SCoins',
     rarity: 'LEGENDAIRE',
     probability: 0.01,     // 1%
     type: 'coins',
-    value: 85000,
-    description: '**85 000 SCoins** ! Le jackpot est pour toi.',
+    value: 800000,
+    description: '**800 000 SCoins** ! Le jackpot est pour toi.',
   },
   {
     id: 'mb_tirages_15',
@@ -98,21 +98,21 @@ const MYSTERY_BOX_ITEMS = [
   // ──────────────────────────────
   {
     id: 'mb_coins_10k',
-    name: '50 000 SCoins',
+    name: '300 000 SCoins',
     rarity: 'EPIQUE',
     probability: 0.03,     // 3%
     type: 'coins',
-    value: 50000,
-    description: '**50 000 SCoins** ! Une belle somme pour alimenter tes paris.',
+    value: 300000,
+    description: '**300 000 SCoins** ! Une belle somme pour alimenter tes paris.',
   },
   {
     id: 'mb_coins_7k',
-    name: '35 000 SCoins',
+    name: '200 000 SCoins',
     rarity: 'EPIQUE',
     probability: 0.04,     // 4%
     type: 'coins',
-    value: 35000,
-    description: '**35 000 SCoins** ajoutés à ton solde.',
+    value: 200000,
+    description: '**200 000 SCoins** ajoutés à ton solde.',
   },
   {
     id: 'mb_tirages_10',
@@ -129,21 +129,21 @@ const MYSTERY_BOX_ITEMS = [
   // ──────────────────────────────
   {
     id: 'mb_coins_5k',
-    name: '20 000 SCoins',
+    name: '150 000 SCoins',
     rarity: 'RARE',
     probability: 0.08,     // 8%
     type: 'coins',
-    value: 20000,
-    description: '**20 000 SCoins** ! Pas mal du tout.',
+    value: 150000,
+    description: '**150 000 SCoins** ! Pas mal du tout.',
   },
   {
     id: 'mb_coins_3k',
-    name: '10 000 SCoins',
+    name: '100 000 SCoins',
     rarity: 'RARE',
     probability: 0.10,     // 10%
     type: 'coins',
-    value: 10000,
-    description: '**10 000 SCoins** de plus dans ta poche.',
+    value: 100000,
+    description: '**100 000 SCoins** de plus dans ta poche.',
   },
   {
     id: 'mb_tirages_5',
@@ -160,21 +160,21 @@ const MYSTERY_BOX_ITEMS = [
   // ──────────────────────────────
   {
     id: 'mb_coins_1k',
-    name: '5 000 SCoins',
+    name: '50 000 SCoins',
     rarity: 'COMMUN',
     probability: 0.15,     // 15%
     type: 'coins',
-    value: 5000,
-    description: '**5 000 SCoins**. C\'est toujours ça de pris !',
+    value: 50000,
+    description: '**50 000 SCoins**. C\'est toujours ça de pris !',
   },
   {
     id: 'mb_coins_500',
-    name: '2 500 SCoins',
+    name: '25 000 SCoins',
     rarity: 'COMMUN',
     probability: 0.20,     // 20%
     type: 'coins',
-    value: 2500,
-    description: '**2 500 SCoins** trouvés au fond de la boîte.',
+    value: 25000,
+    description: '**25 000 SCoins** trouvés au fond de la boîte.',
   },
   {
     id: 'mb_tirages_2',
