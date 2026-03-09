@@ -185,14 +185,14 @@ module.exports = {
             activeGames.delete(message.author.id);
 
             // === ANTI-TRICHE : recalcul au timestamp exact du clic ===
-            // On ne se fie PAS à la dernière valeur affichée dans l'embed.
-            // Le multiplicateur est recalculé au moment précis de l'interaction.
-            const cashoutMultiplier = getMultiplierAtTime(Date.now());
+            const exactNow = Date.now();
+            const rawMult = getMultiplierAtTime(exactNow);
 
             // Sécurité : ne jamais dépasser le crashPoint
-            const safeMultInt = BigInt(Math.floor(safeMult * 100));
+            const finalMult = Math.min(rawMult, crashPoint);
+            const multInt = BigInt(Math.floor(finalMult * 100));
 
-            const total = (bet * safeMultInt) / 100n;
+            const total = (bet * multInt) / 100n;
             const profit = total - bet;
             let finalGain = profit;
 
@@ -202,7 +202,7 @@ module.exports = {
             const { applyPrestigeBonus } = require('../prestigeConfig');
             finalGain = applyPrestigeBonus(finalGain, parseInt(user.prestige || 0));
 
-            const finalMultiplier = safeMult.toFixed(2);
+            const finalMultiplier = finalMult.toFixed(2);
 
             // Crédit atomique : mise + gain (éventuellement doublé)
             await db.updateBalance(message.author.id, bet + finalGain, 'Crash: Cashout');
@@ -215,11 +215,11 @@ module.exports = {
 
             // Announce big wins
             const { announceBigWin } = require('../utils');
-            await announceBigWin(message.client, message.author, 'Crash', bet, finalGain, `**Multiplicateur:** x${safeMult.toFixed(2)}`);
+            await announceBigWin(message.client, message.author, 'Crash', bet, finalGain, `**Multiplicateur:** x${finalMult.toFixed(2)}`);
 
             // --- Achievements Engine ---
             const newBal = await db.getUser(message.author.id).then(u => BigInt(u.balance));
-            const chance = 1.0 / safeMult;
+            const chance = 1.0 / finalMult;
             await achievementsHelper.triggerEvent(message.client, db, message.author.id, 'RISK', {
                 bet: bet,
                 outcome: 'win',
