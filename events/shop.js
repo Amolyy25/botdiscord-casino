@@ -177,7 +177,12 @@ function buildCategoryItemsEmbed(categoryId) {
     let displayPrice = item.price;
     const isImmunity = IMMUNITY_ROLE_IDS.includes(item.roleId);
     
+    return {
+      label: item.label,
+      value: item.id,
       description: `${displayPrice} SCoins${isImmunity ? ' (min)' : ''}${item.duration ? ` ・ ${formatDuration(item.duration)}` : ""}`,
+      emoji: item.emoji,
+    };
   });
 
   const itemSelect = new ActionRowBuilder().addComponents(
@@ -187,7 +192,6 @@ function buildCategoryItemsEmbed(categoryId) {
       .addOptions(itemOptions),
   );
 
-  return { embed, components: [itemSelect] };
   return { embed, components: [itemSelect] };
 }
 
