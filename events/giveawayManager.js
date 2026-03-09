@@ -12,7 +12,7 @@ const {
 // ═══════════════════════════════════════════════
 
 const PRIZE_LABELS = {
-  COINS: 'Coins',
+  COINS: 'SCoins',
   TIRAGES: 'Tirages',
   ROLE: 'Rôle Permanent',
   TEMP_ROLE: 'Rôle Temporaire',
@@ -57,7 +57,7 @@ function prizeDescription(giveaway) {
   const type = giveaway.prize_type;
   const value = giveaway.prize_value;
   switch (type) {
-    case 'COINS': return `**${BigInt(value).toLocaleString('fr-FR')}** coins`;
+    case 'COINS': return `**${BigInt(value).toLocaleString('fr-FR')}** SCoins`;
     case 'TIRAGES': return `**${value}** tirage(s)`;
     case 'ROLE': return `Rôle <@&${value}>`;
     case 'TEMP_ROLE': {
@@ -578,7 +578,7 @@ async function distributeMysteryReward(item, userId, guild, boxId) {
   switch (item.type) {
     case 'coins': {
       const newBal = await _db.updateBalance(userId, BigInt(item.value), `Mystery Box: ${item.name}`);
-      return `+${item.value} coins (nouveau solde: ${newBal})`;
+      return `+${item.value} SCoins (nouveau solde: ${newBal})`;
     }
     case 'tirages': {
       const total = await _db.updateTirages(userId, item.value);
@@ -634,7 +634,7 @@ async function distributeReward(giveaway, winnerId, guild) {
   switch (type) {
     case 'COINS': {
       const newBal = await _db.updateBalance(winnerId, BigInt(value), 'Giveaway: Gain');
-      return `+${value} coins (nouveau solde: ${newBal})`;
+      return `+${value} SCoins (nouveau solde: ${newBal})`;
     }
 
     case 'TIRAGES': {
@@ -795,7 +795,7 @@ const slashCommand = new SlashCommandBuilder()
           .setDescription('Type de récompense')
           .setRequired(true)
           .addChoices(
-        { name: '🪙 Coins', value: 'COINS' },
+        { name: '🪙 SCoins', value: 'COINS' },
         { name: '🎫 Tirages', value: 'TIRAGES' },
         { name: '🎭 Rôle Permanent', value: 'ROLE' },
         { name: '⏳ Rôle Temporaire', value: 'TEMP_ROLE' },
@@ -816,14 +816,14 @@ const slashCommand = new SlashCommandBuilder()
           .setMaxValue(20))
       .addStringOption(opt =>
         opt.setName('value')
-          .setDescription('Montant (Coins/Tirages), ID du rôle, ou ignorer pour MYSTERY_BOX')
+          .setDescription('Montant (SCoins/Tirages), ID du rôle, ou ignorer pour MYSTERY_BOX')
           .setRequired(false))
       .addStringOption(opt =>
         opt.setName('mb_type')
           .setDescription('Pour MYSTERY_BOX : Type de la récompense garantie')
           .setRequired(false)
           .addChoices(
-            { name: '🪙 Coins', value: 'COINS' },
+            { name: '🪙 SCoins', value: 'COINS' },
             { name: '🎫 Tirages', value: 'TIRAGES' },
             { name: '🎭 Rôle Permanent', value: 'ROLE' },
             { name: '⏳ Rôle Temporaire', value: 'TEMP_ROLE' },
@@ -834,7 +834,7 @@ const slashCommand = new SlashCommandBuilder()
           .setRequired(false))
       .addStringOption(opt =>
         opt.setName('mb_label')
-          .setDescription('Pour MYSTERY_BOX : Label affiché (ex: 5000 coins). Optionnel.')
+          .setDescription('Pour MYSTERY_BOX : Label affiché (ex: 5000 SCoins). Optionnel.')
           .setRequired(false))
       .addStringOption(opt =>
         opt.setName('role_duration')
@@ -1355,7 +1355,7 @@ module.exports = {
 
       // Générer un label par défaut si vide
       if (!mbLabel) {
-        if (mbType === 'COINS') mbLabel = `${mbValue} coins`;
+        if (mbType === 'COINS') mbLabel = `${mbValue} SCoins`;
         else if (mbType === 'TIRAGES') mbLabel = `${mbValue} tirages`;
         else if (mbType === 'ROLE' || mbType === 'TEMP_ROLE') {
           const role = interaction.guild.roles.cache.get(mbValue);
@@ -1491,7 +1491,7 @@ module.exports = {
         switch (gw.prize_type) {
           case 'COINS':
             await db.updateBalance(winnerId, BigInt(gw.prize_value), 'Giveaway: Gain');
-            results.push(`<@${winnerId}>: +${gw.prize_value} coins`);
+            results.push(`<@${winnerId}>: +${gw.prize_value} SCoins`);
             break;
           case 'TIRAGES':
             await db.updateTirages(winnerId, parseInt(gw.prize_value));

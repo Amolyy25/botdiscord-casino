@@ -4,7 +4,7 @@ const achievementsHelper = require('../helpers/achievementsHelper');
 
 module.exports = {
   name: "tirage",
-  description: "Effectue un tirage pour obtenir un rôle de couleur ou des coins",
+  description: "Effectue un tirage pour obtenir un rôle de couleur ou des SCoins",
   async execute(message, args, db) {
     const user = await db.getUser(message.author.id);
     let count = 1;
@@ -79,7 +79,7 @@ module.exports = {
             
             if (winsChannel && wonReward.probability < 0.06) {
                 const winEmbed = createEmbed(
-                    `${rarityEmoji} TIRAGE : COINS GAGNÉS !`,
+                    `${rarityEmoji} TIRAGE : SCOINS GAGNÉS !`,
                     `**${message.author.username}** a gagné **${formatCoins(amount)}** dans un tirage !\n\n` +
                     `**Rareté:** ${rarityText}\n` +
                     `**Probabilité:** ${probability}%`,
@@ -171,7 +171,7 @@ module.exports = {
     const items = [];
 
     if (summary.coins > 0n) {
-        items.push(`🪙 **Coins :** +${formatCoins(summary.coins)}`);
+        items.push(`🪙 **SCoins :** +${formatCoins(summary.coins)}`);
     }
     if (summary.extraTirages > 0) {
         items.push(`🎫 **Tirages bonus :** +${summary.extraTirages}`);

@@ -41,7 +41,7 @@ module.exports = {
         const missingSoutien = !member.roles.cache.has(BOOSTER_ROLE_ID);
 
         if (reward === 0n) {
-            description = `Vous n'avez pas les rôles requis pour cette commande.\n\n**Rôles éligibles :**\n• Soutien : +500 coins\n• Booster : +1000 coins`;
+            description = `Vous n'avez pas les rôles requis pour cette commande.\n\n**Rôles éligibles :**\n• Soutien : +500 SCoins\n• Booster : +1000 SCoins`;
             if (missingSoutien) {
                 description += `\n\n👉 Obtenez le rôle **Soutien** dans le salon <#1469072587287036059> !`;
             }
@@ -58,7 +58,7 @@ module.exports = {
                       `Revenez dans 24h !`;
 
         if (missingSoutien) {
-            description += `\n\n💡 **Astuce :** Obtenez le rôle **Soutien** dans <#1469072587287036059> pour gagner +500 coins supplémentaires !`;
+            description += `\n\n💡 **Astuce :** Obtenez le rôle **Soutien** dans <#1469072587287036059> pour gagner +500 SCoins supplémentaires !`;
         }
 
         const embed = createEmbed(

@@ -97,12 +97,12 @@ module.exports = {
 
             const embed = createEmbed('🃏 Blackjack', description, color);
             
-            let footerText = `Mise: ${bet.toLocaleString('fr-FR')} coins`;
+            let footerText = `Mise: ${bet.toLocaleString('fr-FR')} SCoins`;
             if (status.includes('Gagné') && gain > 0n) {
                 const eventIndicator = gloryStatus.active ? ' (x2) ⚡️' : '';
                 footerText += ` | Profit: +${formatCoins(gain)}${eventIndicator}`;
             } else if (status.includes('Perdu')) {
-                footerText += ` | Perte: -${bet.toLocaleString('fr-FR')} coins`;
+                footerText += ` | Perte: -${bet.toLocaleString('fr-FR')} SCoins`;
             }
             
             embed.setFooter({ text: footerText });

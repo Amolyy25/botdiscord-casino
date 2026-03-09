@@ -29,10 +29,10 @@ module.exports = {
             }
 
             // Transfer reward to winner (Coins were already deducted from author, so we just add to winner)
-            // Wait, where did the coins go? "Le bot prélève le montant".
-            // Since there is no central bank account mentioned, I assume the coins just "vanished" and now we mint them for the winner?
+            // Wait, where did the SCoins go? "Le bot prélève le montant".
+            // Since there is no central bank account mentioned, I assume the SCoins just "vanished" and now we mint them for the winner?
             // OR I should have transferred them to a "bot account"?
-            // The prompt says "Transfère les coins au gagnant en DB".
+            // The prompt says "Transfère les SCoins au gagnant en DB".
             // Since I deducted them from author, simple "updateBalance(winner, +reward)" effectively transfers them (system held them).
             
             await db.updateBalance(winnerId, bounty.reward);

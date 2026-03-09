@@ -100,9 +100,9 @@ module.exports = {
         );
         
         if (win) {
-            embed.setFooter({ text: `Mise: ${bet.toLocaleString('fr-FR')} coins | Profit: +${formatCoins(gain)}` });
+            embed.setFooter({ text: `Mise: ${bet.toLocaleString('fr-FR')} SCoins | Profit: +${formatCoins(gain)}` });
         } else {
-            embed.setFooter({ text: `Mise: ${bet.toLocaleString('fr-FR')} coins` });
+            embed.setFooter({ text: `Mise: ${bet.toLocaleString('fr-FR')} SCoins` });
         }
 
         message.reply({ embeds: [embed] });

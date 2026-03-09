@@ -174,7 +174,7 @@ function buildEmbed(state, status = 'playing') {
 
     const embed = createEmbed('Towers -- La Tour', desc, color);
     
-    let footerText = `Mise: ${state.bet.toLocaleString('fr-FR')} coins`;
+    let footerText = `Mise: ${state.bet.toLocaleString('fr-FR')} SCoins`;
     if (status !== 'lost' && status !== 'timeout' && status !== 'playing') {
         // En cas de cashout ou completion
         const cashMult = MULTIPLIERS[completedFloors.length - 1];

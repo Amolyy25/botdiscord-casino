@@ -124,7 +124,7 @@ function buildMainShopEmbed() {
     .setTitle("BOUTIQUE")
     .setDescription(
       `Bienvenue dans la boutique du casino.\n` +
-        `Depensez vos coins pour obtenir des pouvoirs, boosts et objets exclusifs.\n\n` +
+        `Depensez vos SCoins pour obtenir des pouvoirs, boosts et objets exclusifs.\n\n` +
         categoriesDescription +
         `Selectionnez une categorie ci-dessous.`,
     )
@@ -177,12 +177,7 @@ function buildCategoryItemsEmbed(categoryId) {
     let displayPrice = item.price;
     const isImmunity = IMMUNITY_ROLE_IDS.includes(item.roleId);
     
-    return {
-      label: item.label,
-      value: item.id,
-      description: `${displayPrice} coins${isImmunity ? ' (min)' : ''}${item.duration ? ` ・ ${formatDuration(item.duration)}` : ""}`,
-      emoji: item.emoji,
-    };
+      description: `${displayPrice} SCoins${isImmunity ? ' (min)' : ''}${item.duration ? ` ・ ${formatDuration(item.duration)}` : ""}`,
   });
 
   const itemSelect = new ActionRowBuilder().addComponents(
@@ -252,7 +247,7 @@ async function buildReventeItemsEmbed(interaction) {
     return {
       label: item.label,
       value: `sell_${item.id}`, // Special ID prefix for selling
-      description: `Revente : ${refundPrice.toString()} coins`,
+      description: `Revente : ${refundPrice.toString()} SCoins`,
       emoji: item.emoji,
     };
   });
@@ -384,7 +379,7 @@ async function processPurchase(interaction, item, db, targetId = null, extraData
        return sendError(interaction, `Vous avez besoin de ${formatCoins(finalPrice)} mais vous n'avez que ${formatCoins(userData.balance)}.`);
     }
 
-    // Déduire les coins
+    // Déduire les SCoins
     newBalance = await db.updateBalance(userId, -finalPrice, 'Shop: Achat');
 
     // Enregistrer l'achat (on log le prix réel payé)
@@ -1232,7 +1227,7 @@ module.exports = {
           const buttons = new ActionRowBuilder().addComponents(
              new ButtonBuilder()
                .setCustomId(`shop_confirm_buy_dynamic.${itemId}.${selectedRoleId}.${buyPrice}`)
-               .setLabel(`Acheter pour ${buyPrice} coins`)
+               .setLabel(`Acheter pour ${buyPrice} SCoins`)
                .setStyle(ButtonStyle.Success),
              new ButtonBuilder()
                .setCustomId(`shop_back.${item.category}`) // Retour categorie
@@ -1332,7 +1327,7 @@ module.exports = {
               `Selectionnez le role couleur que vous souhaitez.\n\n` +
                 `Prix : ${formatCoins(finalPrice)}\n` +
                 `Duree : ${formatDuration(item.duration)}\n\n` +
-                `Les coins seront deduits apres votre choix.`,
+                `Les SCoins seront deduits apres votre choix.`,
             )
             .setColor(COLORS.GOLD)
             .setTimestamp();
@@ -1614,7 +1609,7 @@ module.exports = {
            const options = ownedItems.map(item => ({
                label: item.label,
                value: `sell_${item.id}`,
-               description: `Prix d'achat: ${item.price} coins`,
+               description: `Prix d'achat: ${item.price} SCoins`,
                emoji: item.emoji
            })).slice(0, 25); 
 

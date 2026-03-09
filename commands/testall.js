@@ -53,7 +53,7 @@ module.exports = {
 
             // --- TEST 4: Latence Base de Données (Écriture) ---
             const startDbWrite = Date.now();
-            // Opération neutre : ajouter 0 coins
+            // Opération neutre : ajouter 0 SCoins
             await db.updateBalance(message.author.id, 0);
             const endDbWrite = Date.now();
             const dbWriteLatency = endDbWrite - startDbWrite;

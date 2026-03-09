@@ -141,7 +141,7 @@ async function startQuiz(client, db) {
 
         const embed = createEmbed(
             '🧠 Événement Calcul Mental !',
-            `Le premier à donner la bonne réponse gagne **500 coins** !\n` +
+            `Le premier à donner la bonne réponse gagne **500 SCoins** !\n` +
             `⏳ Vous avez **2 minutes** pour répondre.\n\n` +
             `# ${expression} = ?`,
             COLORS.GOLD

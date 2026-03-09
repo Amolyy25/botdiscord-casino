@@ -424,7 +424,7 @@ module.exports = {
     if (channel) {
       const embed = createEmbed(
         "BLACKOUT",
-        `\`\`\`\n[SYSTEM ALERTE]\nSurchauffe des terminaux textuels.\nLe Secteur bascule en mode Vocal uniquement.\nAnalyse réseau vocal : mise de base à 100 coins/sec.\nMultiplicateur évolutif = nombre de membres en vocal !\n\`\`\``,
+        `\`\`\`\n[SYSTEM ALERTE]\nSurchauffe des terminaux textuels.\nLe Secteur bascule en mode Vocal uniquement.\nAnalyse réseau vocal : mise de base à 100 SCoins/sec.\nMultiplicateur évolutif = nombre de membres en vocal !\n\`\`\``,
         "#000000"
       );
       blackoutMsg = await channel.send({ embeds: [embed] }).catch(()=>null);
@@ -464,7 +464,7 @@ module.exports = {
           if (ticks % 10 === 0 && blackoutMsg) {
              const embedSync = createEmbed(
               "BLACKOUT",
-              `\`\`\`\n[SYSTEM ALERTE]\nSurchauffe des terminaux textuels.\nLe Secteur bascule en mode Vocal uniquement.\n\n[STATUS EN DIRECT]\nUtilisateurs en vocal : ${currentVoiceUsers.length}\nMultiplicateur : x${multiplier}\nGains générés : +${coinsSec} coins/sec par membre\nTemps restant : ${60 - ticks}s\n\`\`\``,
+              `\`\`\`\n[SYSTEM ALERTE]\nSurchauffe des terminaux textuels.\nLe Secteur bascule en mode Vocal uniquement.\n\n[STATUS EN DIRECT]\nUtilisateurs en vocal : ${currentVoiceUsers.length}\nMultiplicateur : x${multiplier}\nGains générés : +${coinsSec} SCoins/sec par membre\nTemps restant : ${60 - ticks}s\n\`\`\``,
               "#000000"
             );
             blackoutMsg.edit({ embeds: [embedSync] }).catch(()=>null);
@@ -483,7 +483,7 @@ module.exports = {
             if (channel) {
               const embedEnd = createEmbed(
                 "RESTAURATION",
-                `\`\`\`\n[SYSTEM] Refroidissement terminé.\nTerminaux textuels de nouveau opérationnels.\n\n[RÉCOMPENSES VOCALES]\nFinancement maximum atteint : x${maxMultiplier}\nTotal distribué : ${totalCoinsGained} coins aux participants vocaux.\n\`\`\``,
+                `\`\`\`\n[SYSTEM] Refroidissement terminé.\nTerminaux textuels de nouveau opérationnels.\n\n[RÉCOMPENSES VOCALES]\nFinancement maximum atteint : x${maxMultiplier}\nTotal distribué : ${totalCoinsGained} SCoins aux participants vocaux.\n\`\`\``,
                 "#FFFFFF"
               );
               channel.send({ embeds: [embedEnd] }).catch(()=>null);
@@ -529,7 +529,7 @@ module.exports = {
       
       const successEmbed = createEmbed(
         "SUCCÈS",
-        `\`\`\`\n[SYSTEM] Code accepté.\nAuthentification confirmée par l'utilisateur ${winner.author.username}.\nMaintenance du secteur : OK.\n(+500 coins pour la réactivité)\n\`\`\``,
+        `\`\`\`\n[SYSTEM] Code accepté.\nAuthentification confirmée par l'utilisateur ${winner.author.username}.\nMaintenance du secteur : OK.\n(+500 SCoins pour la réactivité)\n\`\`\``,
         "#FFFFFF" 
       );
       await authMsg.edit({ embeds: [successEmbed] }).catch(()=>null);

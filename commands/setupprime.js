@@ -81,7 +81,7 @@ module.exports = {
             const embed = createEmbed(
                 '💵 Tableau de Bord des Primes',
                 'Bienvenue dans l\'espace des primes !\n\n' +
-                'Ici, vous pouvez proposer des défis ou des tâches rémunérées en coins.\n' +
+                'Ici, vous pouvez proposer des défis ou des tâches rémunérées en SCoins.\n' +
                 'Cliquez sur le bouton ci-dessous pour ouvrir un dossier de proposition.\n\n' +
                 '**Une fois validée, votre prime apparaîtra dans le salon** ' + `<#${boardChannel.id}>` + '.',
                 COLORS.GOLD

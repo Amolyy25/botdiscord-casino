@@ -37,7 +37,7 @@ module.exports = {
         .setTitle("BOUTIQUE")
         .setDescription(
           `Bienvenue dans la boutique du casino.\n` +
-            `Depensez vos coins pour obtenir des pouvoirs, boosts et objets exclusifs.\n\n` +
+            `Depensez vos SCoins pour obtenir des pouvoirs, boosts et objets exclusifs.\n\n` +
             categoriesDescription +
             `Selectionnez une categorie ci-dessous.`,
         )

@@ -8,7 +8,7 @@ const COLORS = {
     VIOLET: '#9b59b6'
 };
 
-const CURRENCY = 'Coins';
+const CURRENCY = 'SCoins';
 
 function createEmbed(title, description, color = COLORS.PRIMARY) {
     return new EmbedBuilder()

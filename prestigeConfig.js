@@ -13,7 +13,7 @@ const PRESTIGE_LEVELS = [
         tirageReward: 5,
         roleId: "1474327592709656709",
         rewards: [
-            "Commande ;collect passe à 300 coins",
+            "Commande ;collect passe à 300 SCoins",
             "+1% de gains au casino",
             "+5 Tirages (Ticket)",
             "Rôle exclusif PRESTIGE I"
@@ -28,7 +28,7 @@ const PRESTIGE_LEVELS = [
         tirageReward: 8,
         roleId: "1474327677929259058",
         rewards: [
-            "Commande ;collect passe à 1 000 coins",
+            "Commande ;collect passe à 1 000 SCoins",
             "+3% de gains au casino",
             "+8 Tirages (Ticket)",
             "Rôle exclusif PRESTIGE II"
@@ -43,7 +43,7 @@ const PRESTIGE_LEVELS = [
         tirageReward: 15,
         roleId: "1474327696493252689",
         rewards: [
-            "Commande ;collect passe à 5 000 coins",
+            "Commande ;collect passe à 5 000 SCoins",
             "+6% de gains au casino",
             "+15 Tirages (Ticket)",
             "Rôle exclusif PRESTIGE III"
@@ -58,7 +58,7 @@ const PRESTIGE_LEVELS = [
         tirageReward: 25,
         roleId: "1474327719251542077",
         rewards: [
-            "Commande ;collect passe à 15 000 coins",
+            "Commande ;collect passe à 15 000 SCoins",
             "+9% de gains au casino",
             "+25 Tirages (Ticket)",
             "Rôle exclusif PRESTIGE IV"
@@ -73,7 +73,7 @@ const PRESTIGE_LEVELS = [
         tirageReward: 40,
         roleId: "1474327739816345651",
         rewards: [
-            "Commande ;collect passe à 50 000 coins",
+            "Commande ;collect passe à 50 000 SCoins",
             "+12% de gains au casino",
             "+40 Tirages (Ticket)",
             "Rôle exclusif PRESTIGE V"
@@ -102,7 +102,7 @@ const PRESTIGE_LEVELS = [
         tirageReward: 30,
         roleId: "1479485042290851972",
         rewards: [
-            "Commande ;collect passe à 100 000 coins",
+            "Commande ;collect passe à 100 000 SCoins",
             "Débloque la commande ;taxe (3% de la cible)",
             "+30 Tirages (Ticket)",
             "Rôle exclusif PRESTIGE VII"
@@ -117,7 +117,7 @@ const PRESTIGE_LEVELS = [
         tirageReward: 30,
         roleId: "1479485055175757987",
         rewards: [
-            "Commande ;collect passe à 500 000 coins",
+            "Commande ;collect passe à 500 000 SCoins",
             "+21% de gains au casino",
             "Amélioration de ;taxe (4% de la cible)",
             "+30 Tirages (Ticket)",

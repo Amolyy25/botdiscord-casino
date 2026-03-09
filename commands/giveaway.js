@@ -2,7 +2,7 @@ const { PermissionFlagsBits } = require('discord.js');
 const { createEmbed, COLORS, formatCoins, logError } = require('../utils');
 const giveawayManager = require('../events/giveawayManager');
 
-const VALID_TYPES = ['COINS', 'TIRAGES', 'ROLE', 'TEMP_ROLE', 'MYSTERY_BOX', 'NITRO', 'VOLE_DE_GENIE', 'DECO'];
+const VALID_TYPES = ['COINS', 'SCOINS', 'TIRAGES', 'ROLE', 'TEMP_ROLE', 'MYSTERY_BOX', 'NITRO', 'VOLE_DE_GENIE', 'DECO'];
 
 module.exports = {
   name: 'giveaway',
@@ -50,7 +50,7 @@ async function showHelp(message) {
     `**Types :** \`COINS\`, \`TIRAGES\`, \`ROLE\`, \`TEMP_ROLE\`, \`MYSTERY_BOX\`, \`NITRO\`, \`VOLE_DE_GENIE\`, \`DECO\`\n` +
     `**Durées :** \`10m\`, \`1h\`, \`2d\`, \`30s\`\n\n` +
     `**Exemples :**\n` +
-    `→ \`;gw create COINS 1000 1h 2\`\n` +
+    `→ \`;gw create SCoins 1000 1h 2\`\n` +
     `→ \`;gw create NITRO 1d 1\`\n` +
     `→ \`;gw create DECO 1d 1\`\n` +
     `→ \`;gw create VOLE_DE_GENIE 2h 1\`\n` +
@@ -93,13 +93,13 @@ async function handleCreate(message, args, db) {
   // Validate value
   if (!value && type !== 'NITRO' && type !== 'VOLE_DE_GENIE' && type !== 'DECO') {
     return message.reply({
-      embeds: [createEmbed('Erreur', 'Valeur manquante.\n- COINS/TIRAGES : montant\n- ROLE/TEMP_ROLE : ID du rôle\n- MYSTERY_BOX : `TYPE:VALEUR:LABEL` (ex: `COINS:5000:5000 coins`)', COLORS.ERROR)],
+      embeds: [createEmbed('Erreur', 'Valeur manquante.\n- SCoins/TIRAGES : montant\n- ROLE/TEMP_ROLE : ID du rôle\n- MYSTERY_BOX : `TYPE:VALEUR:LABEL` (ex: `SCoins:5000:5000 SCoins`)', COLORS.ERROR)],
       failIfNotExists: false
     });
   }
 
-  // Validate numeric value for COINS/TIRAGES
-  if (type === 'COINS' || type === 'TIRAGES') {
+  // Validate numeric value for SCoins/TIRAGES
+  if (type === 'COINS' || type === 'SCOINS' || type === 'TIRAGES') {
     const { parseAmount } = require('../utils');
     const parsedValue = parseAmount(value);
     if (parsedValue === null) {
@@ -119,15 +119,15 @@ async function handleCreate(message, args, db) {
         embeds: [createEmbed('Erreur',
           'Format invalide pour MYSTERY_BOX.\n' +
           'Utilise : `TYPE:VALEUR:LABEL`\n' +
-          'Ex : `COINS:5000:5000 coins` ou `TIRAGES:3:3 tirages`',
+          'Ex : `SCoins:5000:5000 SCoins` ou `TIRAGES:3:3 tirages`',
           COLORS.ERROR)],
         failIfNotExists: false
       });
     }
     const mbType = parts[0].toUpperCase();
-    if (!['COINS', 'TIRAGES', 'ROLE', 'TEMP_ROLE'].includes(mbType)) {
+    if (!['COINS', 'SCOINS', 'TIRAGES', 'ROLE', 'TEMP_ROLE'].includes(mbType)) {
       return message.reply({
-        embeds: [createEmbed('Erreur', `Type de récompense par défaut invalide : \`${mbType}\`. Choix : COINS, TIRAGES, ROLE, TEMP_ROLE`, COLORS.ERROR)],
+        embeds: [createEmbed('Erreur', `Type de récompense par défaut invalide : \`${mbType}\`. Choix : SCoins, TIRAGES, ROLE, TEMP_ROLE`, COLORS.ERROR)],
         failIfNotExists: false
       });
     }
@@ -184,9 +184,12 @@ async function handleCreate(message, args, db) {
   let finalValue = value;
   if (type === 'MYSTERY_BOX') {
     const parts = value.split(':');
+    if (parts[0].toUpperCase() === 'SCOINS') parts[0] = 'COINS';
     parts[0] = parts[0].toUpperCase();
     finalValue = parts.join(':');
   }
+
+  if (type === 'SCOINS') type = 'COINS';
 
   // Instead of creating immediately, start the setup process
   await giveawayManager.startSetupProcess(message, {
@@ -330,7 +333,7 @@ async function handleReroll(message, args, db) {
       switch (gw.prize_type) {
         case 'COINS':
           await db.updateBalance(winnerId, BigInt(gw.prize_value), 'Giveaway: Reroll');
-          results.push(`<@${winnerId}>: +${gw.prize_value} coins`);
+          results.push(`<@${winnerId}>: +${gw.prize_value} SCoins`);
           break;
         case 'TIRAGES':
           await db.updateTirages(winnerId, parseInt(gw.prize_value));

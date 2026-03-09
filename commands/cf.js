@@ -83,9 +83,9 @@ module.exports = {
         );
         
         if (win) {
-            embed.setFooter({ text: `Mise: ${bet.toLocaleString('fr-FR')} coins | Profit: +${formatCoins(profit)}` });
+            embed.setFooter({ text: `Mise: ${bet.toLocaleString('fr-FR')} SCoins | Profit: +${formatCoins(profit)}` });
         } else {
-            embed.setFooter({ text: `Mise: ${bet.toLocaleString('fr-FR')} coins` });
+            embed.setFooter({ text: `Mise: ${bet.toLocaleString('fr-FR')} SCoins` });
         }
 
         message.reply({ embeds: [embed] });

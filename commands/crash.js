@@ -85,7 +85,7 @@ module.exports = {
                 color
             );
 
-            let footerText = `Mise: ${bet.toLocaleString('fr-FR')} coins`;
+            let footerText = `Mise: ${bet.toLocaleString('fr-FR')} SCoins`;
             if (status === 'cashed') {
                 footerText += ` | Profit: +${formatCoins(profit)}`;
             }

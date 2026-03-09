@@ -64,7 +64,7 @@ module.exports = {
                 `**Coût du palier :** ${formatCoins(price, false)}\n\n` +
                 `**Récompenses débloquées :**\n` +
                 nextPrestigeConfig.rewards.map(r => `• ${r}`).join('\n') + `\n\n` +
-                `**Attention :** Votre solde de coins sera remis à **0** après cette opération.`,
+                `**Attention :** Votre solde de SCoins sera remis à **0** après cette opération.`,
                 COLORS.PRIMARY
             );
 
@@ -103,7 +103,7 @@ module.exports = {
                         return confirmation.update({
                             embeds: [createEmbed(
                                 'Erreur',
-                                'Votre solde a changé et vous n\'avez plus assez de coins.',
+                                'Votre solde a changé et vous n\'avez plus assez de SCoins.',
                                 COLORS.ERROR
                             )],
                             components: []

@@ -6,7 +6,7 @@ const recipientCooldowns = new Map();
 
 module.exports = {
     name: 'gift',
-    description: 'Donne des coins à un autre utilisateur',
+    description: 'Donne des SCoins à un autre utilisateur',
     async execute(message, args, db) {
         let target = message.mentions.users.first();
         const rawId = args[0] ? args[0].replace(/[<@!>]/g, '') : null;
@@ -67,7 +67,7 @@ module.exports = {
             
             if (isNew && amount > 30000n) {
                 return message.reply({ 
-                    embeds: [createEmbed('Protection Anti-Abus 🛡️', `Cet utilisateur est trop nouveau pour recevoir plus de 30 000 coins (limite de 72h).`, COLORS.ERROR)]
+                    embeds: [createEmbed('Protection Anti-Abus 🛡️', `Cet utilisateur est trop nouveau pour recevoir plus de 30 000 SCoins (limite de 72h).`, COLORS.ERROR)]
                 });
             }
         }

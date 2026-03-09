@@ -115,7 +115,7 @@ module.exports = {
         else if (reward.probability < 0.15) rarityEmoji = "🔹";
 
         if (reward.type === "coins") {
-          rolesDisplay += `**${reward.amount} Coins** - ${percentage}%\n`;
+          rolesDisplay += `**${reward.amount} SCoins** - ${percentage}%\n`;
         } else {
           const mention = reward.isBadge ? reward.emoji : (reward.emoji ? `${reward.emoji} **${reward.name}**` : `<@&${reward.id}>`);
           rolesDisplay += `${mention} - ${percentage}%\n`;
@@ -136,11 +136,11 @@ module.exports = {
           `• **MINES** : Une grille, des diamands et des mines\n` +
           `• **TOWER** : Trouvez la bonne porte parmi les trois\n` +
           `** TIRAGES DE RÔLES**\n` +
-          `Tentez de gagner des rôles de couleur exclusifs, des coins ou des tirages bonus ! Cliquez sur le bouton **TIRAGES** pour voir la liste complète des lots.\n\n` +
+          `Tentez de gagner des rôles de couleur exclusifs, des SCoins ou des tirages bonus ! Cliquez sur le bouton **TIRAGES** pour voir la liste complète des lots.\n\n` +
           `**ÉCONOMIE**\n` +
-          `• Gagnez des coins en jouant aux jeux.\n` +
-          `• Utilisez \`;daily\` chaque jour pour **500 coins**.\n` +
-          `• Utilisez \`;collect\` chaque 30M pour **150 coins**.\n` +
+          `• Gagnez des SCoins en jouant aux jeux.\n` +
+          `• Utilisez \`;daily\` chaque jour pour **500 SCoins**.\n` +
+          `• Utilisez \`;collect\` chaque 30M pour **150 SCoins**.\n` +
           `• Utilisez \`;profil\` pour voir votre solde et vos tirages.`,
         COLORS.GOLD,
       );

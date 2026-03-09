@@ -111,7 +111,7 @@ function buildEmbed(state, status = 'playing') {
 
     const embed = createEmbed('Mines -- Démineur', desc, color);
     
-    let footerText = `Mise: ${state.bet.toLocaleString('fr-FR')} coins`;
+    let footerText = `Mise: ${state.bet.toLocaleString('fr-FR')} SCoins`;
     if (status === 'cashout') {
         footerText += ` | Profit: +${formatCoins(currentProfit)}`;
     }

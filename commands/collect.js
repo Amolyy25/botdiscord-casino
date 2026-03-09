@@ -2,7 +2,7 @@ const { createEmbed, COLORS, formatCoins } = require('../utils');
 
 module.exports = {
     name: 'collect',
-    description: 'Récupère 150 coins toutes les 30 minutes',
+    description: 'Récupère 150 SCoins toutes les 30 minutes',
     async execute(message, args, db) {
         const user = await db.getUser(message.author.id);
         const now = Date.now();

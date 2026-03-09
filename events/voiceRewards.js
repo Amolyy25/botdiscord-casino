@@ -333,7 +333,7 @@ async function announceReward(client, userId, tierDef, coins, tirages) {
         desc = `<@${userId}> vient d'atteindre le statut **Active Speaker** (2 Heures) !\n\n`;
     }
 
-    desc += `**+ ${formatCoins(coins)} Coins**\n`;
+    desc += `**+ ${formatCoins(coins)} SCoins**\n`;
     if (tirages > 0) {
         desc += `**+ ${tirages} Tirage${tirages > 1 ? 's' : ''}**`;
     }

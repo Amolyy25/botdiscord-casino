@@ -53,7 +53,7 @@ async function buildLeaderboardEmbed(client, db, guildId) {
                 ? `◈ 01.`   // Baleine symbol for #1
                 : `${padRank(rank)}.`;
             const suffix = isWhale ? '  ◈ BALEINE' : '';
-            return `${prefix} ${displayName} — ${formatAmount(balance)} Coins${suffix}`;
+            return `${prefix} ${displayName} — ${formatAmount(balance)} SCoins${suffix}`;
         });
 
         description = '```\n' + lines.join('\n') + '\n```';

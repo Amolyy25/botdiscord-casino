@@ -3,7 +3,7 @@ const { createEmbed, COLORS, formatCoins, parseAmount } = require('../utils');
 
 module.exports = {
     name: 'addmoney',
-    description: 'Ajoute des coins à un utilisateur (Admin)',
+    description: 'Ajoute des SCoins à un utilisateur (Admin)',
     async execute(message, args, db) {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return message.reply({ 
@@ -32,7 +32,7 @@ module.exports = {
         await db.updateBalance(target.id, amount, 'Admin: Ajout');
 
         const embed = createEmbed(
-            'Admin: Ajout de coins',
+            'Admin: Ajout de SCoins',
             `${formatCoins(amount)} ont été ajoutés au compte de **${target.username || target.id}**.`,
             COLORS.SUCCESS
         );

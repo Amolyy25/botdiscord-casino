@@ -50,7 +50,7 @@ module.exports = {
         const authorUser = await db.getUser(authorId);
 
         if (BigInt(authorUser.balance) < BigInt(reward)) {
-             return message.reply(`❌ L'auteur (<@${authorId}>) n'a pas assez de coins (${formatCoins(authorUser.balance)}).`);
+             return message.reply(`❌ L'auteur (<@${authorId}>) n'a pas assez de SCoins (${formatCoins(authorUser.balance)}).`);
         }
 
         try {
