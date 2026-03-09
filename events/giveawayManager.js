@@ -181,13 +181,14 @@ function pickWinners(participants, count) {
 async function verifyParticipants(guild, giveaway, participantIds, strict = false) {
   if (!giveaway.required_roles && !giveaway.voice_required) return participantIds;
   const validIds = [];
+  const invalidIds = [];
   const required = giveaway.required_roles ? giveaway.required_roles.split(',') : [];
 
   for (const uid of participantIds) {
     try {
       const member = await guild.members.fetch(uid).catch(() => null);
       if (!member) {
-        await _db.removeGiveawayParticipant(giveaway.id, uid);
+        invalidIds.push(uid);
         continue;
       }
       
@@ -205,12 +206,19 @@ async function verifyParticipants(guild, giveaway, participantIds, strict = fals
         validIds.push(uid);
       } else {
         // Participant no longer meets requirements
-        await _db.removeGiveawayParticipant(giveaway.id, uid);
+        invalidIds.push(uid);
       }
     } catch (e) {
       console.error(`[Giveaway] Erreur vérification participant ${uid}:`, e.message);
     }
   }
+
+  if (invalidIds.length > 0) {
+    await _db.removeMultipleGiveawayParticipants(giveaway.id, invalidIds).catch(err => {
+      console.error(`[Giveaway] Erreur removal batch #${giveaway.id}:`, err.message);
+    });
+  }
+
   return validIds;
 }
 
@@ -922,14 +930,8 @@ module.exports = {
       // User left voice completely
       if (oldState.channelId && !newState.channelId) {
         try {
-          const activeGw = await _db.getActiveGiveaways();
-          const voiceGw = activeGw.filter(gw => gw.guild_id === guildId && gw.voice_required);
-          
-          const participatingIds = [];
-          for (const gw of voiceGw) {
-            const isParticipating = await _db.isGiveawayParticipant(gw.id, userId);
-            if (isParticipating) participatingIds.push(gw.id);
-          }
+          const voiceGw = await _db.getParticipatingVoiceGiveaways(userId, guildId);
+          const participatingIds = voiceGw.map(gw => gw.id);
 
           if (participatingIds.length > 0) {
             console.log(`[Giveaway] Participant ${userId} a quitté le vocal. Lancement du timer de 30s.`);

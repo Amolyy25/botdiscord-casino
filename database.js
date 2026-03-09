@@ -2,16 +2,16 @@ const { Pool } = require('pg');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  max: 20, // Increase pool size for concurrency
+  max: 50, // Increase pool size for concurrency
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 10000, // Wait up to 10s for a connection
 });
 
 const snipePool = process.env.DATABASE_SNIPE ? new Pool({
   connectionString: process.env.DATABASE_SNIPE,
   max: 10,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 10000,
 }) : null;
 
 const initDb = async () => {
@@ -707,6 +707,11 @@ module.exports = {
     await pool.query('DELETE FROM giveaway_participants WHERE giveaway_id = $1 AND user_id = $2', [giveawayId, userId]);
   },
 
+  removeMultipleGiveawayParticipants: async (giveawayId, userIds) => {
+    if (!userIds || userIds.length === 0) return;
+    await pool.query('DELETE FROM giveaway_participants WHERE giveaway_id = $1 AND user_id = ANY($2)', [giveawayId, userIds]);
+  },
+
   isGiveawayParticipant: async (giveawayId, userId) => {
     const res = await pool.query(
       'SELECT 1 FROM giveaway_participants WHERE giveaway_id = $1 AND user_id = $2',
@@ -729,6 +734,15 @@ module.exports = {
       [giveawayId]
     );
     return parseInt(res.rows[0].count);
+  },
+
+  getParticipatingVoiceGiveaways: async (userId, guildId) => {
+    const res = await pool.query(`
+      SELECT g.* FROM giveaways g
+      JOIN giveaway_participants gp ON g.id = gp.giveaway_id
+      WHERE gp.user_id = $1 AND g.guild_id = $2 AND g.status = 'active' AND g.voice_required = TRUE
+    `, [userId, guildId]);
+    return res.rows;
   },
 
   // ═══════════════════════════════════════════════
