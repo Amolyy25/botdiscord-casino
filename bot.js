@@ -35,7 +35,7 @@ const client = new Client({
 client.commands = new Collection();
 client.cooldowns = new Collection();
 const prefix = process.env.PREFIX || ";";
-const CASINO_CHAT_CHANNEL_ID = "1469713523549540536";
+const CASINO_CHAT_CHANNEL_IDS = ["1469713523549540536", "1480489172082102423"];
 
 // Load commands
 const commandFiles = fs
@@ -140,15 +140,16 @@ client.on("messageCreate", async (message) => {
     const isAdmin = message.member.permissions.has(
       PermissionFlagsBits.Administrator,
     );
-    const isCasinoChannel = message.channel.id === CASINO_CHAT_CHANNEL_ID;
+    const isCasinoChannel = CASINO_CHAT_CHANNEL_IDS.includes(message.channel.id);
 
     if (!isAdmin && !isCasinoChannel) {
       try {
         await message.delete().catch(() => {});
 
+        const channelsMention = CASINO_CHAT_CHANNEL_IDS.map(id => `<#${id}>`).join(' ou ');
         const dmEmbed = createEmbed(
           "Transformation de salon ⚠️",
-          `Merci d'utiliser les commandes du casino uniquement dans le salon <#${CASINO_CHAT_CHANNEL_ID}> pour éviter de polluer le chat général.`,
+          `Merci d'utiliser les commandes du casino uniquement dans les salons ${channelsMention} pour éviter de polluer le chat général.`,
           COLORS.ERROR,
         );
 
