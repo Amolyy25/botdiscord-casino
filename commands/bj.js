@@ -98,9 +98,7 @@ module.exports = {
 
             const embed = createEmbed('🃏 Blackjack Royale', description, color);
             
-            // Set thumbnail for a more premium look
-            embed.setThumbnail('https://i.imgur.com/Gis6bXn.png'); 
-            
+            // Set thumbnail for a more premium look            
             let footerText = `Mise: ${initialBet.toLocaleString('fr-FR')} SCoins`;
             if (gameState.status === 'finished') {
                 const totalProfit = gameState.playerHands.reduce((acc, h) => acc + h.gain, 0n);
@@ -138,18 +136,7 @@ module.exports = {
             components: getButtons()
         });
 
-        // Check for Natural Blackjack (21 on first deal)
-        if (getHandValue(gameState.playerHands[0].cards) === 21) {
-            gameState.playerHands[0].done = true;
-            gameState.playerHands[0].result = 'Blackjack! 🃏';
-            await resolveDealer();
-            return;
-        }
 
-        const collector = gameMsg.createMessageComponentCollector({ 
-            filter: i => i.user.id === message.author.id,
-            time: 120000 
-        });
 
         const resolveDealer = async () => {
             gameState.status = 'dealer_turn';
@@ -231,6 +218,19 @@ module.exports = {
                 await gameMsg.edit({ embeds: [renderEmbed()], components: getButtons() }).catch(() => null);
             }
         };
+
+        const collector = gameMsg.createMessageComponentCollector({ 
+            filter: i => i.user.id === message.author.id,
+            time: 120000 
+        });
+
+        // Check for Natural Blackjack (21 on first deal)
+        if (getHandValue(gameState.playerHands[0].cards) === 21) {
+            gameState.playerHands[0].done = true;
+            gameState.playerHands[0].result = 'Blackjack! 🃏';
+            await resolveDealer();
+            return;
+        }
 
         collector.on('collect', async i => {
             const currentHand = gameState.playerHands[gameState.activeHandIndex];
