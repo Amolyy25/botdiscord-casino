@@ -1,18 +1,22 @@
 const { Pool } = require('pg');
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  max: 50, // Increase pool size for concurrency
-  idleTimeoutMillis: 10000,
-  connectionTimeoutMillis: 10000, // Wait up to 10s for a connection
-});
+function createPoolConfig(connString, maxConns) {
+  if (!connString) return null;
+  const config = {
+    connectionString: connString,
+    max: maxConns, // Avoid exceeding connection limits on restart (serverless DB limits)
+    idleTimeoutMillis: 10000,
+    connectionTimeoutMillis: 30000, // Wait longer (30s) for cold starts
+    ssl: { rejectUnauthorized: false }, // Explicit SSL for Railway / PaaS
+    keepAlive: true, // Keep connections alive actively
+  };
+  
+  return config;
+}
 
-const snipePool = process.env.DATABASE_SNIPE ? new Pool({
-  connectionString: process.env.DATABASE_SNIPE,
-  max: 10,
-  idleTimeoutMillis: 10000,
-  connectionTimeoutMillis: 10000,
-}) : null;
+const pool = new Pool(createPoolConfig(process.env.DATABASE_URL, 15));
+const snipeCfg = createPoolConfig(process.env.DATABASE_SNIPE, 5);
+const snipePool = snipeCfg ? new Pool(snipeCfg) : null;
 
 pool.on('error', (err) => {
   console.error('[Database] Unexpected error on idle client (pool)', err.message);
@@ -26,25 +30,37 @@ if (snipePool) {
 
 const originalQuery = pool.query.bind(pool);
 pool.query = async (...args) => {
-  let retries = 15;
-  while (retries > 0) {
+  let retries = 20;
+  while (retries >= 0) {
+    let client;
     try {
-      return await originalQuery(...args);
+      // Connect specifically to test connection validity before querying
+      client = await pool.connect();
+      const res = await client.query(...args);
+      client.release();
+      return res;
     } catch (err) {
-      if ((err.code === 'ECONNRESET' ||
+      if (client) {
+         try { client.release(true); } catch(e) {} // Force reject connection from pool
+      }
+      
+      const isNetworkError = (
+           err.code === 'ECONNRESET' ||
            err.code === 'EPIPE' || 
            err.code === 'ETIMEDOUT' ||
+           err.code === 'ECONNREFUSED' ||
            err.message.includes('Connection terminated unexpectedly') ||
            err.message.includes('terminating connection') ||
            err.message.includes('socket closed') ||
-           err.message.includes('Client has encountered a connection error')) && retries > 1) {
+           err.message.includes('Client has encountered a connection error') ||
+           err.message.includes('Unexpected error on idle client')
+      );
+      
+      if (isNetworkError && retries > 0) {
         retries--;
         console.warn(`[Database] Network error ${err.code || 'unknown'}, retrying... (${retries} left)`);
         
-        // Small delay for initial retries to quickly consume/dispose bad connections in the pool,
-        // then back off to wait for a database that is actually restarting
-        const delay = retries > 5 ? 100 : 2000;
-        await new Promise(r => setTimeout(r, delay));
+        await new Promise(r => setTimeout(r, 1500));
       } else {
         throw err;
       }
