@@ -3,14 +3,14 @@ const { Pool } = require('pg');
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   max: 50, // Increase pool size for concurrency
-  idleTimeoutMillis: 30000,
+  idleTimeoutMillis: 10000,
   connectionTimeoutMillis: 10000, // Wait up to 10s for a connection
 });
 
 const snipePool = process.env.DATABASE_SNIPE ? new Pool({
   connectionString: process.env.DATABASE_SNIPE,
   max: 10,
-  idleTimeoutMillis: 30000,
+  idleTimeoutMillis: 10000,
   connectionTimeoutMillis: 10000,
 }) : null;
 
@@ -26,7 +26,7 @@ if (snipePool) {
 
 const originalQuery = pool.query.bind(pool);
 pool.query = async (...args) => {
-  let retries = 5;
+  let retries = 15;
   while (retries > 0) {
     try {
       return await originalQuery(...args);
@@ -40,7 +40,11 @@ pool.query = async (...args) => {
            err.message.includes('Client has encountered a connection error')) && retries > 1) {
         retries--;
         console.warn(`[Database] Network error ${err.code || 'unknown'}, retrying... (${retries} left)`);
-        await new Promise(r => setTimeout(r, 3000));
+        
+        // Small delay for initial retries to quickly consume/dispose bad connections in the pool,
+        // then back off to wait for a database that is actually restarting
+        const delay = retries > 5 ? 100 : 2000;
+        await new Promise(r => setTimeout(r, delay));
       } else {
         throw err;
       }
