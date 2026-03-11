@@ -96,7 +96,7 @@ module.exports = {
                 description += `### ${finalResultText}`;
             }
 
-            const embed = createEmbed('🃏 Blackjack Royale', description, color);
+            const embed = createEmbed('🃏 Blackjack', description, color);
             
             // Set thumbnail for a more premium look            
             let footerText = `Mise: ${initialBet.toLocaleString('fr-FR')} SCoins`;
@@ -167,6 +167,7 @@ module.exports = {
                     
                     hand.gain = winAmount;
                     await db.updateBalance(message.author.id, hand.bet + winAmount, 'Blackjack: Gain');
+                    if (db.incrementGameWin) await db.incrementGameWin(message.author.id, 'blackjack');
                 } else if (playerVal < dealerVal) {
                     hand.result = 'Perdu';
                     hand.gain = -hand.bet;

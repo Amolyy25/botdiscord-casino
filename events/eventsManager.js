@@ -165,7 +165,7 @@ module.exports = {
       // On ne planifie que si c'est dans le futur
       if (timestamp > now) {
         const delay = timestamp - now;
-        const timeout = setTimeout(() => module.exports.startGloryHour(client, db), delay);
+        const timeout = setTimeout(() => module.exports.startGloryHour(client, db).catch(e => console.error('[EventsManager] error:', e.message)), delay);
         scheduledTimeouts.push(timeout);
         console.log(`[Events] Glory Hour scheduled in ${Math.round(delay/1000/60)} min`);
       }
@@ -188,7 +188,7 @@ module.exports = {
         // Schedule end
         if (endTimeout) clearTimeout(endTimeout);
         endTimeout = setTimeout(() => {
-          module.exports.endGloryHour(client, db);
+          module.exports.endGloryHour(client, db).catch(e => console.error('[EventsManager] endGloryHour error:', e.message));
         }, endTime - now);
 
         // Resume Auth Control if not done yet
@@ -199,7 +199,7 @@ module.exports = {
              // On le met au milieu du temps restant ou après 15s
              const delay = Math.min(30000, remaining / 2);
              authTimeout = setTimeout(() => {
-               module.exports.triggerAuthControl(client, db);
+               module.exports.triggerAuthControl(client, db).catch(e => console.error('[EventsManager] triggerAuth error:', e.message));
              }, delay);
           }
         }
@@ -250,7 +250,7 @@ module.exports = {
 
     if (endTimeout) clearTimeout(endTimeout);
     endTimeout = setTimeout(() => {
-      module.exports.endGloryHour(client, db);
+      module.exports.endGloryHour(client, db).catch(e => console.error('[EventsManager] endGloryHour error:', e.message));
     }, duration);
 
     // 1. Événement Obligatoire : "Contrôle d'Authentification" (100% chance)
@@ -260,7 +260,7 @@ module.exports = {
     const authDelay = minDelay + Math.random() * (maxDelay - minDelay);
     
     authTimeout = setTimeout(() => {
-      module.exports.triggerAuthControl(client, db);
+      module.exports.triggerAuthControl(client, db).catch(e => console.error('[EventsManager] triggerAuth error:', e.message));
     }, authDelay);
 
     // 2. Événement Aléatoire : "Silence est d'Or / Blackout" (30% chance)
@@ -281,14 +281,14 @@ module.exports = {
     // 4. Événement Aléatoire "Hardcore" : "MAFIA RACKET" (15% chance)
     if (Math.random() <= 0.15) {
       const mafiaDelay = 60000 + Math.random() * (duration - 120000);
-      setTimeout(async () => {
+      setTimeout(() => { (async () => {
         try {
             const { startEvent } = require("./mafiaRacket");
             await startEvent(client, db, channel);
         } catch (err) {
             await logError(client, err, { filePath: 'events/eventsManager.js:mafiaDelay' });
         }
-      }, mafiaDelay);
+      })().catch(e => console.error('[EventsManager] mafia error:', e.message)); }, mafiaDelay);
     }
   },
 
@@ -434,7 +434,7 @@ module.exports = {
     let rewards = new Map();
     let maxMultiplier = 1;
 
-    blackoutInterval = setInterval(async () => {
+    blackoutInterval = setInterval(() => { (async () => {
       try {
           let currentVoiceUsers = [];
           for (const guild of client.guilds.cache.values()) {
@@ -493,7 +493,7 @@ module.exports = {
           clearInterval(blackoutInterval);
           await logError(client, err, { filePath: 'events/eventsManager.js:blackoutInterval' });
       }
-    }, 1000);
+    })().catch(e => console.error('[EventsManager] Blackout interval error:', e.message)); }, 1000);
   },
 
   triggerAuthControl: async (client, db) => {

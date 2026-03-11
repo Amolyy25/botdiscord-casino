@@ -918,9 +918,9 @@ module.exports = {
     }
 
     // ── Intervals ──
-    setInterval(checkGiveaways, 30_000);        // Check giveaways every 30s
-    setInterval(processScheduledTasks, 60_000);  // Check scheduled tasks every 60s
-    setInterval(updateActiveEmbeds, 10 * 60_000); // Update embeds every 10 minutes
+    setInterval(() => checkGiveaways().catch(e => console.error('[Giveaways] Tick error:', e.message)), 30_000);        // Check giveaways every 30s
+    setInterval(() => processScheduledTasks().catch(e => console.error('[ScheduledTasks] Tick error:', e.message)), 60_000);  // Check scheduled tasks every 60s
+    setInterval(() => updateActiveEmbeds().catch(e => console.error('[Embeds] Tick error:', e.message)), 10 * 60_000); // Update embeds every 10 minutes
 
     // ── Real-time Voice Requirement Enforcement ──
     client.on('voiceStateUpdate', async (oldState, newState) => {
@@ -939,7 +939,8 @@ module.exports = {
             // Clear existing if any
             if (voiceLeaveTimers.has(userId)) clearTimeout(voiceLeaveTimers.get(userId));
 
-            const timer = setTimeout(async () => {
+            const timer = setTimeout(() => {
+              (async () => {
               voiceLeaveTimers.delete(userId);
               
               // Check current state fresh
@@ -972,6 +973,7 @@ module.exports = {
                   } catch (dmErr) {}
                 }
               }
+              })().catch(e => console.error('[GiveawayManager] Voice timer error:', e.message));
             }, 30_000);
 
             voiceLeaveTimers.set(userId, timer);

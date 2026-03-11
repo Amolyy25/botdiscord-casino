@@ -235,11 +235,13 @@ function handleUserVoiceState(member, voiceState, db) {
 }
 
 function startResetTimer(userId, db) {
-    const timeout = setTimeout(async () => {
-        console.log(`[VoiceRewards] Temps écoulé (30s) : Session supprimée pour ${userId}`);
-        activeSessions.delete(userId);
-        pendingResets.delete(userId);
-        await db.deleteVoiceSession(userId).catch(err => logError(null, err, { filePath: 'events/voiceRewards.js:deleteSession' }));
+    const timeout = setTimeout(() => {
+        (async () => {
+            console.log(`[VoiceRewards] Temps écoulé (30s) : Session supprimée pour ${userId}`);
+            activeSessions.delete(userId);
+            pendingResets.delete(userId);
+            await db.deleteVoiceSession(userId).catch(err => logError(null, err, { filePath: 'events/voiceRewards.js:deleteSession' }));
+        })().catch(e => console.error('[VoiceRewards] Timer error:', e.message));
     }, 30000); // 30 seconds
     
     pendingResets.set(userId, timeout);

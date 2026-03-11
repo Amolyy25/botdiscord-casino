@@ -101,7 +101,7 @@ module.exports = {
         }
 
         // ── Interval régulier ──
-        setInterval(checkExpirations, 2 * 60 * 1000);
+        setInterval(() => checkExpirations().catch(e => console.error('[RoleExpiration] Interval error:', e.message)), 2 * 60 * 1000);
 
         console.log('[RoleExpiration] Systeme initialise ・ check toutes les 2min ・ persistence DB active');
     }

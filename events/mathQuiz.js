@@ -99,7 +99,7 @@ async function loadAndScheduleEvents(client, db) {
     times.forEach(timestamp => {
         if (timestamp > now) {
             const delay = timestamp - now;
-            const timeout = setTimeout(() => startQuiz(client, db), delay);
+            const timeout = setTimeout(() => startQuiz(client, db).catch(e => console.error('[MathQuiz] quiz error:', e.message)), delay);
             scheduledTimeouts.push(timeout);
             pendingCount++;
         }
