@@ -26,19 +26,21 @@ if (snipePool) {
 
 const originalQuery = pool.query.bind(pool);
 pool.query = async (...args) => {
-  let retries = 3;
+  let retries = 5;
   while (retries > 0) {
     try {
       return await originalQuery(...args);
     } catch (err) {
       if ((err.code === 'ECONNRESET' ||
+           err.code === 'EPIPE' || 
+           err.code === 'ETIMEDOUT' ||
            err.message.includes('Connection terminated unexpectedly') ||
            err.message.includes('terminating connection') ||
            err.message.includes('socket closed') ||
            err.message.includes('Client has encountered a connection error')) && retries > 1) {
         retries--;
         console.warn(`[Database] Network error ${err.code || 'unknown'}, retrying... (${retries} left)`);
-        await new Promise(r => setTimeout(r, 1500));
+        await new Promise(r => setTimeout(r, 3000));
       } else {
         throw err;
       }
